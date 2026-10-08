@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.4] - 2026-10-09
+
+### Fixed
+- **Critical: `common` package missing from wheel** — `common*` was absent from `[tool.setuptools.packages.find]`, causing `ModuleNotFoundError: No module named 'common'` on every fresh install.
+- **Critical: JSON data files not bundled** — Added `[tool.setuptools.package-data]` so `config/settings.json` and `config/device_profile.json` are included in the wheel and accessible at runtime.
+- **Classifier corrected** — Changed `Development Status :: 5 - Production/Stable` → `4 - Beta` to accurately reflect the project's current maturity.
+
+---
+
 ## [2.0.3] - 2026-10-09
+
 
 ### Added
 - **Project Metadata & Registry URLs**: Added official repository links (`Homepage`, `Documentation`, `Repository`, and `Bug Tracker`) to `pyproject.toml` for seamless GitHub and PyPI integration.

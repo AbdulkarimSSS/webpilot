@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webpilot-engine"
-version = "2.0.3"
+version = "2.0.4"
 description = "WebPilot: Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime"
 readme = "README.md"
 authors = [
@@ -27,7 +27,7 @@ keywords = [
     "process-isolation"
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Testing",
     "Topic :: Internet :: WWW/HTTP :: Browsers",
@@ -76,7 +76,10 @@ py-modules = ["cli", "mcp_server", "engine", "builder", "models", "exceptions"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["adapters*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*"]
+include = ["adapters*", "common*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*"]
+
+[tool.setuptools.package-data]
+config = ["*.json"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
