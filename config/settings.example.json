@@ -1,0 +1,12 @@
+{
+  "headless": true,
+  "default_timeout_ms": 45000,
+  "form_ready_timeout_ms": 10000,
+  "submission_wait_ms": 8000,
+  "expand_section_wait_ms": 800,
+  "screenshots_dir": "screenshots",
+  "cookies_path": null,
+  "data_path": null,
+  "proxy": null,
+  "geolocation": null
+}

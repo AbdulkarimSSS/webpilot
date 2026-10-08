@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Playwright & Browsers
+.live_browser_profile/
+.test_chrome_dir/
+.chrome_data/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs & Runtime telemetry
+*.log
+master_daemon.log
+
+# Temporary test artifacts & cookies
+*.png
+!assets/*.png
+alfanar_cookies.json
+session_cookies.json
+alfanar_*.json
+selenium_*.png
+heroku_*.png
+step*.png
+dynamic_loading_tested.png
+modal_dismissed_tested.png
+post_login_state.png
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Secrets & Environment variables
+.env
+!.env.example

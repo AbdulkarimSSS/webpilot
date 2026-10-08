@@ -1,0 +1,85 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webpilot-engine"
+version = "2.0.3"
+description = "WebPilot: Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime"
+readme = "README.md"
+authors = [
+    { name = "Abdulkarim Salih" },
+    { name = "WebPilot Core Team" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.10"
+keywords = [
+    "webpilot",
+    "browser-runtime",
+    "ai-agent",
+    "web-automation",
+    "playwright",
+    "form-filler",
+    "ats-automation",
+    "sap-successfactors",
+    "workday",
+    "browser-supervisor",
+    "process-isolation"
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Internet :: WWW/HTTP :: Browsers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+
+[project.urls]
+Homepage = "https://github.com/AbdulkarimSSS/webpilot"
+Documentation = "https://github.com/AbdulkarimSSS/webpilot#readme"
+Repository = "https://github.com/AbdulkarimSSS/webpilot.git"
+"Bug Tracker" = "https://github.com/AbdulkarimSSS/webpilot/issues"
+Changelog = "https://github.com/AbdulkarimSSS/webpilot/blob/master/CHANGELOG.md"
+dependencies = [
+    "playwright>=1.40.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "Faker>=24.0.0",
+]
+mcp = [
+    "mcp>=1.0.0",
+]
+
+[project.scripts]
+webpilot = "cli:main"
+wp = "cli:main"
+webpilot-mcp = "mcp_server:main"
+universal-applier = "cli:main"
+uapply = "cli:main"
+
+[tool.setuptools]
+py-modules = ["cli", "mcp_server", "engine", "builder", "models", "exceptions"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["adapters*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "strict"

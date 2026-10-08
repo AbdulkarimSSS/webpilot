@@ -1,0 +1,17 @@
+{
+  "device_name": "Desktop Chrome Standard",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36",
+  "viewport": {
+    "width": 1400,
+    "height": 1100
+  },
+  "device_scale_factor": 1.0,
+  "is_mobile": false,
+  "has_touch": false,
+  "locale": "en-US",
+  "timezone_id": "UTC",
+  "geolocation": null,
+  "permissions": [],
+  "platform": "Win32",
+  "vendor": "Google Inc."
+}

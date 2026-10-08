@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "webpilot": {
+      "command": "python",
+      "args": [
+        "-m",
+        "mcp_server"
+      ],
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}
