@@ -253,15 +253,10 @@ class BrowserAdapter(BrowserAdapterProtocol):
                 args=["--disable-blink-features=AutomationControlled"],
             )
             try:
-                if sys.platform == "win32":
-                    ps_c = f'(Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq {os.getpid()} }}).ProcessId | Select-Object -First 1'
-                    out = subprocess.check_output(["powershell", "-NoProfile", "-Command", ps_c], text=True).strip()
-                    if out.isdigit():
-                        self.browser_pid = int(out)
-                else:
-                    out = subprocess.check_output(["pgrep", "-P", str(os.getpid())], text=True).strip().split()
-                    if out and out[0].isdigit():
-                        self.browser_pid = int(out[0])
+                from common.process_manager import get_process_manager
+                children = get_process_manager().get_child_pids(os.getpid())
+                if children:
+                    self.browser_pid = children[0]
             except Exception:
                 pass
 

@@ -21,11 +21,19 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from supervisor.contracts import SupervisorActionRequest, SupervisorActionResponse
+from supervisor.security import (
+    generate_supervisor_token,
+    save_supervisor_token,
+    remove_supervisor_token,
+    validate_supervisor_token,
+)
+from common.process_manager import get_process_manager
 
 DEFAULT_SUPERVISOR_HOST: str = "127.0.0.1"
 DEFAULT_SUPERVISOR_PORT: int = 9333
 DEFAULT_INACTIVITY_TIMEOUT_SECONDS: int = 1800  # 30 minutes
 LOG_FILE: str = os.path.join(PROJECT_ROOT, "master_daemon.log")
+
 
 
 class LogWriter:
@@ -63,10 +71,14 @@ class MasterSupervisor:
         host: str = DEFAULT_SUPERVISOR_HOST,
         port: int = DEFAULT_SUPERVISOR_PORT,
         inactivity_timeout_seconds: int = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
+        token: Optional[str] = None,
     ):
         self.host = host
         self.port = port
         self.inactivity_timeout_seconds = inactivity_timeout_seconds
+        self.token: str = token or os.environ.get("WEBPILOT_SUPERVISOR_TOKEN") or generate_supervisor_token()
+        save_supervisor_token(self.token)
+
         self.worker_process: Optional[subprocess.Popen] = None
         self.last_active_time: float = time.time()
         self.lock = threading.Lock()
@@ -87,6 +99,9 @@ class MasterSupervisor:
                     worker_cmd = [sys.executable, "-m", "supervisor.worker_process"]
                     worker_cwd = PROJECT_ROOT
 
+                worker_env = os.environ.copy()
+                worker_env["WEBPILOT_SUPERVISOR_TOKEN"] = self.token
+
                 popen_kwargs: Dict[str, Any] = {
                     "stdin": subprocess.PIPE,
                     "stdout": subprocess.PIPE,
@@ -94,6 +109,7 @@ class MasterSupervisor:
                     "text": True,
                     "bufsize": 1,
                     "cwd": worker_cwd,
+                    "env": worker_env,
                 }
                 if sys.platform != "win32":
                     popen_kwargs["start_new_session"] = True
@@ -164,6 +180,8 @@ class MasterSupervisor:
             old_pid = self.worker_process.pid if self.worker_process else None
             self.terminate_worker()
             # Spawn fresh Worker
+            worker_env = os.environ.copy()
+            worker_env["WEBPILOT_SUPERVISOR_TOKEN"] = self.token
             new_worker = subprocess.Popen(
                 [sys.executable, "-m", "supervisor.worker_process"],
                 stdin=subprocess.PIPE,
@@ -172,6 +190,7 @@ class MasterSupervisor:
                 text=True,
                 bufsize=1,
                 cwd=PROJECT_ROOT,
+                env=worker_env,
             )
             self.worker_process = new_worker
             self.last_active_time = time.time()
@@ -184,25 +203,11 @@ class MasterSupervisor:
         )
 
     def terminate_worker(self) -> None:
-        """Forcefully kills the Layer 2 Worker process tree."""
+        """Forcefully kills the Layer 2 Worker process tree via ProcessManager."""
         proc = self.worker_process
         self.worker_process = None
         if proc and proc.poll() is None:
-            try:
-                if sys.platform == "win32":
-                    subprocess.run(
-                        ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                else:
-                    try:
-                        import signal
-                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                    except Exception:
-                        proc.kill()
-            except Exception:
-                pass
+            get_process_manager().kill_process_tree(proc.pid, force=True)
 
     def get_status(self) -> Dict[str, Any]:
         """Returns telemetry for Supervisor and Worker."""
@@ -244,7 +249,24 @@ def create_supervisor_handler(supervisor: MasterSupervisor):
             self.end_headers()
             self.wfile.write(body)
 
+        def _authenticate(self) -> bool:
+            """Validates incoming HTTP request against the supervisor's secure token."""
+            header_token = self.headers.get("X-Supervisor-Token") or self.headers.get("Authorization")
+            if not validate_supervisor_token(header_token, supervisor.token):
+                self._send_json(
+                    401,
+                    {
+                        "success": False,
+                        "error": "Unauthorized: Invalid or missing supervisor authentication token.",
+                    },
+                )
+                return False
+            return True
+
         def do_GET(self):
+            if not self._authenticate():
+                return
+
             if self.path == "/ping":
                 self._send_json(200, {"status": "ok", "supervisor_pid": os.getpid()})
             elif self.path == "/status":
@@ -254,6 +276,9 @@ def create_supervisor_handler(supervisor: MasterSupervisor):
                 self._send_json(404, {"error": "Not Found"})
 
         def do_POST(self):
+            if not self._authenticate():
+                return
+
             content_length = int(self.headers.get("Content-Length", 0))
             raw_body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
 
@@ -301,6 +326,7 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT):
             supervisor.terminate_worker()
         except Exception:
             pass
+        remove_supervisor_token()
         log_daemon("Master Supervisor stopped.")
         print("[*] Master Supervisor stopped.")
 
@@ -308,3 +334,4 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SUPERVISOR_PORT
     run_master_daemon(port=port)
+

@@ -34,7 +34,17 @@ class FormPayloadBuilder:
 
     @staticmethod
     def load_from_file(filepath: str) -> List[Tuple[str, Any]]:
-        """Load field key-value pairs from an external JSON file."""
+        """Load field key-value pairs from an external JSON file or stdin ('-' or '@stdin')."""
+        import sys
+        from common.secrets import resolve_secret_value
+
+        if filepath in ("-", "@stdin"):
+            try:
+                raw_data = json.load(sys.stdin)
+            except Exception as exc:
+                raise ValidationError(f"Invalid JSON read from standard input: {exc}") from exc
+            return FormPayloadBuilder.normalize_payload(raw_data)
+
         if not os.path.isfile(filepath):
             raise ConfigurationError(f"Form payload data file not found: {filepath}")
 
@@ -48,18 +58,21 @@ class FormPayloadBuilder:
 
     @staticmethod
     def normalize_payload(raw_data: Union[Dict[str, Any], List[Any]]) -> List[Tuple[str, Any]]:
-        """Normalizes dict or list structures into a clean list of (field, value) pairs."""
+        """Normalizes dict or list structures into a clean list of (field, value) pairs and resolves secrets."""
+        from common.secrets import resolve_secret_value
+
         fields: List[Tuple[str, Any]] = []
 
         if isinstance(raw_data, dict):
             for k, v in raw_data.items():
-                fields.append((str(k), v))
+                fields.append((str(k), resolve_secret_value(v, prompt_label=str(k))))
         elif isinstance(raw_data, list):
             for item in raw_data:
                 if isinstance(item, (list, tuple)) and len(item) == 2:
-                    fields.append((str(item[0]), item[1]))
+                    fields.append((str(item[0]), resolve_secret_value(item[1], prompt_label=str(item[0]))))
                 elif isinstance(item, dict) and "key" in item and "value" in item:
-                    fields.append((str(item["key"]), item["value"]))
+                    k = str(item["key"])
+                    fields.append((k, resolve_secret_value(item["value"], prompt_label=k)))
                 else:
                     raise ValidationError(f"Unrecognized payload entry structure: {item}")
         else:
@@ -68,16 +81,8 @@ class FormPayloadBuilder:
         return fields
 
     @staticmethod
-    def parse_cli_fill_arguments(fill_args: Optional[List[str]]) -> List[Tuple[str, str]]:
-        """Parses CLI --fill 'key=value' arguments into key-value pairs."""
-        if not fill_args:
-            return []
+    def parse_cli_fill_arguments(fill_args: Optional[List[str]]) -> List[Tuple[str, Any]]:
+        """Parses CLI --fill arguments into key-value pairs and resolves secrets (@env, @stdin, @file)."""
+        from common.secrets import parse_and_resolve_fill_args
+        return parse_and_resolve_fill_args(fill_args)
 
-        parsed: List[Tuple[str, str]] = []
-        for item in fill_args:
-            if "=" in item:
-                k, v = item.split("=", 1)
-                parsed.append((k.strip(), v.strip()))
-            else:
-                raise ValidationError(f"Invalid fill argument format: '{item}' (Expected 'key=value')")
-        return parsed

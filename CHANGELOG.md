@@ -5,6 +5,21 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2026-10-09
+
+### Security & Hardening
+- **Supervisor Token Authentication**: Generated 256-bit cryptographically secure random authentication token at startup, persisted strictly with owner-only access permissions (`chmod 0600` on POSIX, inheritance-stripped user ACL on Windows) in `~/.webpilot/supervisor.token`.
+- **HTTP Endpoint Protection**: Every incoming HTTP request (`/execute`, `/restart`, `/stop`, `/status`, `/ping`) requires valid `X-Supervisor-Token` or `Authorization: Bearer` headers; unauthorized calls are rejected immediately with HTTP 401, securing logged-in browser sessions against local process hijacking.
+- **Secrets Hygiene & History Protection**: Added native support for `--fill "field=@env:VAR"`, `--fill "field=@stdin"`, and `--fill "field=@file:PATH"`, eliminating plain-text passwords and credentials from shell history and process args. Also added support for streaming JSON payloads via stdin (`--data -`).
+
+### Architecture & Portability
+- **ProcessManager Abstraction**: Encapsulated all OS-specific process lifecycle logic behind `BaseProcessManager`, decoupling Windows WMI/CIM/taskkill and POSIX setsid/killpg/pgrep behind a unified interface with full testability and mock injection.
+- **Cross-Platform Enterprise Portability**: Tested and verified native headless execution on Linux, macOS, and Windows.
+
+### Testing & Verification
+- **Enterprise Portal Mock Fixture & CI Integration Suite**: Added `tests/fixtures/enterprise_portal.html` and `test_enterprise_integration.py` simulating real-world SAP SuccessFactors and Workday portals (async loading spinners, modal policy dialogs, complex picklist comboboxes, and form submissions).
+- **Expanded Test Suite**: Increased automated test coverage from 37 to 50 passing unit and integration tests.
+
 ---
 
 ## [2.0.4] - 2026-10-09

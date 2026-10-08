@@ -116,11 +116,29 @@ def apply_cmd(args: argparse.Namespace) -> None:
     """Executes the universal form filling and submission workflow."""
     auto_inspect = not getattr(args, "no_auto_inspect", False)
 
+    from common.secrets import parse_and_resolve_fill_args
+    from builder import FormPayloadBuilder
+
+    raw_fill_args = args.fill or []
+    resolved_pairs = parse_and_resolve_fill_args(raw_fill_args)
+    effective_fill_args = [f"{k}={v}" for k, v in resolved_pairs]
+
+    effective_data_path = args.data
+    if args.data in ("-", "@stdin"):
+        try:
+            stdin_json = json.load(sys.stdin)
+            stdin_pairs = FormPayloadBuilder.normalize_payload(stdin_json)
+            effective_fill_args.extend([f"{k}={v}" for k, v in stdin_pairs])
+            effective_data_path = None
+        except Exception as exc:
+            print(f"[!] Error reading JSON payload from stdin: {exc}", file=sys.stderr)
+            sys.exit(1)
+
     if getattr(args, "standalone", False):
         req = ApplyRequestContext(
             url=args.url,
-            data_path=args.data,
-            fill_arguments=args.fill or [],
+            data_path=effective_data_path,
+            fill_arguments=effective_fill_args,
             press_buttons=args.press or [],
             upload_files=args.upload or [],
             cookies_path=args.cookies,
@@ -165,8 +183,8 @@ def apply_cmd(args: argparse.Namespace) -> None:
     req = SupervisorActionRequest(
         action="apply",
         url=args.url,
-        data_path=args.data,
-        fill_arguments=args.fill or [],
+        data_path=effective_data_path,
+        fill_arguments=effective_fill_args,
         press_buttons=args.press or [],
         upload_files=args.upload or [],
         cookies_path=args.cookies,

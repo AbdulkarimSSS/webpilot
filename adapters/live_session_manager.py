@@ -124,16 +124,8 @@ class LiveSessionManager:
         pid = state.get("pid")
         if pid:
             try:
-                # Terminate on Windows
-                if sys.platform == "win32":
-                    subprocess.run(
-                        ["taskkill", "/F", "/T", "/PID", str(pid)],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                else:
-                    os.kill(pid, 9)
-                return True
+                from common.process_manager import get_process_manager
+                return get_process_manager().kill_process_tree(pid, force=True)
             except Exception:
                 pass
         return False
@@ -267,62 +259,23 @@ class LiveSessionManager:
     @classmethod
     def _launch_wmi_process(cls, cmd_str: str, cwd: Optional[str] = None) -> Optional[int]:
         """Launches a detached process via Windows WMI outside any parent Job Object."""
+        from common.process_manager import get_process_manager
         working_dir = cwd or PROJECT_ROOT
-        ps_script = f"""
-$startup = ([wmiclass]"Win32_ProcessStartup").CreateInstance()
-$startup.ShowWindow = 0
-$proc = ([wmiclass]"Win32_Process").Create(@'
-{cmd_str}
-'@, $null, $startup)
-if ($proc.ReturnValue -eq 0) {{
-    Write-Output $proc.ProcessId
-}} else {{
-    exit 1
-}}
-"""
-        try:
-            encoded = base64.b64encode(ps_script.encode("utf-16le")).decode("ascii")
-            res = subprocess.run(
-                ["powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            out = res.stdout.strip()
-            if res.returncode == 0 and out.isdigit():
-                return int(out)
-            else:
-                print(f"[!] WMI launch non-zero/non-digit: code={res.returncode}, out='{out}', err='{res.stderr.strip()}'")
-        except Exception as exc:
-            print(f"[!] WMI launch exception: {exc}")
-        return None
+        return get_process_manager().launch_detached(cmd_str, cwd=working_dir)
 
     @classmethod
     def _spawn_watchdog_supervisor(cls, browser_pid: int, port: int, timeout_seconds: int) -> None:
         """Launches a lightweight detached background watchdog to terminate idle browser."""
-        watchdog_cmd = f'"{sys.executable}" -m adapters.live_session_manager {browser_pid} {port} {timeout_seconds}'
-
-        if sys.platform == "win32":
-            wmi_pid = cls._launch_wmi_process(watchdog_cmd)
-            if wmi_pid is not None:
-                return
-
-        popen_kwargs: Dict[str, Any] = {
-            "stdout": subprocess.DEVNULL,
-            "stderr": subprocess.DEVNULL,
-        }
-        if sys.platform == "win32":
-            popen_kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-        else:
-            popen_kwargs["start_new_session"] = True
-
-        try:
-            subprocess.Popen(
-                [sys.executable, "-m", "adapters.live_session_manager", str(browser_pid), str(port), str(timeout_seconds)],
-                **popen_kwargs,
-            )
-        except Exception:
-            pass
+        from common.process_manager import get_process_manager
+        watchdog_cmd = [
+            sys.executable,
+            "-m",
+            "adapters.live_session_manager",
+            str(browser_pid),
+            str(port),
+            str(timeout_seconds),
+        ]
+        get_process_manager().launch_detached(watchdog_cmd, cwd=PROJECT_ROOT)
 
 
 if __name__ == "__main__":
