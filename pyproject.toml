@@ -61,7 +61,7 @@ dev = [
     "Faker>=24.0.0",
 ]
 mcp = [
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2",
 ]
 
 [project.scripts]

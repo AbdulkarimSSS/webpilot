@@ -30,9 +30,13 @@ jobs:
           pip install -r requirements.txt
           pip install -e .[dev,mcp]
 
-      - name: Install Playwright Browsers
-        run: |
-          playwright install --with-deps chromium
+      - name: Install Playwright Browsers (Linux)
+        if: runner.os == 'Linux'
+        run: playwright install --with-deps chromium
+
+      - name: Install Playwright Browsers (Windows)
+        if: runner.os == 'Windows'
+        run: playwright install chromium
 
       - name: Run Test Suite
         run: |
