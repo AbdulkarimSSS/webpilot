@@ -210,13 +210,16 @@ class LiveSessionManager:
             time.sleep(0.2)
 
         if not active:
-            if sys.platform == "win32" and proc_pid:
+            if proc_pid:
                 try:
-                    subprocess.run(
-                        ["taskkill", "/F", "/T", "/PID", str(proc_pid)],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
+                    if sys.platform == "win32":
+                        subprocess.run(
+                            ["taskkill", "/F", "/T", "/PID", str(proc_pid)],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                    else:
+                        os.kill(proc_pid, 9)
                 except Exception:
                     pass
             raise RuntimeError(f"Chromium failed to open CDP port {port} within 5 seconds.")

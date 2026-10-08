@@ -111,7 +111,7 @@ def run_interactive_shell(host: str = "127.0.0.1", port: int = 9333):
 
         elif cmd == "upload":
             if not arg:
-                print("[!] Error: upload path required, e.g. upload resume=C:/cv.pdf")
+                print("[!] Error: upload path required, e.g. upload resume=path/to/cv.pdf")
                 continue
             req = SupervisorActionRequest(action="apply", upload_files=[arg.strip()])
             res = client.execute(req)
