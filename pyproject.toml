@@ -40,6 +40,10 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
 ]
+dependencies = [
+    "playwright>=1.40.0",
+    "python-dotenv>=1.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/AbdulkarimSSS/webpilot"
@@ -47,10 +51,6 @@ Documentation = "https://github.com/AbdulkarimSSS/webpilot#readme"
 Repository = "https://github.com/AbdulkarimSSS/webpilot.git"
 "Bug Tracker" = "https://github.com/AbdulkarimSSS/webpilot/issues"
 Changelog = "https://github.com/AbdulkarimSSS/webpilot/blob/master/CHANGELOG.md"
-dependencies = [
-    "playwright>=1.40.0",
-    "python-dotenv>=1.0.0",
-]
 
 [project.optional-dependencies]
 dev = [

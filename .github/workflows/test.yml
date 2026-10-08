@@ -30,6 +30,10 @@ jobs:
           pip install -r requirements.txt
           pip install -e .[dev,mcp]
 
+      - name: Install Playwright Browsers
+        run: |
+          playwright install --with-deps chromium
+
       - name: Run Test Suite
         run: |
           python -m pytest tests/
