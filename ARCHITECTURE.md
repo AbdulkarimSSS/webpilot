@@ -141,28 +141,24 @@ flowchart TD
 
 ---
 
-## 6. Modal Trap & Focus Lock Escape Pipeline
+## 6. Modal Trap & Reactive Interaction Pipeline
 
-When a page forces an interaction trap (such as a modal window with a dark backdrop blocking pointer interactions or an aggressive dropdown):
+When a page presents a modal dialog, confirmation overlay, or interactive trap, WebPilot uses a non-destructive, interaction-only cascade across 4 sequential strategies in `reactive_interaction_service.py` without mutating or altering the target DOM:
 
-1. **Stage 1 (Natural Selection)**:
-   The engine attempts to click the requested target (`match.click()`) which naturally dismisses the modal.
-2. **Stage 2 (Keyboard Escape Protocol - W3C WAI-ARIA)**:
-   If the target is an escape action (`close`, `dismiss`, `cancel`, `escape`), or if the target element cannot be clicked, the engine sends a physical keyboard event:
+1. **Strategy A (Native ID Locator)**:
+   Attempts a targeted click using normalized element ID (`#clean_id`).
+2. **Strategy B (Native Text & ARIA Role Cascade)**:
+   Evaluates visible candidate elements across semantic role and text selectors (`button:has-text`, `[role='button']`, `.modal-footer p`, `input[type='button']`, `span:has-text`).
+3. **Strategy C (JavaScript In-DOM Click Fallback)**:
+   Dispatches a direct in-page click event via `CLICK_BUTTON_DOM_SCRIPT` if Playwright actionability checks are obstructed by layout overlays.
+4. **Strategy D (W3C WAI-ARIA Keyboard Escape Protocol)**:
+   If the target represents a dismissal action (`close`, `dismiss`, `cancel`, `escape`) or cannot be clicked directly, dispatches a physical keyboard event:
    ```python
    self.page.keyboard.press("Escape")
    ```
-   Under WAI-ARIA standards, all compliant modal dialogs and dropdown menus listen for `Escape` to dismiss themselves.
-3. **Stage 3 (Backdrop / Click-Outside)**:
-   Simulates mouse clicks on coordinate `(0, 0)` or on `.modal-backdrop`, `.underlay`, or `body` to trigger blur and click-outside dismissal handlers.
-4. **Stage 4 (DOM Surgical Override)**:
-   If poorly programmed websites freeze pointer events via inline CSS:
-   ```javascript
-   document.body.style.pointerEvents = 'auto';
-   document.body.style.overflow = 'auto';
-   document.querySelectorAll('.modal-backdrop, [class*="backdrop"]').forEach(el => el.remove());
-   ```
-   This completely neutralizes the modal overlay and unlocks the entire page for standard DOM interactions.
+   Under W3C WAI-ARIA accessibility standards, compliant modal dialogs and dropdown menus listen for `Escape` to dismiss overlays and release the focus trap cleanly.
+
+> **Design Note on DOM Integrity**: WebPilot strictly adheres to a non-destructive execution model (Read, Fill, Click). It intentionally avoids removing backdrop DOM elements or modifying inline CSS styles (`pointer-events`, `overflow`), ensuring that single-page application (SPA) state machines and anti-bot verification scripts remain completely untampered.
 
 ---
 

@@ -173,7 +173,7 @@
   - رصد النوافذ والتبويبات الجديدة المنبثقة والتحول إليها تلقائياً (`[🌐 New Window]`).
   - رصد توسع النماذج الديناميكية والقوائم الأكورديونية (`[📋 Dynamic Form Expansion]`).
   - **مذيب حواجب الانتظار (Loader Dissolution)**: الانتظار التلقائي حتى اختفاء حواجب التحميل (`#loading`, `.sapUiBusy`, `[aria-busy="true"]`).
-  - **سلسلة فك احتجاز الماوس (Modal Escape Pipeline)**: معالجة النوافذ المنبثقة عبر 4 مراحل ذكية (اختيار طبيعي $\leftarrow$ زر Escape $\leftarrow$ نقر الخلفية $\leftarrow$ التجاوز الجراحي).
+  - **سلسلة التفاعل التكيفي وحل النوافذ (Modal Interaction Pipeline)**: معالجة النوافذ ومربعات الحوار عبر 4 استراتيجيات تفاعلية آمنة (المعرف المباشر $\leftarrow$ فئات ARIA/Text $\leftarrow$ النقر المباشر عبر JS $\leftarrow$ بروتوكول Escape القياسي) دون تعديل بنية الـ DOM.
 
 ### 📄 `services/auth_navigation_service.py`
 - **الوظيفة والقيمة**: إدارة التنقل وبوابات التوظيف المؤسسية المعقدة (مثل بوابات SAP SuccessFactors و Workday).

@@ -86,6 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Detection and seamless switching to newly spawned browser windows.
   - Detection of dynamic form accordion expansions.
 - **Dynamic Loader Dissolution**: Automatic wait-and-dissolve handling for global page loaders (`#loading`, `.sapUiBusy`, `[aria-busy="true"]`).
-- **4-Stage Modal & Pointer Escape Pipeline**: Natural selection -> Escape key -> Backdrop click -> Surgical DOM removal.
+- **4-Strategy Reactive Interaction Pipeline**: Non-destructive interaction cascade (Native ID -> ARIA Role/Text -> JS In-DOM Click -> W3C Escape Key Protocol) preserving DOM integrity.
 - **Interactive REPL Shell**: Sub-second automation shell (`wp shell`) with live DOM inspection and tab navigation.
 - **Inactivity Watchdog**: Automatic 30-minute idle watchdog to release 100% of browser memory.

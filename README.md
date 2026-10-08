@@ -64,8 +64,8 @@ To solve the fundamental Windows OS limitation where terminal and subshell runne
 - **Dynamic Loader Dissolution**:
   - Automatically identifies global blocking overlays (`#loading`, `.sapUiBusy`, `.busyIndicator`, `.modal-backdrop`, `[aria-busy="true"]`) and waits dynamically for their dissolution (`state="hidden"`).
   - Distinguishes between global page-blocking veils and local dropdown loaders.
-- **Modal & Pointer Trap Escape Pipeline**:
-  - Resolves modal popups and pointer-locked elements using a 4-stage pipeline: Natural Selection -> Keyboard `Escape` -> Backdrop Click -> DOM Surgical Removal.
+- **Modal & Reactive Interaction Pipeline**:
+  - Resolves modal popups and interactive dialogs using a 4-strategy non-destructive cascade: Native ID -> ARIA Role/Text Cascade -> JS In-DOM Click -> W3C `Escape` Key Protocol, preserving full DOM integrity.
 - **Enterprise Picklist Auto-scrolling**:
   - Intelligent scrolling algorithm for virtualized dropdowns (such as SAP picklists with `aria-owns` and scroll containers).
 - **Interactive REPL Shell (`shell`)**:
