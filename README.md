@@ -7,13 +7,13 @@
 [![Tests Passing](https://img.shields.io/badge/tests-27%2F27%20passing-brightgreen.svg)](#-testing--verification)
 [![CLI](https://img.shields.io/badge/cli-webpilot%20%7C%20wp-6f42c1.svg)](#-quick-start-guide)
 
-An enterprise-grade, general-purpose autonomous browser engine and AI agent web runtime designed to inspect, interact with, fill, and operate any website, complex Single-Page Application (SPA), or enterprise portal (such as **SAP SuccessFactors**, **Workday**, **Greenhouse**, **Oracle Taleo**, and modern web apps) with zero site-specific selectors or hardcoding.
+An enterprise-grade, general-purpose autonomous browser engine and AI agent web runtime designed to inspect, interact with, fill, and operate complex web applications, modern single-page apps (SPAs), and enterprise ATS widget patterns (SAP-like and Workday-like picklists, custom comboboxes, tables, and modal workflows) with zero site-specific selectors or hardcoding.
 
 ---
 
 ## 🏗️ 3-Tier Multi-Process Architecture
 
-To solve the fundamental Windows OS limitation where terminal and subshell runners terminate background child processes upon exit (Windows Job Object `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`), WebPilot implements an elevated-resilient **Zero-Elevation Three-Tier Process Architecture**:
+To solve the fundamental OS limitation where terminal and subshell runners terminate background child processes upon exit (Windows Job Object `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`), WebPilot implements an elevated-resilient **Zero-Elevation Three-Tier Process Architecture**:
 
 ```
  ┌──────────────────────────────────────────────────────────────┐
@@ -25,7 +25,7 @@ To solve the fundamental Windows OS limitation where terminal and subshell runne
  │         Layer 1: Master Supervisor Host (Daemon)             │
  │   • Zero Playwright Imports (~15 MB RAM)                     │
  │   • 30-Minute Inactivity Watchdog (Automatic RAM release)    │
- │   • Windows WMI Zero-Touch Auto-Spawn (Session 0 Breakout)   │
+ │   • Detached Background Auto-Spawn via ProcessManager        │
  └──────────────────────────────┬───────────────────────────────┘
                                 │ stdin / stdout (Isolated JSON-RPC)
                                 ▼
@@ -40,14 +40,14 @@ To solve the fundamental Windows OS limitation where terminal and subshell runne
  ┌──────────────────────────────────────────────────────────────┐
  │              Layer 3: Chromium Browser Engine                │
  │   • Chromium Main Process + GPU + Renderers                  │
- │   • Immediate Cascading Kill (taskkill /F /T /PID)           │
+ │   • Cross-Platform Cascading Kill (ProcessManager)           │
  └──────────────────────────────────────────────────────────────┘
 ```
 
 ### ⚡ Key Architectural Advantages:
 1. **Persistent Browser Session Across CLI Calls**: Run step-by-step sequential commands (`open` -> `fill username` -> `fill password` -> `press submit`) without restarting the browser or losing active DOM state.
 2. **Zero-Elevation / Standard User Mode**: Runs 100% as a standard, unprivileged user. **Zero administrative or UAC prompts required** (no `asudo` or Administrator escalation).
-3. **Cascading Kill & Instant Self-Healing**: Terminating Layer 2 via `taskkill /F /T /PID` instantly eliminates all child Chromium processes with **zero zombie leaks**. Layer 1 survives and automatically respawns a clean Layer 2 in **~300ms**.
+3. **Cascading Kill & Instant Self-Healing**: Terminating Layer 2 via `ProcessManager` instantly eliminates all child Chromium processes with **zero zombie leaks**. Layer 1 survives and automatically respawns a clean Layer 2 in **~300ms**.
 4. **30-Minute Watchdog Supervisor**: Automatically reclaims 100% of browser memory if the session remains idle for 30 minutes.
 
 ---

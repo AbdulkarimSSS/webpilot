@@ -21,6 +21,7 @@ if PROJECT_ROOT not in sys.path:
 from adapters.browser_adapter import BrowserAdapter
 from adapters.upload_adapter import UploadAdapter
 from common.cookies import save_cookies
+from common.logging import is_sensitive_key
 from builder import FormPayloadBuilder
 from config.settings import get_settings, load_device_profile
 from core.models import DeviceProfile
@@ -259,24 +260,20 @@ class OperationalWorker:
         if fields_to_set:
             lines.append(f"[*] Populating {len(fields_to_set)} field(s)...")
             for key, val in fields_to_set:
+                display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
                 success = field_svc.set_field(key, val)
                 if success:
                     # Post-fill verification: read back DOM value to confirm it was applied
                     verified = field_svc.verify_field_value(key, val)
-                    if not verified:
-                        # Fallback retry via direct Playwright interaction
-                        field_svc._playwright_click_fallback(key, val)
-                        verified = field_svc.verify_field_value(key, val)
-
                     if verified:
                         confirmed.append((key, val))
-                        lines.append(f"  [✓] Set & Verified '{key}' -> '{val}'")
+                        lines.append(f"  [✓] Set & Verified '{key}' -> '{display_val}'")
                     else:
                         unconfirmed.append((key, val))
-                        lines.append(f"  [?] Set but unconfirmed '{key}' -> '{val}'")
+                        lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
                 else:
                     failed.append((key, val))
-                    lines.append(f"  [~] Unmatched/Failed '{key}' -> '{val}'")
+                    lines.append(f"  [~] Unmatched/Failed '{key}' -> '{display_val}'")
             lines.append(f"[*] Fields summary: {len(confirmed)} confirmed | {len(unconfirmed)} unconfirmed | {len(failed)} skipped.")
 
         # 4. Handle uploads
@@ -292,7 +289,20 @@ class OperationalWorker:
                     lines.append(f"[*] Uploading '{path}' (Keyword: '{kw}')...")
                     upload_adapter.upload_document(path, kw)
 
-        # 5. Handle buttons with reactive observation
+        # 5. Pre-submit verification barrier (ACT-05 / WP-004)
+        # Prior to clicking buttons or submitting, re-verify confirmed fields to detect silent/delayed reverts (e.g. S44)
+        if confirmed and (req.press_buttons or req.submit):
+            still_confirmed = []
+            for key, val in confirmed:
+                display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
+                if field_svc.verify_field_value(key, val, settle_delay_ms=0):
+                    still_confirmed.append((key, val))
+                else:
+                    unconfirmed.append((key, val))
+                    lines.append(f"  [!] Pre-submit check detected reverted/cleared field: '{key}' -> '{display_val}'")
+            confirmed = still_confirmed
+
+        # 6. Handle buttons with reactive observation
         inspection_svc = InspectionService(page)
         validator = FormValidator(page)
         reactive_svc = ReactiveInteractionService(
@@ -324,12 +334,25 @@ class OperationalWorker:
                 elif res.get("new_inputs_count", 0) > 0:
                     lines.append(f"\n[📋 Dynamic Form Expansion (+{res['new_inputs_count']} new inputs)]")
 
-        # 6. Capture screenshot if requested
+        # 7. Final form submission if requested
+        if req.submit:
+            lines.append("[*] Executing final form submission (submit=True)...")
+            res = reactive_svc.click_button("apply")
+            if not res.get("success"):
+                res = reactive_svc.click_button("submit")
+            if res.get("success"):
+                lines.append("  [✓] Form submitted successfully.")
+                page = coord.switch_to_latest_page()
+                last_reactive_event = res
+            else:
+                lines.append("  [!] Submission button clicked or not found; moving to validation.")
+
+        # 8. Capture screenshot if requested
         if req.screenshot_path:
             coord.adapter.capture_screenshot(req.screenshot_path, full_page=True)
             lines.append(f"[✓] Form state captured: {req.screenshot_path}")
 
-        # 7. Save refreshed cookies if requested
+        # 9. Save refreshed cookies if requested
         if req.cookies_path and ctx:
             try:
                 cookies = ctx.cookies()
@@ -338,7 +361,7 @@ class OperationalWorker:
             except Exception as exc:
                 lines.append(f"[!] Warning saving cookies: {exc}")
 
-        # 8. Validation checks
+        # 10. Validation checks
         validation_errors = validator.get_validation_errors()
         if validation_errors:
             lines.append(f"[!] Validation Notices: {validation_errors}")
@@ -349,10 +372,14 @@ class OperationalWorker:
         if req.auto_inspect:
             schema = inspection_svc.inspect(unpack_options=False)
 
+        # Honesty contract: success requires zero failed fields and zero unconfirmed fields
+        overall_success = (len(failed) == 0 and len(unconfirmed) == 0)
+        action_msg = "Form action executed successfully." if overall_success else "Form completed with unconfirmed or failed fields."
+
         return SupervisorActionResponse(
-            success=True,
+            success=overall_success,
             action="apply",
-            message="Form action executed successfully.",
+            message=action_msg,
             browser_pid=coord.adapter.browser_pid,
             worker_pid=os.getpid(),
             active_tab_index=coord.adapter.get_active_tab_index(),

@@ -139,6 +139,7 @@ def webpilot_fill_form(
         "message": resp.message,
         "active_url": resp.active_url,
         "confirmed_fields": resp.confirmed_fields,
+        "unconfirmed_fields": resp.unconfirmed_fields,
         "failed_fields": resp.failed_fields,
         "validation_errors": resp.validation_errors,
         "logs": resp.output_lines,

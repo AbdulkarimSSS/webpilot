@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.error
@@ -70,10 +71,52 @@ class SupervisorClient:
         except Exception:
             return False
 
+    @staticmethod
+    def _find_pid_by_port(port: int) -> Optional[int]:
+        """Finds PID listening on the specified local port."""
+        try:
+            if sys.platform == "win32":
+                out = subprocess.check_output(f'netstat -ano | findstr :{port}', shell=True, text=True, stderr=subprocess.DEVNULL)
+                for line in out.strip().splitlines():
+                    parts = line.strip().split()
+                    if len(parts) >= 5 and "LISTENING" in line and parts[1].endswith(f":{port}"):
+                        return int(parts[-1])
+            else:
+                try:
+                    out = subprocess.check_output(["lsof", "-t", f"-i:{port}"], text=True, stderr=subprocess.DEVNULL)
+                    pids = [int(p) for p in out.strip().splitlines() if p.isdigit()]
+                    if pids:
+                        return pids[0]
+                except Exception:
+                    try:
+                        out = subprocess.check_output(["fuser", f"{port}/tcp"], text=True, stderr=subprocess.DEVNULL)
+                        pids = [int(p) for p in out.strip().split() if p.isdigit()]
+                        if pids:
+                            return pids[0]
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        return None
+
     def ensure_running(self) -> None:
         """Checks if supervisor is alive; if not, launches it detached via ProcessManager."""
         if self.is_running():
             return
+
+        port = 9333
+        if ":" in self.base_url:
+            try:
+                port = int(self.base_url.rsplit(":", 1)[-1].split("/")[0])
+            except Exception:
+                pass
+
+        # WP-006: Stale daemon port recovery if port is blocked by dead/unauthenticated daemon
+        stale_pid = self._find_pid_by_port(port)
+        if stale_pid:
+            print(f"[!] Detected stale unauthenticated daemon holding port {port} (PID: {stale_pid}). Terminating...")
+            get_process_manager().kill_process_tree(stale_pid, force=True)
+            time.sleep(0.5)
 
         print("[*] Master Supervisor (Layer 1) not running. Auto-spawning background host...")
         script_path = os.path.join(PROJECT_ROOT, "supervisor", "master_daemon.py")
@@ -102,7 +145,12 @@ class SupervisorClient:
                 return
             time.sleep(0.2)
 
-        raise RuntimeError("Failed to auto-spawn Master Supervisor on http://127.0.0.1:9333.")
+        # Final retry: check if port became blocked during launch
+        stale_pid = self._find_pid_by_port(port)
+        if stale_pid:
+            get_process_manager().kill_process_tree(stale_pid, force=True)
+
+        raise RuntimeError(f"Failed to auto-spawn Master Supervisor on http://127.0.0.1:{port}.")
 
     def execute(self, action_req: SupervisorActionRequest) -> SupervisorActionResponse:
         """Sends an authenticated action request to the supervisor and returns structured response."""

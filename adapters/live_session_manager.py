@@ -23,6 +23,8 @@ SESSION_FILE: str = os.path.join(PROJECT_ROOT, ".live_session.json")
 DEFAULT_CDP_PORT: int = 9222
 DEFAULT_INACTIVITY_TIMEOUT_SECONDS: int = 1800  # 30 minutes
 
+from common.process_manager import get_process_manager
+
 
 class LiveSessionManager:
     """Manages the persistent browser daemon process and session state file."""
@@ -204,14 +206,7 @@ class LiveSessionManager:
         if not active:
             if proc_pid:
                 try:
-                    if sys.platform == "win32":
-                        subprocess.run(
-                            ["taskkill", "/F", "/T", "/PID", str(proc_pid)],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
-                    else:
-                        os.kill(proc_pid, 9)
+                    get_process_manager().kill_process_tree(proc_pid, force=True)
                 except Exception:
                     pass
             raise RuntimeError(f"Chromium failed to open CDP port {port} within 5 seconds.")
@@ -243,14 +238,10 @@ class LiveSessionManager:
                     data = json.load(f)
                 last_active = data.get("last_active", time.time())
                 if time.time() - last_active > timeout_seconds:
-                    if sys.platform == "win32":
-                        subprocess.run(
-                            ["taskkill", "/F", "/T", "/PID", str(browser_pid)],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                        )
-                    else:
-                        os.kill(browser_pid, 9)
+                    try:
+                        get_process_manager().kill_process_tree(browser_pid, force=True)
+                    except Exception:
+                        pass
                     cls.clear_session_file()
                     break
             except Exception:

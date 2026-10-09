@@ -106,4 +106,10 @@ def validate_supervisor_token(provided_token: Optional[str], expected_token: str
     clean_token = provided_token.strip()
     if clean_token.lower().startswith("bearer "):
         clean_token = clean_token[7:].strip()
-    return secrets.compare_digest(clean_token, expected_token)
+    try:
+        clean_bytes = clean_token.encode("utf-8")
+        expected_bytes = expected_token.encode("utf-8")
+        return secrets.compare_digest(clean_bytes, expected_bytes)
+    except (TypeError, UnicodeEncodeError):
+        return False
+

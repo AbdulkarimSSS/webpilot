@@ -77,3 +77,28 @@ def test_mcp_screenshot_tool(mock_client):
     res = webpilot_screenshot("output.png")
     assert "successfully captured" in res
     assert "output.png" in res
+
+
+@patch("mcp_server.client")
+def test_mcp_fill_form_exposes_unconfirmed_fields(mock_client):
+    """Verify webpilot_fill_form exposes unconfirmed_fields in JSON output (WP-003)."""
+    from mcp_server import webpilot_fill_form
+
+    mock_resp = SupervisorActionResponse(
+        success=False,
+        action="apply",
+        message="Form completed with unconfirmed fields.",
+        confirmed_fields=[("first_name", "Alice")],
+        unconfirmed_fields=[("custom_dropdown", "Option 1")],
+        failed_fields=[],
+        output_lines=["[✓] Set & Verified 'first_name'"],
+    )
+    mock_client.execute.return_value = mock_resp
+
+    res = webpilot_fill_form(fields={"first_name": "Alice", "custom_dropdown": "Option 1"})
+    data = json.loads(res)
+
+    assert data["success"] is False
+    assert "unconfirmed_fields" in data
+    assert data["unconfirmed_fields"] == [["custom_dropdown", "Option 1"]]
+    assert data["confirmed_fields"] == [["first_name", "Alice"]]

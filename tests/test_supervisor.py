@@ -171,9 +171,23 @@ def test_worker_process_field_verification(monkeypatch):
 
     resp = worker._handle_apply(req)
 
-    assert resp.success is True
+    # WP-003 Honesty Contract: success must be False when fields are unconfirmed or failed
+    assert resp.success is False
     assert resp.confirmed_fields == [("verified_field", "value1")]
     assert resp.unconfirmed_fields == [("unverified_field", "value2")]
     assert resp.failed_fields == [("skipped_field", "value3")]
     assert mock_field_svc.verify_field_value.called
+
+    # Test full success when all fields are verified
+    req_success = SupervisorActionRequest(
+        action="apply",
+        url="https://example.com/form",
+        fill_arguments=["verified_field=value1"],
+        auto_inspect=False,
+    )
+    resp_success = worker._handle_apply(req_success)
+    assert resp_success.success is True
+    assert resp_success.confirmed_fields == [("verified_field", "value1")]
+    assert len(resp_success.unconfirmed_fields) == 0
+    assert len(resp_success.failed_fields) == 0
 

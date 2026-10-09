@@ -18,6 +18,12 @@ SENSITIVE_KEY_PATTERNS: Set[str] = {
 }
 
 
+def is_sensitive_key(key: Any) -> bool:
+    """Returns True if key name matches known sensitive credential patterns."""
+    k_lower = str(key).lower().strip()
+    return any(p in k_lower for p in SENSITIVE_KEY_PATTERNS)
+
+
 def redact_sensitive(data: Any) -> Any:
     """Recursively redacts sensitive keys and values from dictionaries, lists, or strings."""
     if isinstance(data, dict):

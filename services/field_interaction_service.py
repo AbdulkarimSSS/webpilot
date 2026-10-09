@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 from playwright.sync_api import Page
 
@@ -55,16 +56,23 @@ class FieldInteractionService:
         # Fallback to Playwright native interaction
         return self._playwright_click_fallback(target_identifier, value)
 
+    @staticmethod
+    def _escape_css_attr(val: str) -> str:
+        """Escapes special characters in CSS attribute selectors."""
+        return str(val).replace("\\", "\\\\").replace('"', '\\"')
+
     def _playwright_click_fallback(self, target: str, value: Any) -> bool:
         """Fallback setter using Playwright native locators (click / fill)."""
         page = self.page
         strval = str(value)
         lower = target.lower().strip()
+        safe_target = self._escape_css_attr(target)
+        safe_strval = self._escape_css_attr(strval)
 
         # 1. Picklist combobox by aria-label or title
         for loc in [
-            page.locator(f'input[aria-label*="{target}"][role="combobox"]'),
-            page.locator(f'input[title*="{target}"][role="combobox"]'),
+            page.locator(f'input[aria-label*="{safe_target}"][role="combobox"]'),
+            page.locator(f'input[title*="{safe_target}"][role="combobox"]'),
         ]:
             try:
                 if loc.count() > 0 and loc.first.is_visible(timeout=300):
@@ -91,8 +99,8 @@ class FieldInteractionService:
 
         # 3. Custom ARIA radioLabel spans (SuccessFactors)
         for selector in [
-            f'.radioLabel:text-is("{strval}")',
-            f'.radioLabel:has-text("{strval}")',
+            f'.radioLabel:text-is("{safe_strval}")',
+            f'.radioLabel:has-text("{safe_strval}")',
         ]:
             try:
                 spans = page.locator(selector)
@@ -102,13 +110,16 @@ class FieldInteractionService:
             except Exception:
                 pass
 
-        # 4. Text / Textarea via label
+        # 4. Text / Textarea via label (strictly avoid clicking checkboxes or switches)
         try:
             field = page.get_by_label(lower, exact=False)
             if field.count() > 0 and field.first.is_visible(timeout=300):
-                field.first.fill(strval)
-                field.first.dispatch_event("change")
-                return True
+                field_type = (field.first.get_attribute("type") or "").lower()
+                field_role = (field.first.get_attribute("role") or "").lower()
+                if field_type not in ("checkbox", "radio") and field_role not in ("checkbox", "switch"):
+                    field.first.fill(strval)
+                    field.first.dispatch_event("change")
+                    return True
         except Exception:
             pass
 
@@ -157,18 +168,108 @@ class FieldInteractionService:
 
         return False
 
-    def verify_field_value(self, target: str, expected: Any) -> bool:
-        """Reads back current DOM value and checks if it matches expected."""
-        expected_str = str(expected).strip().lower()
-        junk = {"login/ view profile", "no selection", ""}
+    def _match_actual_dom_data(self, actual: Any, expected: Any) -> bool:
+        """Evaluates whether actual DOM readback matches expected value across control types."""
+        if actual is None:
+            return False
 
+        expected_str = str(expected).strip().lower() if expected is not None else ""
+        junk = {"login/ view profile", "no selection", "select", "choose", "-- select --", ""}
+
+        if isinstance(actual, dict):
+            ctype = actual.get("type", "")
+
+            # Checkbox / Toggle switch
+            if ctype == "checkbox":
+                is_checked = bool(actual.get("checked", False))
+                if isinstance(expected, bool):
+                    return is_checked is expected
+                if expected_str in ("true", "yes", "1", "checked", "on"):
+                    return is_checked is True
+                if expected_str in ("false", "no", "0", "unchecked", "off"):
+                    return is_checked is False
+                return is_checked is True
+
+            # Radio button
+            if ctype == "radio":
+                is_checked = bool(actual.get("checked", False))
+                val = str(actual.get("value", "")).strip().lower()
+                if is_checked:
+                    if not expected_str or expected_str in ("true", "checked", "yes", "1"):
+                        return True
+                    return expected_str == val or expected_str in val or val in expected_str
+                return False
+
+            # Radio group
+            if ctype == "radio_group":
+                val = str(actual.get("value", "")).strip().lower()
+                if not val or val in junk:
+                    return False
+                return expected_str in val or val in expected_str
+
+            # Native <select>
+            if ctype == "select":
+                val = str(actual.get("value", "")).strip().lower()
+                text = str(actual.get("text", "")).strip().lower()
+                if not val and not text:
+                    return False
+                if val in junk and text in junk:
+                    return False
+                if expected_str == val or expected_str == text:
+                    return True
+                if expected_str and (expected_str in text or expected_str in val or val in expected_str or text in expected_str):
+                    return True
+                if len(val) == 2 and len(expected_str) > 2 and (expected_str.startswith(val) or val in expected_str):
+                    return True
+                return False
+
+            # Custom picklist / combobox
+            if ctype == "picklist":
+                val = str(actual.get("value", "")).strip().lower()
+                sel_text = str(actual.get("selected_text", "")).strip().lower()
+                target_str = sel_text if sel_text and sel_text not in junk else val
+                if not target_str or target_str in junk:
+                    return False
+                if expected_str == target_str or expected_str in target_str or target_str in expected_str:
+                    return True
+                if len(target_str) == 2 and len(expected_str) > 2 and expected_str.startswith(target_str):
+                    return True
+                return False
+
+            # Standard text / textarea
+            val = str(actual.get("value", "")).strip()
+            val_lower = val.lower()
+            if not val:
+                return expected_str == ""
+            if expected_str == val_lower:
+                return True
+            if expected_str in val_lower or val_lower in expected_str:
+                return True
+            digits_exp = re.sub(r"\D", "", expected_str)
+            digits_val = re.sub(r"\D", "", val_lower)
+            if digits_exp and digits_val and digits_exp == digits_val:
+                return True
+            return False
+
+        # Fallback for plain string readback
+        actual_lower = str(actual).strip().lower()
+        if actual_lower in junk:
+            return False
+        return expected_str in actual_lower or actual_lower in expected_str
+
+    def verify_field_value(self, target: str, expected: Any, settle_delay_ms: int = 50) -> bool:
+        """Reads back current DOM value and confirms state, allowing framework settle window."""
+        expected_str = str(expected).strip().lower() if expected is not None else ""
         try:
             actual = self.page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [target, expected_str])
-            if actual is None:
-                return False
-            actual_lower = str(actual).strip().lower()
-            if actual_lower in junk:
-                return False
-            return expected_str in actual_lower
+            if self._match_actual_dom_data(actual, expected):
+                return True
+
+            # If first read was negative, allow a brief settle pause for async frameworks (React/Vue/Angular)
+            if settle_delay_ms > 0:
+                self.page.wait_for_timeout(settle_delay_ms)
+                retry_actual = self.page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [target, expected_str])
+                return self._match_actual_dom_data(retry_actual, expected)
+            return False
         except Exception:
             return False

@@ -272,10 +272,10 @@ def main():
         from supervisor.master_daemon import run_master_daemon
         idx = sys.argv.index("--run-daemon")
         port = 9333
-        token = None
+        token = os.environ.get("WEBPILOT_SUPERVISOR_TOKEN")
         if len(sys.argv) > idx + 1 and sys.argv[idx + 1].isdigit():
             port = int(sys.argv[idx + 1])
-        if len(sys.argv) > idx + 2:
+        if not token and len(sys.argv) > idx + 2:
             token = sys.argv[idx + 2]
         run_master_daemon(port=port, token=token)
         return

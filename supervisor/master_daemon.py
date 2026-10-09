@@ -26,6 +26,7 @@ from supervisor.security import (
     save_supervisor_token,
     remove_supervisor_token,
     validate_supervisor_token,
+    load_supervisor_token,
 )
 from common.process_manager import get_process_manager
 
@@ -112,7 +113,29 @@ class MasterSupervisor:
         if sys.platform != "win32":
             popen_kwargs["start_new_session"] = True
 
-        return subprocess.Popen(worker_cmd, **popen_kwargs)
+        proc = subprocess.Popen(worker_cmd, **popen_kwargs)
+
+        # WP-013: Drain worker stderr in background thread to prevent pipe deadlocks
+        def _drain_stderr(pipe):
+            try:
+                for line in iter(pipe.readline, ""):
+                    if not line:
+                        break
+                    line_str = line.strip()
+                    if line_str:
+                        log_daemon(f"[worker-stderr] {line_str}")
+            except Exception:
+                pass
+            finally:
+                try:
+                    pipe.close()
+                except Exception:
+                    pass
+
+        if getattr(proc, "stderr", None):
+            threading.Thread(target=_drain_stderr, args=(proc.stderr,), daemon=True).start()
+
+        return proc
 
     def _ensure_worker(self) -> subprocess.Popen:
         """Spawns Layer 2 Worker subprocess if not currently running."""
@@ -242,10 +265,35 @@ def create_supervisor_handler(supervisor: MasterSupervisor):
             self.end_headers()
             self.wfile.write(body)
 
+        def _check_host(self) -> bool:
+            """WP-011: Validates incoming Host header to protect against DNS rebinding attacks."""
+            host = self.headers.get("Host")
+            if not host:
+                return True
+            host_clean = host.split(":")[0].strip().lower()
+            if host_clean in ("127.0.0.1", "localhost", "::1"):
+                return True
+            self._send_json(
+                403,
+                {
+                    "success": False,
+                    "error": f"Forbidden: Host '{host}' is rejected by DNS rebinding defense.",
+                },
+            )
+            return False
+
         def _authenticate(self) -> bool:
             """Validates incoming HTTP request against the supervisor's secure token."""
+            if not self._check_host():
+                return False
+
             header_token = self.headers.get("X-Supervisor-Token") or self.headers.get("Authorization")
-            if not validate_supervisor_token(header_token, supervisor.token):
+            try:
+                is_valid = validate_supervisor_token(header_token, supervisor.token)
+            except Exception:
+                is_valid = False
+
+            if not is_valid:
                 self._send_json(
                     401,
                     {
@@ -326,6 +374,9 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] 
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else DEFAULT_SUPERVISOR_PORT
-    token = sys.argv[2] if len(sys.argv) > 2 else None
+    # WP-001: Resolve token from environment or token file to avoid leaking credentials in sys.argv
+    token = os.environ.get("WEBPILOT_SUPERVISOR_TOKEN") or load_supervisor_token()
+    if not token and len(sys.argv) > 2:
+        token = sys.argv[2]
     run_master_daemon(port=port, token=token)
 

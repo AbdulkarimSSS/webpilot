@@ -74,3 +74,17 @@ def test_log_event_does_not_raise(capsys):
     assert f"'{k_pwd}': '[REDACTED]'" in captured.out
     assert "'user': 'test_user'" in captured.out
     assert "secret_sample" not in captured.out
+
+
+def test_is_sensitive_key():
+    """Verify is_sensitive_key correctly identifies credential names (WP-002)."""
+    from common.logging import is_sensitive_key
+
+    assert is_sensitive_key("password") is True
+    assert is_sensitive_key("UserPassword") is True
+    assert is_sensitive_key("api_key") is True
+    assert is_sensitive_key("token") is True
+    assert is_sensitive_key("auth_token") is True
+    assert is_sensitive_key("secret") is True
+    assert is_sensitive_key("username") is False
+    assert is_sensitive_key("first_name") is False

@@ -52,41 +52,59 @@ def test_token_file_save_and_load():
 def test_supervisor_http_auth_enforcement():
     """Verify HTTP server rejects unauthenticated requests with 401 and accepts authorized ones."""
     test_token = "secret-test-token-12345"
-    supervisor = MasterSupervisor(port=9444, token=test_token)
+    supervisor = MasterSupervisor(port=0, token=test_token)
     # Stop watchdog thread to keep test clean
     supervisor._is_running = False
 
     handler_cls = create_supervisor_handler(supervisor)
-    server = HTTPServer(("127.0.0.1", 9444), handler_cls)
+    server = HTTPServer(("127.0.0.1", 0), handler_cls)
+    port = server.server_address[1]
+    supervisor.port = port
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.start()
 
     try:
         # 1. Unauthenticated request -> Expect 401 Unauthorized
-        req_unauth = urllib.request.Request("http://127.0.0.1:9444/ping")
+        req_unauth = urllib.request.Request(f"http://127.0.0.1:{port}/ping")
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             urllib.request.urlopen(req_unauth, timeout=2)
         assert exc_info.value.code == 401
 
         # 2. Wrong token -> Expect 401 Unauthorized
         req_wrong = urllib.request.Request(
-            "http://127.0.0.1:9444/ping",
+            f"http://127.0.0.1:{port}/ping",
             headers={"X-Supervisor-Token": "invalid-token"},
         )
         with pytest.raises(urllib.error.HTTPError) as exc_info:
             urllib.request.urlopen(req_wrong, timeout=2)
         assert exc_info.value.code == 401
 
-        # 3. Valid token -> Expect 200 OK
-        client_auth = SupervisorClient(base_url="http://127.0.0.1:9444", token=test_token)
+        # 3. Non-ASCII token header -> Expect 401 Unauthorized (WP-005, must not raise 500)
+        req_non_ascii = urllib.request.Request(
+            f"http://127.0.0.1:{port}/ping",
+            headers={"X-Supervisor-Token": "token\u1234".encode("utf-8")},
+        )
+        with pytest.raises(urllib.error.HTTPError) as exc_info:
+            urllib.request.urlopen(req_non_ascii, timeout=2)
+        assert exc_info.value.code == 401
+
+        # 4. Valid token -> Expect 200 OK
+        client_auth = SupervisorClient(base_url=f"http://127.0.0.1:{port}", token=test_token)
         assert client_auth.is_running() is True
         status = client_auth.get_status()
         assert status.get("supervisor_alive") is True
-        assert status.get("supervisor_port") == 9444
+        assert status.get("supervisor_port") == port
 
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_non_ascii_supervisor_token_validation():
+    """Verify non-ASCII strings in validate_supervisor_token do not crash with TypeError (WP-005)."""
+    assert validate_supervisor_token("token\u1234", "secret-token") is False
+    assert validate_supervisor_token("secret-token", "token\u1234") is False
+    assert validate_supervisor_token("token\u1234", "token\u1234") is True
 
 
 def test_cli_token_argument_and_client_propagation():
