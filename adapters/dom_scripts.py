@@ -216,6 +216,9 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """() => {
 
         if (!choiceGroups[q]) {
             choiceGroups[q] = {
+                id: r.id || r.name || q,
+                name: r.name || r.id || q,
+                label: q,
                 question: q,
                 type: (r.getAttribute('role') === 'radio' || r.type === 'radio') ? 'radio' : 'checkbox',
                 required: isRequired(r, q),

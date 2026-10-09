@@ -37,6 +37,9 @@ def test_field_interaction_service_matching_logic():
     assert svc._match_actual_dom_data({"type": "input", "value": "John Doe"}, "John Doe") is True
     assert svc._match_actual_dom_data({"type": "input", "value": "(123) 456-7890"}, "1234567890") is True
     assert svc._match_actual_dom_data({"type": "input", "value": ""}, "John") is False
+    # S31 truncation regression test: truncated text must be rejected
+    assert svc._match_actual_dom_data({"type": "input", "value": "Alice"}, "AliceNakamura") is False
+    assert svc._match_actual_dom_data({"type": "input", "value": "$1,234.56"}, "1234.56") is True
 
 
 def test_pre_submit_barrier_catches_delayed_silent_revert(monkeypatch):

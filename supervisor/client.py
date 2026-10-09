@@ -52,7 +52,7 @@ class SupervisorClient:
         """Pings the supervisor health endpoint with authentication."""
         try:
             req = urllib.request.Request(f"{self.base_url}/ping", headers=self._get_headers())
-            with urllib.request.urlopen(req, timeout=0.8) as resp:
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
                 return resp.status == 200
         except urllib.error.HTTPError as err:
             # If 401 Unauthorized, a supervisor is running with a different or new token
@@ -63,7 +63,7 @@ class SupervisorClient:
                     self.token = fresh_token
                     try:
                         retry_req = urllib.request.Request(f"{self.base_url}/ping", headers=self._get_headers())
-                        with urllib.request.urlopen(retry_req, timeout=0.8) as retry_resp:
+                        with urllib.request.urlopen(retry_req, timeout=2.5) as retry_resp:
                             return retry_resp.status == 200
                     except Exception:
                         pass

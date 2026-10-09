@@ -314,12 +314,14 @@ class OperationalWorker:
         )
 
         last_reactive_event: Optional[Dict[str, Any]] = None
+        press_failed = False
         if req.press_buttons:
             for btn in req.press_buttons:
                 lines.append(f"[*] Pressing button: '{btn}'...")
                 res = reactive_svc.click_button(btn)
                 if not res.get("success"):
                     lines.append(f"  [!] Failed to find or click button: '{btn}'")
+                    press_failed = True
                     continue
                 lines.append(f"  [✓] Successfully clicked '{btn}'.")
                 page = coord.switch_to_latest_page()
@@ -335,6 +337,7 @@ class OperationalWorker:
                     lines.append(f"\n[📋 Dynamic Form Expansion (+{res['new_inputs_count']} new inputs)]")
 
         # 7. Final form submission if requested
+        submit_failed = False
         if req.submit:
             lines.append("[*] Executing final form submission (submit=True)...")
             res = reactive_svc.click_button("apply")
@@ -346,6 +349,27 @@ class OperationalWorker:
                 last_reactive_event = res
             else:
                 lines.append("  [!] Submission button clicked or not found; moving to validation.")
+                submit_failed = True
+
+        # Post-interaction verification pass: detect click handlers that clear/revert inputs (e.g. S44)
+        if confirmed and (req.press_buttons or req.submit):
+            post_confirmed = []
+            for key, val in confirmed:
+                display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
+                actual = None
+                try:
+                    actual = page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [key, str(val).strip().lower()])
+                except Exception:
+                    pass
+                if actual and actual.get("found"):
+                    if field_svc._match_actual_dom_data(actual, val):
+                        post_confirmed.append((key, val))
+                    else:
+                        unconfirmed.append((key, val))
+                        lines.append(f"  [!] Post-interaction check detected cleared/reverted field: '{key}' -> '{display_val}'")
+                else:
+                    post_confirmed.append((key, val))
+            confirmed = post_confirmed
 
         # 8. Capture screenshot if requested
         if req.screenshot_path:
@@ -372,9 +396,16 @@ class OperationalWorker:
         if req.auto_inspect:
             schema = inspection_svc.inspect(unpack_options=False)
 
-        # Honesty contract: success requires zero failed fields and zero unconfirmed fields
-        overall_success = (len(failed) == 0 and len(unconfirmed) == 0)
-        action_msg = "Form action executed successfully." if overall_success else "Form completed with unconfirmed or failed fields."
+        # Honesty contract: success requires zero failed fields, zero unconfirmed fields, and all requested button presses succeeding
+        overall_success = (len(failed) == 0 and len(unconfirmed) == 0 and not press_failed and not submit_failed)
+        if press_failed:
+            action_msg = "Form action completed but one or more requested button presses failed."
+        elif submit_failed:
+            action_msg = "Form action completed but submission button click failed."
+        elif overall_success:
+            action_msg = "Form action executed successfully."
+        else:
+            action_msg = "Form completed with unconfirmed or failed fields."
 
         return SupervisorActionResponse(
             success=overall_success,

@@ -13,7 +13,7 @@ import subprocess
 import sys
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 from typing import Any, Dict, Optional
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -73,12 +73,14 @@ class MasterSupervisor:
         port: int = DEFAULT_SUPERVISOR_PORT,
         inactivity_timeout_seconds: int = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
         token: Optional[str] = None,
+        auto_save_token: bool = True,
     ):
         self.host = host
         self.port = port
         self.inactivity_timeout_seconds = inactivity_timeout_seconds
         self.token: str = token or os.environ.get("WEBPILOT_SUPERVISOR_TOKEN") or generate_supervisor_token()
-        save_supervisor_token(self.token)
+        if auto_save_token:
+            save_supervisor_token(self.token)
 
         self.worker_process: Optional[subprocess.Popen] = None
         self.last_active_time: float = time.time()
@@ -352,10 +354,16 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] 
     sys.stdout = LogWriter(LOG_FILE)
     sys.stderr = LogWriter(LOG_FILE)
     log_daemon(f"run_master_daemon starting on port {port} (PID: {os.getpid()})")
+    supervisor = None
+    bound_successfully = False
     try:
-        supervisor = MasterSupervisor(port=port, token=token)
+        eff_token = token or os.environ.get("WEBPILOT_SUPERVISOR_TOKEN") or load_supervisor_token() or generate_supervisor_token()
+        supervisor = MasterSupervisor(port=port, token=eff_token, auto_save_token=False)
         handler_class = create_supervisor_handler(supervisor)
-        server = HTTPServer((DEFAULT_SUPERVISOR_HOST, port), handler_class)
+        # Bind socket first: if port is in use, will raise OSError without touching token file
+        server = ThreadingHTTPServer((DEFAULT_SUPERVISOR_HOST, port), handler_class)
+        bound_successfully = True
+        save_supervisor_token(supervisor.token)
         log_daemon(f"Master Supervisor listening on http://{DEFAULT_SUPERVISOR_HOST}:{port}")
         print(f"[*] Master Supervisor (Layer 1) started on http://{DEFAULT_SUPERVISOR_HOST}:{port} (PID: {os.getpid()})")
         server.serve_forever()
@@ -363,11 +371,14 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] 
         log_daemon(f"Master Supervisor fatal exception: {exc}")
         raise
     finally:
-        try:
-            supervisor.terminate_worker()
-        except Exception:
-            pass
-        remove_supervisor_token()
+        if supervisor:
+            try:
+                supervisor.terminate_worker()
+            except Exception:
+                pass
+        # WP-016: Only remove token file if THIS process was the one that successfully bound and owned the port
+        if bound_successfully:
+            remove_supervisor_token()
         log_daemon("Master Supervisor stopped.")
         print("[*] Master Supervisor stopped.")
 

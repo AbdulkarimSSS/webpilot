@@ -69,17 +69,22 @@ class FieldInteractionService:
         safe_target = self._escape_css_attr(target)
         safe_strval = self._escape_css_attr(strval)
 
-        # 1. Picklist combobox by aria-label or title
+        # 1. Picklist combobox by aria-label, title, id, name, or placeholder
         for loc in [
             page.locator(f'input[aria-label*="{safe_target}"][role="combobox"]'),
             page.locator(f'input[title*="{safe_target}"][role="combobox"]'),
+            page.locator(f'input[id*="{safe_target}"][role="combobox"]'),
+            page.locator(f'input[name*="{safe_target}"][role="combobox"]'),
+            page.locator(f'input#{safe_target}[role="combobox"]'),
+            page.locator(f'#{safe_target}-input[role="combobox"]'),
         ]:
             try:
                 if loc.count() > 0 and loc.first.is_visible(timeout=300):
                     loc.first.click()
+                    loc.first.fill(strval)
                     page.wait_for_timeout(300)
-                    for role_name in ["menuitem", "option", "listitem"]:
-                        opt = page.get_by_role(role_name, name=strval, exact=False)  # type: ignore
+                    for role_name in ["option", "menuitem", "listitem"]:
+                        opt = page.locator(f'[role="{role_name}"]:has-text("{safe_strval}")')
                         if opt.count() > 0:
                             opt.first.click()
                             page.wait_for_timeout(PAUSE_RETRY_FALLBACK_MS)
@@ -118,7 +123,17 @@ class FieldInteractionService:
                 field_role = (field.first.get_attribute("role") or "").lower()
                 if field_type not in ("checkbox", "radio") and field_role not in ("checkbox", "switch"):
                     field.first.fill(strval)
+                    field.first.dispatch_event("input")
                     field.first.dispatch_event("change")
+                    # If this input is a combobox, select the option that appeared
+                    if field_role == "combobox":
+                        page.wait_for_timeout(200)
+                        for role_name in ["option", "menuitem", "listitem"]:
+                            opt = page.locator(f'[role="{role_name}"]:has-text("{safe_strval}")')
+                            if opt.count() > 0:
+                                opt.first.click()
+                                page.wait_for_timeout(PAUSE_RETRY_FALLBACK_MS)
+                                break
                     return True
         except Exception:
             pass
@@ -243,11 +258,18 @@ class FieldInteractionService:
                 return expected_str == ""
             if expected_str == val_lower:
                 return True
-            if expected_str in val_lower or val_lower in expected_str:
+            # Whitespace normalized comparison
+            if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", val_lower).strip():
                 return True
+            # Phone / digits normalization
             digits_exp = re.sub(r"\D", "", expected_str)
             digits_val = re.sub(r"\D", "", val_lower)
             if digits_exp and digits_val and digits_exp == digits_val:
+                return True
+            # Currency / numeric normalization (e.g. "$1,234.56" vs "1234.56")
+            clean_exp = re.sub(r"[^\d.]", "", expected_str)
+            clean_val = re.sub(r"[^\d.]", "", val_lower)
+            if clean_exp and clean_val and clean_exp == clean_val:
                 return True
             return False
 
@@ -255,7 +277,19 @@ class FieldInteractionService:
         actual_lower = str(actual).strip().lower()
         if actual_lower in junk:
             return False
-        return expected_str in actual_lower or actual_lower in expected_str
+        if expected_str == actual_lower:
+            return True
+        if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", actual_lower).strip():
+            return True
+        digits_exp = re.sub(r"\D", "", expected_str)
+        digits_val = re.sub(r"\D", "", actual_lower)
+        if digits_exp and digits_val and digits_exp == digits_val:
+            return True
+        clean_exp = re.sub(r"[^\d.]", "", expected_str)
+        clean_val = re.sub(r"[^\d.]", "", actual_lower)
+        if clean_exp and clean_val and clean_exp == clean_val:
+            return True
+        return False
 
     def verify_field_value(self, target: str, expected: Any, settle_delay_ms: int = 50) -> bool:
         """Reads back current DOM value and confirms state, allowing framework settle window."""

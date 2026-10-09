@@ -84,6 +84,11 @@ class ReactiveInteractionService:
             except Exception:
                 pass
 
+        # Strategy E: Dismiss blocking modal/backdrop and retry
+        if not clicked:
+            if self.dismiss_blocking_overlays():
+                clicked = self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
+
         if not clicked:
             return {"success": False, "target": target}
 
@@ -172,3 +177,52 @@ class ReactiveInteractionService:
                     break
         except Exception:
             pass
+
+    def dismiss_blocking_overlays(self) -> bool:
+        """Dismisses cookie banners, popups, and modal dialogs that obscure the underlying form."""
+        dismissed = False
+        try:
+            for sel in [
+                "#cookie button",
+                ".cookie-banner button",
+                "[aria-label*='cookie' i] button",
+                "button:has-text('Accept')",
+                "button:has-text('Accept All')",
+                "button:has-text('Agree')",
+                "button:has-text('I agree')",
+            ]:
+                loc = self.page.locator(sel)
+                if loc.count() > 0 and loc.first.is_visible(timeout=200):
+                    loc.first.click()
+                    dismissed = True
+                    self.page.wait_for_timeout(200)
+                    break
+        except Exception:
+            pass
+
+        try:
+            for sel in [
+                "[role='dialog'] button:has-text('Close')",
+                ".modal button:has-text('Close')",
+                "#modal button:has-text('Close')",
+                ".modal-close",
+                "button[aria-label*='Close' i]",
+            ]:
+                loc = self.page.locator(sel)
+                if loc.count() > 0 and loc.first.is_visible(timeout=200):
+                    loc.first.click()
+                    dismissed = True
+                    self.page.wait_for_timeout(200)
+                    break
+        except Exception:
+            pass
+
+        try:
+            if self.page.locator("[role='dialog']:visible, .bk:visible, #backdrop:visible").count() > 0:
+                self.page.keyboard.press("Escape")
+                dismissed = True
+                self.page.wait_for_timeout(200)
+        except Exception:
+            pass
+
+        return dismissed
