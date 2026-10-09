@@ -281,10 +281,8 @@ class OperationalWorker:
                                 pass
 
                 if success:
-                    # Allow 250ms settle window to ensure framework state and detect delayed revert traps (e.g. S44)
-                    page.wait_for_timeout(250)
-                    # Post-fill verification: read back DOM value to confirm it was applied
-                    verified = field_svc.verify_field_value(key, val, settle_delay_ms=0)
+                    # Post-fill verification: read back DOM value with fast-path check
+                    verified = field_svc.verify_field_value(key, val)
                     if verified:
                         confirmed.append((key, val))
                         lines.append(f"  [✓] Set & Verified '{key}' -> '{display_val}'")
@@ -315,7 +313,7 @@ class OperationalWorker:
             still_confirmed = []
             for key, val in confirmed:
                 display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
-                if field_svc.verify_field_value(key, val, settle_delay_ms=0):
+                if field_svc.verify_field_value(key, val):
                     still_confirmed.append((key, val))
                 else:
                     unconfirmed.append((key, val))

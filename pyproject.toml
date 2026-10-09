@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webpilot-engine"
-version = "2.0.10"
+version = "2.0.11"
 description = "WebPilot: Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime"
 readme = "README.md"
 authors = [

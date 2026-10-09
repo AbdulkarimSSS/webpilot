@@ -49,15 +49,13 @@ class FormFillerService:
             if not success:
                 return "failed"
 
-            self.page.wait_for_timeout(250)
-            if self.field_service.verify_field_value(key, val, settle_delay_ms=0):
+            if self.field_service.verify_field_value(key, val):
                 return "confirmed"
 
             # One retry via pure Playwright click
             self.page.wait_for_timeout(PAUSE_RETRY_FALLBACK_MS)
             self.field_service._playwright_click_fallback(key, val)
-            self.page.wait_for_timeout(250)
-            if self.field_service.verify_field_value(key, val, settle_delay_ms=0):
+            if self.field_service.verify_field_value(key, val):
                 return "confirmed"
             return "unconfirmed"
 
