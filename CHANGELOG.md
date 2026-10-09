@@ -5,6 +5,15 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2026-10-09
+
+### Fixed & Enhanced
+- **MCP Server Graceful Optional Dependency**: `mcp_server.py` now provides a clean, user-friendly terminal notification when invoked without the optional `mcp` extra, prompting `pip install "webpilot-engine[mcp]"` without throwing an unhandled `ModuleNotFoundError` traceback.
+- **Documentation & Architecture Accuracy**: Removed obsolete claims of destructive DOM manipulation ("DOM surgical removal" and backdrop deletion) across all architecture docs and READMEs, accurately reflecting WebPilot's non-destructive, strictly compliant browser interaction philosophy.
+- **End-to-End PyPI Verification**: Thoroughly verified installation and operations in an isolated, clean virtual environment simulating regular end-user workflows across all CLI subcommands (`wp inspect`, `wp apply`, `wp service`, `wp --help`).
+
+---
+
 ## [2.0.5] - 2026-10-09
 
 ### Security & Hardening

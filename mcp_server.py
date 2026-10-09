@@ -21,19 +21,40 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP
+except ImportError:
+    FastMCP = None
+
+
+class _DummyMCP:
+    def tool(self, *args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
+    def run(self):
+        print("\n[!] Error: WebPilot FastMCP server requires the optional 'mcp' dependency.", file=sys.stderr)
+        print("    Please install it using: pip install \"webpilot-engine[mcp]\"\n", file=sys.stderr)
+        sys.exit(1)
+
+
+# Initialize FastMCP application if installed, or fallback gracefully
+if FastMCP is not None:
+    mcp = FastMCP(
+        "WebPilot",
+        instructions=(
+            "WebPilot is an autonomous multi-tier browser runtime for AI agents. "
+            "It provides persistent browser sessions across tool calls, universal form inspection, "
+            "reactive mutation tracking, and dynamic loading dissolution without requiring site-specific CSS selectors."
+        ),
+    )
+else:
+    mcp = _DummyMCP()
+
+
 from supervisor.client import SupervisorClient
 from supervisor.contracts import SupervisorActionRequest, SupervisorActionResponse
-
-# Initialize FastMCP application
-mcp = FastMCP(
-    "WebPilot",
-    instructions=(
-        "WebPilot is an autonomous multi-tier browser runtime for AI agents. "
-        "It provides persistent browser sessions across tool calls, universal form inspection, "
-        "reactive mutation tracking, and dynamic loading dissolution without requiring site-specific CSS selectors."
-    ),
-)
 
 client = SupervisorClient()
 
