@@ -40,6 +40,11 @@ def get_base_url(args: argparse.Namespace) -> str:
     return f"http://{host}:{port}"
 
 
+def get_supervisor_client(args: argparse.Namespace) -> SupervisorClient:
+    token = getattr(args, "token", None)
+    return SupervisorClient(base_url=get_base_url(args), token=token)
+
+
 def inspect_cmd(args: argparse.Namespace) -> None:
     """Executes the universal inspection workflow."""
     if getattr(args, "standalone", False):
@@ -63,7 +68,7 @@ def inspect_cmd(args: argparse.Namespace) -> None:
         return
 
     # Multi-tier Master Supervisor execution (default)
-    client = SupervisorClient(base_url=get_base_url(args))
+    client = get_supervisor_client(args)
 
     if args.close_session:
         res = client.stop_service()
@@ -159,7 +164,7 @@ def apply_cmd(args: argparse.Namespace) -> None:
         return
 
     # Multi-tier Master Supervisor execution (default)
-    client = SupervisorClient(base_url=get_base_url(args))
+    client = get_supervisor_client(args)
 
     if args.close_session:
         res = client.stop_service()
@@ -211,7 +216,7 @@ def apply_cmd(args: argparse.Namespace) -> None:
 
 def service_cmd(args: argparse.Namespace) -> None:
     """Manages the Master Supervisor daemon (status, restart, stop, start)."""
-    client = SupervisorClient(base_url=get_base_url(args))
+    client = get_supervisor_client(args)
     action = args.service_action.lower()
 
     if action == "status":
@@ -259,7 +264,7 @@ def service_cmd(args: argparse.Namespace) -> None:
 def shell_cmd(args: argparse.Namespace) -> None:
     """Launches the interactive REPL shell."""
     from supervisor.shell import run_interactive_shell
-    run_interactive_shell(host=args.host, port=args.port)
+    run_interactive_shell(host=args.host, port=args.port, token=getattr(args, "token", None))
 
 
 def main():
@@ -267,9 +272,12 @@ def main():
         from supervisor.master_daemon import run_master_daemon
         idx = sys.argv.index("--run-daemon")
         port = 9333
+        token = None
         if len(sys.argv) > idx + 1 and sys.argv[idx + 1].isdigit():
             port = int(sys.argv[idx + 1])
-        run_master_daemon(port=port)
+        if len(sys.argv) > idx + 2:
+            token = sys.argv[idx + 2]
+        run_master_daemon(port=port, token=token)
         return
 
     if "--run-worker" in sys.argv:
@@ -286,6 +294,7 @@ def main():
     parser.add_argument("--env-file", help="Path to custom .env file")
     parser.add_argument("--host", default="127.0.0.1", help="Supervisor host address (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=9333, help="Supervisor port (default: 9333)")
+    parser.add_argument("--token", help="Explicit Master Supervisor authentication token")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -305,6 +314,7 @@ def main():
     p_inspect.add_argument("--standalone", action="store_true", help="Run in-process via FlowOrchestrator instead of Master Supervisor")
     p_inspect.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_inspect.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_inspect.add_argument("--token", help="Explicit Master Supervisor authentication token")
     p_inspect.add_argument("--config", help="Path to custom settings.json configuration file")
     p_inspect.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
     p_inspect.add_argument("--env-file", help="Path to custom .env file")
@@ -329,6 +339,7 @@ def main():
     p_apply.add_argument("--standalone", action="store_true", help="Run in-process via FlowOrchestrator instead of Master Supervisor")
     p_apply.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_apply.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_apply.add_argument("--token", help="Explicit Master Supervisor authentication token")
     p_apply.add_argument("--config", help="Path to custom settings.json configuration file")
     p_apply.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
     p_apply.add_argument("--env-file", help="Path to custom .env file")
@@ -337,12 +348,14 @@ def main():
     p_shell = subparsers.add_parser("shell", help="Launch interactive REPL automation shell")
     p_shell.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_shell.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_shell.add_argument("--token", help="Explicit Master Supervisor authentication token")
 
     # 4. Supervisor Service Management Subcommand
     p_service = subparsers.add_parser("service", help="Manage Master Supervisor background daemon")
     p_service.add_argument("service_action", choices=["status", "restart", "stop", "start"], help="Action to execute")
     p_service.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_service.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_service.add_argument("--token", help="Explicit Master Supervisor authentication token")
 
     # 5. Browser Binaries Installation Subcommand
     p_install = subparsers.add_parser("install", help="Download and configure required Playwright Chromium browser")

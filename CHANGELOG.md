@@ -5,6 +5,17 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.7] - 2026-10-09
+
+### Fixed
+- **Worker Process Session Isolation on Restart**: Unified worker spawning across initial launch and `restart_worker` via `_spawn_worker()`, guaranteeing `start_new_session=True` on POSIX systems so restarted worker processes are properly isolated in their own process group.
+- **Post-Fill DOM Verification Connected**: Connected `verify_field_value` in `OperationalWorker._handle_apply`, verifying set field values directly in the DOM with Playwright click fallback retry, populating `confirmed_fields`, `unconfirmed_fields`, and `failed_fields` in `SupervisorActionResponse`.
+
+### Security & Hardening
+- **Supervisor Token CLI & API Integration**: Added `--token` flag across CLI global options and all subcommands (`inspect`, `apply`, `shell`, `service`), propagating explicitly passed tokens to `SupervisorClient` and `run_master_daemon` for end-to-end token authenticated control.
+
+---
+
 ## [2.0.6] - 2026-10-09
 
 ### Fixed & Enhanced

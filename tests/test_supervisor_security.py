@@ -87,3 +87,22 @@ def test_supervisor_http_auth_enforcement():
     finally:
         server.shutdown()
         server.server_close()
+
+
+def test_cli_token_argument_and_client_propagation():
+    """Verify CLI --token flag parsing and propagation to SupervisorClient."""
+    import argparse
+    from cli import get_supervisor_client
+
+    # 1. Custom token provided in args
+    args_with_token = argparse.Namespace(host="127.0.0.1", port=9333, token="my-custom-token-xyz")
+    client = get_supervisor_client(args_with_token)
+    assert client.token == "my-custom-token-xyz"
+    headers = client._get_headers()
+    assert headers["X-Supervisor-Token"] == "my-custom-token-xyz"
+    assert headers["Authorization"] == "Bearer my-custom-token-xyz"
+
+    # 2. No token in args -> falls back to load_supervisor_token
+    args_no_token = argparse.Namespace(host="127.0.0.1", port=9333, token=None)
+    client_default = get_supervisor_client(args_no_token)
+    assert client_default.base_url == "http://127.0.0.1:9333"

@@ -81,3 +81,99 @@ def test_supervisor_action_request_defaults():
     assert req.submit is False
     assert req.auto_inspect is True
     assert req.timeout_minutes == 30
+
+
+def test_supervisor_spawn_and_restart_worker(monkeypatch):
+    """Verify MasterSupervisor._spawn_worker and restart_worker lifecycle with start_new_session."""
+    from supervisor.master_daemon import MasterSupervisor
+    import subprocess
+    import sys
+
+    sup = MasterSupervisor(port=9777, token="dummy-token")
+    sup._is_running = False  # Stop watchdog thread
+
+    spawn_calls = []
+
+    class DummyProc:
+        def __init__(self, pid):
+            self.pid = pid
+        def poll(self):
+            return None
+
+    def fake_popen(cmd, **kwargs):
+        spawn_calls.append((cmd, kwargs))
+        return DummyProc(pid=1000 + len(spawn_calls))
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    # Test initial spawn via _ensure_worker
+    proc1 = sup._ensure_worker()
+    assert proc1.pid == 1001
+    assert len(spawn_calls) == 1
+    cmd1, kwargs1 = spawn_calls[0]
+    assert kwargs1["env"]["WEBPILOT_SUPERVISOR_TOKEN"] == "dummy-token"
+    if sys.platform != "win32":
+        assert kwargs1.get("start_new_session") is True
+
+    # Test restart_worker
+    terminated = []
+    monkeypatch.setattr(sup, "terminate_worker", lambda: terminated.append(True))
+    resp = sup.restart_worker()
+
+    assert resp.success is True
+    assert resp.action == "restart_worker"
+    assert resp.worker_pid == 1002
+    assert len(terminated) == 1
+    assert len(spawn_calls) == 2
+    cmd2, kwargs2 = spawn_calls[1]
+    # Verify that restart_worker uses the unified _spawn_worker
+    if sys.platform != "win32":
+        assert kwargs2.get("start_new_session") is True
+    assert kwargs2["env"]["WEBPILOT_SUPERVISOR_TOKEN"] == "dummy-token"
+
+
+def test_worker_process_field_verification(monkeypatch):
+    """Verify worker_process calls verify_field_value and populates confirmed and unconfirmed fields."""
+    from supervisor.worker_process import OperationalWorker
+    from unittest.mock import MagicMock
+
+    worker = OperationalWorker()
+
+    mock_coord = MagicMock()
+    mock_coord.page.url = "https://example.com/form"
+    mock_coord.page.title.return_value = "Test Form"
+    mock_coord.page.is_closed.return_value = False
+    mock_coord.page.locator.return_value.count.return_value = 0
+    mock_coord.context.pages = [mock_coord.page]
+    worker.coordinator = mock_coord
+    monkeypatch.setattr(worker, "_ensure_session", lambda req: mock_coord)
+
+    # Mock FieldInteractionService
+    mock_field_svc = MagicMock()
+    mock_field_svc.set_field.side_effect = lambda k, v: k != "skipped_field"
+    mock_field_svc.verify_field_value.side_effect = lambda k, v: k == "verified_field"
+
+    monkeypatch.setattr("supervisor.worker_process.FieldInteractionService", lambda page: mock_field_svc)
+    monkeypatch.setattr("supervisor.worker_process.AuthNavigationService", lambda p, c: MagicMock())
+    monkeypatch.setattr("supervisor.worker_process.FormValidator", lambda p: MagicMock(get_validation_errors=lambda: []))
+    monkeypatch.setattr("supervisor.worker_process.InspectionService", lambda p: MagicMock())
+
+    req = SupervisorActionRequest(
+        action="apply",
+        url="https://example.com/form",
+        fill_arguments=[
+            "verified_field=value1",
+            "unverified_field=value2",
+            "skipped_field=value3",
+        ],
+        auto_inspect=False,
+    )
+
+    resp = worker._handle_apply(req)
+
+    assert resp.success is True
+    assert resp.confirmed_fields == [("verified_field", "value1")]
+    assert resp.unconfirmed_fields == [("unverified_field", "value2")]
+    assert resp.failed_fields == [("skipped_field", "value3")]
+    assert mock_field_svc.verify_field_value.called
+

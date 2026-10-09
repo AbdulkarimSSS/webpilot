@@ -88,33 +88,37 @@ class MasterSupervisor:
         self.watchdog_thread = threading.Thread(target=self._watchdog_loop, daemon=True)
         self.watchdog_thread.start()
 
+    def _spawn_worker(self) -> subprocess.Popen:
+        """Spawns Layer 2 Worker subprocess with process group isolation."""
+        if getattr(sys, "frozen", False):
+            worker_cmd = [sys.executable, "--run-worker"]
+            worker_cwd = os.path.dirname(sys.executable)
+        else:
+            worker_cmd = [sys.executable, "-m", "supervisor.worker_process"]
+            worker_cwd = PROJECT_ROOT
+
+        worker_env = os.environ.copy()
+        worker_env["WEBPILOT_SUPERVISOR_TOKEN"] = self.token
+
+        popen_kwargs: Dict[str, Any] = {
+            "stdin": subprocess.PIPE,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text": True,
+            "bufsize": 1,
+            "cwd": worker_cwd,
+            "env": worker_env,
+        }
+        if sys.platform != "win32":
+            popen_kwargs["start_new_session"] = True
+
+        return subprocess.Popen(worker_cmd, **popen_kwargs)
+
     def _ensure_worker(self) -> subprocess.Popen:
         """Spawns Layer 2 Worker subprocess if not currently running."""
         with self.lock:
             if self.worker_process is None or self.worker_process.poll() is not None:
-                if getattr(sys, "frozen", False):
-                    worker_cmd = [sys.executable, "--run-worker"]
-                    worker_cwd = os.path.dirname(sys.executable)
-                else:
-                    worker_cmd = [sys.executable, "-m", "supervisor.worker_process"]
-                    worker_cwd = PROJECT_ROOT
-
-                worker_env = os.environ.copy()
-                worker_env["WEBPILOT_SUPERVISOR_TOKEN"] = self.token
-
-                popen_kwargs: Dict[str, Any] = {
-                    "stdin": subprocess.PIPE,
-                    "stdout": subprocess.PIPE,
-                    "stderr": subprocess.PIPE,
-                    "text": True,
-                    "bufsize": 1,
-                    "cwd": worker_cwd,
-                    "env": worker_env,
-                }
-                if sys.platform != "win32":
-                    popen_kwargs["start_new_session"] = True
-
-                self.worker_process = subprocess.Popen(worker_cmd, **popen_kwargs)
+                self.worker_process = self._spawn_worker()
             return self.worker_process
 
     def execute_action(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
@@ -179,19 +183,8 @@ class MasterSupervisor:
         with self.lock:
             old_pid = self.worker_process.pid if self.worker_process else None
             self.terminate_worker()
-            # Spawn fresh Worker
-            worker_env = os.environ.copy()
-            worker_env["WEBPILOT_SUPERVISOR_TOKEN"] = self.token
-            new_worker = subprocess.Popen(
-                [sys.executable, "-m", "supervisor.worker_process"],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                cwd=PROJECT_ROOT,
-                env=worker_env,
-            )
+            # Spawn fresh Worker using unified helper with start_new_session on POSIX
+            new_worker = self._spawn_worker()
             self.worker_process = new_worker
             self.last_active_time = time.time()
 
@@ -306,13 +299,13 @@ def create_supervisor_handler(supervisor: MasterSupervisor):
     return SupervisorHTTPHandler
 
 
-def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT):
+def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] = None):
     """Starts the Master Supervisor HTTP service."""
     sys.stdout = LogWriter(LOG_FILE)
     sys.stderr = LogWriter(LOG_FILE)
     log_daemon(f"run_master_daemon starting on port {port} (PID: {os.getpid()})")
     try:
-        supervisor = MasterSupervisor(port=port)
+        supervisor = MasterSupervisor(port=port, token=token)
         handler_class = create_supervisor_handler(supervisor)
         server = HTTPServer((DEFAULT_SUPERVISOR_HOST, port), handler_class)
         log_daemon(f"Master Supervisor listening on http://{DEFAULT_SUPERVISOR_HOST}:{port}")
@@ -332,6 +325,7 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT):
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_SUPERVISOR_PORT
-    run_master_daemon(port=port)
+    port = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else DEFAULT_SUPERVISOR_PORT
+    token = sys.argv[2] if len(sys.argv) > 2 else None
+    run_master_daemon(port=port, token=token)
 

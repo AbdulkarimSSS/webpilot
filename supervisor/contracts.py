@@ -49,6 +49,7 @@ class SupervisorActionResponse:
     telemetry: Dict[str, Any] = field(default_factory=dict)
     schema: Optional[Dict[str, Any]] = None
     confirmed_fields: List[Any] = field(default_factory=list)
+    unconfirmed_fields: List[Any] = field(default_factory=list)
     failed_fields: List[Any] = field(default_factory=list)
     validation_errors: List[str] = field(default_factory=list)
     reactive_event: Optional[Dict[str, Any]] = None

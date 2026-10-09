@@ -253,6 +253,7 @@ class OperationalWorker:
 
         field_svc = FieldInteractionService(page)
         confirmed = []
+        unconfirmed = []
         failed = []
 
         if fields_to_set:
@@ -260,12 +261,23 @@ class OperationalWorker:
             for key, val in fields_to_set:
                 success = field_svc.set_field(key, val)
                 if success:
-                    confirmed.append((key, val))
-                    lines.append(f"  [✓] Set '{key}' -> '{val}'")
+                    # Post-fill verification: read back DOM value to confirm it was applied
+                    verified = field_svc.verify_field_value(key, val)
+                    if not verified:
+                        # Fallback retry via direct Playwright interaction
+                        field_svc._playwright_click_fallback(key, val)
+                        verified = field_svc.verify_field_value(key, val)
+
+                    if verified:
+                        confirmed.append((key, val))
+                        lines.append(f"  [✓] Set & Verified '{key}' -> '{val}'")
+                    else:
+                        unconfirmed.append((key, val))
+                        lines.append(f"  [?] Set but unconfirmed '{key}' -> '{val}'")
                 else:
                     failed.append((key, val))
                     lines.append(f"  [~] Unmatched/Failed '{key}' -> '{val}'")
-            lines.append(f"[*] Fields summary: {len(confirmed)} set | {len(failed)} skipped.")
+            lines.append(f"[*] Fields summary: {len(confirmed)} confirmed | {len(unconfirmed)} unconfirmed | {len(failed)} skipped.")
 
         # 4. Handle uploads
         if req.upload_files:
@@ -349,6 +361,7 @@ class OperationalWorker:
             total_tabs=len(ctx.pages) if ctx else 0,
             tabs=coord.adapter.list_open_tabs(),
             confirmed_fields=confirmed,
+            unconfirmed_fields=unconfirmed,
             failed_fields=failed,
             validation_errors=validation_errors,
             schema=schema,

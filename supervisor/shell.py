@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import List
+from typing import List, Optional
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -19,9 +19,9 @@ from supervisor.client import SupervisorClient
 from supervisor.contracts import SupervisorActionRequest, SupervisorActionResponse
 
 
-def run_interactive_shell(host: str = "127.0.0.1", port: int = 9333):
+def run_interactive_shell(host: str = "127.0.0.1", port: int = 9333, token: Optional[str] = None):
     """Runs the interactive REPL session."""
-    client = SupervisorClient(base_url=f"http://{host}:{port}")
+    client = SupervisorClient(base_url=f"http://{host}:{port}", token=token)
     try:
         client.ensure_running()
     except Exception as exc:

@@ -86,12 +86,17 @@ class SupervisorClient:
             cwd = PROJECT_ROOT
             cmd = [py_exe, script_path]
 
-        get_process_manager().launch_detached(cmd, cwd=cwd)
+        spawn_env = os.environ.copy()
+        if self.token:
+            spawn_env["WEBPILOT_SUPERVISOR_TOKEN"] = self.token
+
+        get_process_manager().launch_detached(cmd, cwd=cwd, env=spawn_env)
 
         # Wait up to 4 seconds for supervisor to become active
         start = time.time()
         while time.time() - start < 4.0:
-            self.token = load_supervisor_token()
+            if not self.token:
+                self.token = load_supervisor_token()
             if self.is_running():
                 print("[✓] Master Supervisor is ready and active.")
                 return
