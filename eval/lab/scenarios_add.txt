@@ -1,0 +1,15 @@
+add("S50", tier=3,
+    title="Login flow with hidden fields and dynamic auth",
+    purpose="Exposes common anti-bot/auth patterns: hidden CSRF token injected after DOM ready and a submit only after short delay.",
+    submit=True,
+    fields=[{"key": "username", "label": "Username", "type": "text"},
+            {"key": "password", "label": "Password", "type": "password"}],
+    expected={"username": "test", "password": "test"},
+    honeypots=[], destructive=[],
+    html=page("S50", '''
+<form id="mainform" style="display:none">
+<input type="hidden" id="csrf" name="csrf" value="tok">
+<label for="username">Username</label><input id="username" name="username"><br>
+<label for="password">Password</label><input id="password" name="password" type="password"><br>
+<button type="submit">Login</button></form>
+<script>setTimeout(()=>{document.getElementById('mainform').style.display='block';},300);</script>'''))

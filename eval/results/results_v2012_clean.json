@@ -1,0 +1,2772 @@
+[
+ {
+  "scenario": "S01",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 3,
+  "fields_total": 3,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "first_name": {
+    "expected": "Alice",
+    "got": "Alice",
+    "ok": true
+   },
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   },
+   "password": {
+    "expected": "Zx9-not-real-42",
+    "got": "Zx9-not-real-42",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.07,
+  "tokens_in": 611,
+  "tokens_out": 305,
+  "schema_tokens": 123,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S01\n • Active Page URL      : http://127.0.0.1:8900/s/S01\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S01/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S01' ===\nURL: http://127.0.0.1:8900/s/S01\n\n📝 Text & Numeric Input Fields (3):\n  • Label: 'First name' (ID: first_name) [REQUIRED]\n  • Label: 'Email' (ID: email) [REQUIRED]\n  • Label: 'Password' (ID: password) [REQUIRED]\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S01\n • Active Page URL      : http://127.0.0.1:8900/s/S01\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S01\n[*] Ensuring all form sections are expanded...\n[*] Populating 3 field(s)...\n  [✓] Set & Verified 'first_name' -> 'Alice'\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n  [✓] Set & Verified 'password' -> '***REDACTED***'\n[*] Fields summary: 3 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S01' ===\nURL: http://127.0.0.1:8900/s/S01\n\n📝 Text & Numeric Input Fields (3):\n  • Label: 'First name' (ID: first_name) [REQUIRED] = 'Alice'\n  • Label: 'Email' (ID: email) [REQUIRED] = 'alice.nakamura@example.test'\n  • Label: 'Password' (ID: password) [REQUIRED] = 'Zx9-not-real-42'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email",
+    "first_name",
+    "password"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S02",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "country": {
+    "expected": "Japan",
+    "got": "Japan",
+    "ok": true
+   },
+   "langs": {
+    "expected": "English,Japanese",
+    "got": "English,Japanese",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 549,
+  "tokens_out": 274,
+  "schema_tokens": 101,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S02\n • Active Page URL      : http://127.0.0.1:8900/s/S02\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S02/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S02' ===\nURL: http://127.0.0.1:8900/s/S02\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (2):\n  • Label: 'Country' (ID: country)\n  • Label: 'Languages' (ID: langs)\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S02\n • Active Page URL      : http://127.0.0.1:8900/s/S02\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S02\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'country' -> 'Japan'\n  [✓] Set & Verified 'langs' -> 'English,Japanese'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S02' ===\nURL: http://127.0.0.1:8900/s/S02\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (2):\n  • Label: 'Country' (ID: country) = 'Japan'\n  • Label: 'Languages' (ID: langs) = 'English'\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "country",
+    "langs"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S03",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "city": {
+    "expected": "Springfield",
+    "got": "Springfield",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.51,
+  "tokens_in": 518,
+  "tokens_out": 259,
+  "schema_tokens": 84,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S03\n • Active Page URL      : http://127.0.0.1:8900/s/S03\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S03/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S03' ===\nURL: http://127.0.0.1:8900/s/S03\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'City' (ID: city-input)\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S03\n • Active Page URL      : http://127.0.0.1:8900/s/S03\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S03\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'city' -> 'Springfield'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S03' ===\nURL: http://127.0.0.1:8900/s/S03\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'City' (ID: city-input) = 'Springfield'\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "city"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S04",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 4,
+  "fields_total": 4,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "bio": {
+    "expected": "Hello world",
+    "got": "Hello world",
+    "ok": true
+   },
+   "age": {
+    "expected": "42",
+    "got": "42",
+    "ok": true
+   },
+   "site": {
+    "expected": "https://example.test",
+    "got": "https://example.test",
+    "ok": true
+   },
+   "tel": {
+    "expected": "5550107",
+    "got": "5550107",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.07,
+  "tokens_in": 603,
+  "tokens_out": 301,
+  "schema_tokens": 139,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S04\n • Active Page URL      : http://127.0.0.1:8900/s/S04\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S04/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S04' ===\nURL: http://127.0.0.1:8900/s/S04\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Bio' (ID: bio)\n  • Label: 'Age' (ID: age)\n  • Label: 'Website' (ID: site)\n  • Label: 'Telephone' (ID: tel)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S04\n • Active Page URL      : http://127.0.0.1:8900/s/S04\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S04\n[*] Ensuring all form sections are expanded...\n[*] Populating 4 field(s)...\n  [✓] Set & Verified 'bio' -> 'Hello world'\n  [✓] Set & Verified 'age' -> '42'\n  [✓] Set & Verified 'site' -> 'https://example.test'\n  [✓] Set & Verified 'tel' -> '5550107'\n[*] Fields summary: 4 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S04' ===\nURL: http://127.0.0.1:8900/s/S04\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Bio' (ID: bio) = 'Hello world'\n  • Label: 'Age' (ID: age) = '42'\n  • Label: 'Website' (ID: site) = 'https://example.test'\n  • Label: 'Telephone' (ID: tel) = '5550107'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "age",
+    "bio",
+    "site",
+    "tel"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S05",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "plan": {
+    "expected": "Pro",
+    "got": "Pro",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.05,
+  "tokens_in": 505,
+  "tokens_out": 252,
+  "schema_tokens": 58,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S05\n • Active Page URL      : http://127.0.0.1:8900/s/S05\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S05/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S05' ===\nURL: http://127.0.0.1:8900/s/S05\n\n📁 Sections (1): Plan\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S05\n • Active Page URL      : http://127.0.0.1:8900/s/S05\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S05\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'plan' -> 'Pro'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S05' ===\nURL: http://127.0.0.1:8900/s/S05\n\n📁 Sections (1): Plan\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "plan"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S06",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "interests": {
+    "expected": "AI,Security",
+    "got": "AI,Security",
+    "ok": true
+   },
+   "newsletter": {
+    "expected": "on",
+    "got": "on",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 569,
+  "tokens_out": 284,
+  "schema_tokens": 119,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S06\n • Active Page URL      : http://127.0.0.1:8900/s/S06\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S06/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S06' ===\nURL: http://127.0.0.1:8900/s/S06\n\n📁 Sections (1): Interests\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (1):\n  • Question: 'Interests' -> [AI, Web, Security]\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (2):\n  • [BUTTON] 'Newsletter' (ID: nl)\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S06\n • Active Page URL      : http://127.0.0.1:8900/s/S06\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S06\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'interests' -> 'AI,Security'\n  [✓] Set & Verified 'newsletter' -> 'on'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S06' ===\nURL: http://127.0.0.1:8900/s/S06\n\n📁 Sections (1): Interests\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (1):\n  • Question: 'Interests' -> [AI, Web, Security] [Selected: Security]\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (2):\n  • [BUTTON] 'Newsletter' (ID: nl)\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "interests",
+    "newsletter"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S07",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "start_date": {
+    "expected": "2026-03-15",
+    "got": "2026-03-15",
+    "ok": true
+   },
+   "birthdate": {
+    "expected": "2026-03-15",
+    "got": "2026-03-15",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.05,
+  "tokens_in": 595,
+  "tokens_out": 297,
+  "schema_tokens": 137,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S07\n • Active Page URL      : http://127.0.0.1:8900/s/S07\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S07/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S07' ===\nURL: http://127.0.0.1:8900/s/S07\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Start date' (ID: start_date)\n  • Label: 'Birthdate' (ID: birthdate)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (4):\n  • [BUTTON] '14' (ID: )\n  • [BUTTON] '15' (ID: )\n  • [BUTTON] '16' (ID: )\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S07\n • Active Page URL      : http://127.0.0.1:8900/s/S07\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S07\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'start_date' -> '2026-03-15'\n  [✓] Set & Verified 'birthdate' -> '2026-03-15'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S07' ===\nURL: http://127.0.0.1:8900/s/S07\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Start date' (ID: start_date) = '2026-03-15'\n  • Label: 'Birthdate' (ID: birthdate) = '2026-03-15'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (4):\n  • [BUTTON] '14' (ID: )\n  • [BUTTON] '15' (ID: )\n  • [BUTTON] '16' (ID: )\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "birthdate",
+    "start_date"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S08",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 4,
+  "fields_total": 4,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "d": {
+    "expected": "2026-10-09",
+    "got": "2026-10-09",
+    "ok": true
+   },
+   "t": {
+    "expected": "13:45",
+    "got": "13:45",
+    "ok": true
+   },
+   "r": {
+    "expected": "7",
+    "got": "7",
+    "ok": true
+   },
+   "c": {
+    "expected": "#3366ff",
+    "got": "#3366ff",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.07,
+  "tokens_in": 590,
+  "tokens_out": 295,
+  "schema_tokens": 138,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S08\n • Active Page URL      : http://127.0.0.1:8900/s/S08\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S08/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S08' ===\nURL: http://127.0.0.1:8900/s/S08\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Date' (ID: d)\n  • Label: 'Time' (ID: t)\n  • Label: 'Range' (ID: r) = '50'\n  • Label: 'Color' (ID: c) = '#000000'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S08\n • Active Page URL      : http://127.0.0.1:8900/s/S08\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S08\n[*] Ensuring all form sections are expanded...\n[*] Populating 4 field(s)...\n  [✓] Set & Verified 'd' -> '2026-10-09'\n  [✓] Set & Verified 't' -> '13:45'\n  [✓] Set & Verified 'r' -> '7'\n  [✓] Set & Verified 'c' -> '#3366ff'\n[*] Fields summary: 4 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S08' ===\nURL: http://127.0.0.1:8900/s/S08\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Date' (ID: d) = '2026-10-09'\n  • Label: 'Time' (ID: t) = '13:45'\n  • Label: 'Range' (ID: r) = '7'\n  • Label: 'Color' (ID: c) = '#3366ff'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "c",
+    "d",
+    "r",
+    "t"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S09",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "first_name": {
+    "expected": "Alice",
+    "got": "Alice",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.88,
+  "tokens_in": 519,
+  "tokens_out": 259,
+  "schema_tokens": 80,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S09\n • Active Page URL      : http://127.0.0.1:8900/s/S09\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S09/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S09' ===\nURL: http://127.0.0.1:8900/s/S09\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'First name' (ID: first_name)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S09\n • Active Page URL      : http://127.0.0.1:8900/s/S09\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S09\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'first_name' -> 'Alice'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S09' ===\nURL: http://127.0.0.1:8900/s/S09\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'First name' (ID: first_name) = 'Alice'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "first_name"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S10",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 2.01,
+  "tokens_in": 553,
+  "tokens_out": 276,
+  "schema_tokens": 102,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S10\n • Active Page URL      : http://127.0.0.1:8900/s/S10\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S10/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S10' ===\nURL: http://127.0.0.1:8900/s/S10\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (3):\n  • [SUBMIT] 'Submit' (ID: )\n  • [BUTTON] 'Accept' (ID: )\n  • [CANCEL] 'Close' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S10\n • Active Page URL      : http://127.0.0.1:8900/s/S10\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S10\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S10' ===\nURL: http://127.0.0.1:8900/s/S10\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (3):\n  • [SUBMIT] 'Submit' (ID: )\n  • [BUTTON] 'Accept' (ID: )\n  • [CANCEL] 'Close' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S11",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 4,
+  "fields_total": 4,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "category": {
+    "expected": "Business",
+    "got": "Business",
+    "ok": true
+   },
+   "company": {
+    "expected": "Northwind Traders",
+    "got": "Northwind Traders",
+    "ok": true
+   },
+   "vat": {
+    "expected": "VAT-123",
+    "got": "VAT-123",
+    "ok": true
+   },
+   "employees": {
+    "expected": "12",
+    "got": "12",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.07,
+  "tokens_in": 591,
+  "tokens_out": 295,
+  "schema_tokens": 81,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S11\n • Active Page URL      : http://127.0.0.1:8900/s/S11\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S11/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S11' ===\nURL: http://127.0.0.1:8900/s/S11\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'Category' (ID: category) = 'choose'\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S11\n • Active Page URL      : http://127.0.0.1:8900/s/S11\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S11\n[*] Ensuring all form sections are expanded...\n[*] Populating 4 field(s)...\n  [✓] Set & Verified 'category' -> 'Business'\n  [✓] Set & Verified 'company' -> 'Northwind Traders'\n  [✓] Set & Verified 'vat' -> 'VAT-123'\n  [✓] Set & Verified 'employees' -> '12'\n[*] Fields summary: 4 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S11' ===\nURL: http://127.0.0.1:8900/s/S11\n\n📝 Text & Numeric Input Fields (3):\n  • Label: 'Company' (ID: company) = 'Northwind Traders'\n  • Label: 'VAT ID' (ID: vat) = 'VAT-123'\n  • Label: 'Employees' (ID: employees) = '12'\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'Category' (ID: category) = 'Business'\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "category",
+    "company",
+    "employees",
+    "vat"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S12",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   },
+   "first_name": {
+    "expected": "Alice",
+    "got": "Alice",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.4,
+  "tokens_in": 549,
+  "tokens_out": 274,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S12\n • Active Page URL      : http://127.0.0.1:8900/s/S12\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S12/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S12' ===\nURL: http://127.0.0.1:8900/s/S12\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [NEXT] 'Next' (ID: next)\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S12\n • Active Page URL      : http://127.0.0.1:8900/s/S12\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S12\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n  [✓] Set & Verified 'first_name' -> 'Alice'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Next'...\n  [✓] Successfully clicked 'Next'.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S12' ===\nURL: http://127.0.0.1:8900/s/S12\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'First name' (ID: first_name) = 'Alice'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email",
+    "first_name"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S13",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "plan": {
+    "expected": "Pro",
+    "got": "Pro",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.03,
+  "tokens_in": 531,
+  "tokens_out": 265,
+  "schema_tokens": 98,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S13\n • Active Page URL      : http://127.0.0.1:8900/s/S13\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S13/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S13' ===\nURL: http://127.0.0.1:8900/s/S13\n\n📁 Sections (1): Plan\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (1):\n  • Question: 'Plan' -> [Basic, Pro, Team]\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S13\n • Active Page URL      : http://127.0.0.1:8900/s/S13\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S13\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'plan' -> 'Pro'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S13' ===\nURL: http://127.0.0.1:8900/s/S13\n\n📁 Sections (1): Plan\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (1):\n  • Question: 'Plan' -> [Basic, Pro, Team] [Selected: Pro]\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "plan"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S14",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 0,
+  "fields_total": 0,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {},
+  "steps": 2,
+  "wall_time_s": 1.01,
+  "tokens_in": 479,
+  "tokens_out": 239,
+  "schema_tokens": 70,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S14\n • Active Page URL      : http://127.0.0.1:8900/s/S14\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S14/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S14' ===\nURL: http://127.0.0.1:8900/s/S14\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (1):\n  • Label: 'Document' (ID: doc)\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S14\n • Active Page URL      : http://127.0.0.1:8900/s/S14\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S14\n[*] Ensuring all form sections are expanded...\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S14' ===\nURL: http://127.0.0.1:8900/s/S14\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (1):\n  • Label: 'Document' (ID: doc)\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": false,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S15",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "region": {
+    "expected": "Asia",
+    "got": "Asia",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.07,
+  "tokens_in": 516,
+  "tokens_out": 258,
+  "schema_tokens": 79,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S15\n • Active Page URL      : http://127.0.0.1:8900/s/S15\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S15/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S15' ===\nURL: http://127.0.0.1:8900/s/S15\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'Region' (ID: region) = 'UK'\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S15\n • Active Page URL      : http://127.0.0.1:8900/s/S15\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S15\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'region' -> 'Asia'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S15' ===\nURL: http://127.0.0.1:8900/s/S15\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'Region' (ID: region) = 'Asia'\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "region"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S16",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "cityname": {
+    "expected": "Springfield",
+    "got": "Springfield",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.02,
+  "tokens_in": 520,
+  "tokens_out": 260,
+  "schema_tokens": 79,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S16\n • Active Page URL      : http://127.0.0.1:8900/s/S16\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S16/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S16' ===\nURL: http://127.0.0.1:8900/s/S16\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'cityname' (ID: cityname)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S16\n • Active Page URL      : http://127.0.0.1:8900/s/S16\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S16\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'cityname' -> 'Springfield'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S16' ===\nURL: http://127.0.0.1:8900/s/S16\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'cityname' (ID: cityname) = 'Springfield'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "cityname"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S17",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 65,
+  "fields_total": 65,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "f01": {
+    "expected": "v1",
+    "got": "v1",
+    "ok": true
+   },
+   "f02": {
+    "expected": "v2",
+    "got": "v2",
+    "ok": true
+   },
+   "f03": {
+    "expected": "v3",
+    "got": "v3",
+    "ok": true
+   },
+   "f04": {
+    "expected": "v4",
+    "got": "v4",
+    "ok": true
+   },
+   "f05": {
+    "expected": "v5",
+    "got": "v5",
+    "ok": true
+   },
+   "f06": {
+    "expected": "v6",
+    "got": "v6",
+    "ok": true
+   },
+   "f07": {
+    "expected": "v7",
+    "got": "v7",
+    "ok": true
+   },
+   "f08": {
+    "expected": "v8",
+    "got": "v8",
+    "ok": true
+   },
+   "f09": {
+    "expected": "v9",
+    "got": "v9",
+    "ok": true
+   },
+   "f10": {
+    "expected": "v10",
+    "got": "v10",
+    "ok": true
+   },
+   "f11": {
+    "expected": "v11",
+    "got": "v11",
+    "ok": true
+   },
+   "f12": {
+    "expected": "v12",
+    "got": "v12",
+    "ok": true
+   },
+   "f13": {
+    "expected": "v13",
+    "got": "v13",
+    "ok": true
+   },
+   "f14": {
+    "expected": "v14",
+    "got": "v14",
+    "ok": true
+   },
+   "f15": {
+    "expected": "v15",
+    "got": "v15",
+    "ok": true
+   },
+   "f16": {
+    "expected": "v16",
+    "got": "v16",
+    "ok": true
+   },
+   "f17": {
+    "expected": "v17",
+    "got": "v17",
+    "ok": true
+   },
+   "f18": {
+    "expected": "v18",
+    "got": "v18",
+    "ok": true
+   },
+   "f19": {
+    "expected": "v19",
+    "got": "v19",
+    "ok": true
+   },
+   "f20": {
+    "expected": "v20",
+    "got": "v20",
+    "ok": true
+   },
+   "f21": {
+    "expected": "v21",
+    "got": "v21",
+    "ok": true
+   },
+   "f22": {
+    "expected": "v22",
+    "got": "v22",
+    "ok": true
+   },
+   "f23": {
+    "expected": "v23",
+    "got": "v23",
+    "ok": true
+   },
+   "f24": {
+    "expected": "v24",
+    "got": "v24",
+    "ok": true
+   },
+   "f25": {
+    "expected": "v25",
+    "got": "v25",
+    "ok": true
+   },
+   "f26": {
+    "expected": "v26",
+    "got": "v26",
+    "ok": true
+   },
+   "f27": {
+    "expected": "v27",
+    "got": "v27",
+    "ok": true
+   },
+   "f28": {
+    "expected": "v28",
+    "got": "v28",
+    "ok": true
+   },
+   "f29": {
+    "expected": "v29",
+    "got": "v29",
+    "ok": true
+   },
+   "f30": {
+    "expected": "v30",
+    "got": "v30",
+    "ok": true
+   },
+   "f31": {
+    "expected": "v31",
+    "got": "v31",
+    "ok": true
+   },
+   "f32": {
+    "expected": "v32",
+    "got": "v32",
+    "ok": true
+   },
+   "f33": {
+    "expected": "v33",
+    "got": "v33",
+    "ok": true
+   },
+   "f34": {
+    "expected": "v34",
+    "got": "v34",
+    "ok": true
+   },
+   "f35": {
+    "expected": "v35",
+    "got": "v35",
+    "ok": true
+   },
+   "f36": {
+    "expected": "v36",
+    "got": "v36",
+    "ok": true
+   },
+   "f37": {
+    "expected": "v37",
+    "got": "v37",
+    "ok": true
+   },
+   "f38": {
+    "expected": "v38",
+    "got": "v38",
+    "ok": true
+   },
+   "f39": {
+    "expected": "v39",
+    "got": "v39",
+    "ok": true
+   },
+   "f40": {
+    "expected": "v40",
+    "got": "v40",
+    "ok": true
+   },
+   "f41": {
+    "expected": "v41",
+    "got": "v41",
+    "ok": true
+   },
+   "f42": {
+    "expected": "v42",
+    "got": "v42",
+    "ok": true
+   },
+   "f43": {
+    "expected": "v43",
+    "got": "v43",
+    "ok": true
+   },
+   "f44": {
+    "expected": "v44",
+    "got": "v44",
+    "ok": true
+   },
+   "f45": {
+    "expected": "v45",
+    "got": "v45",
+    "ok": true
+   },
+   "f46": {
+    "expected": "v46",
+    "got": "v46",
+    "ok": true
+   },
+   "f47": {
+    "expected": "v47",
+    "got": "v47",
+    "ok": true
+   },
+   "f48": {
+    "expected": "v48",
+    "got": "v48",
+    "ok": true
+   },
+   "f49": {
+    "expected": "v49",
+    "got": "v49",
+    "ok": true
+   },
+   "f50": {
+    "expected": "v50",
+    "got": "v50",
+    "ok": true
+   },
+   "f51": {
+    "expected": "v51",
+    "got": "v51",
+    "ok": true
+   },
+   "f52": {
+    "expected": "v52",
+    "got": "v52",
+    "ok": true
+   },
+   "f53": {
+    "expected": "v53",
+    "got": "v53",
+    "ok": true
+   },
+   "f54": {
+    "expected": "v54",
+    "got": "v54",
+    "ok": true
+   },
+   "f55": {
+    "expected": "v55",
+    "got": "v55",
+    "ok": true
+   },
+   "f56": {
+    "expected": "v56",
+    "got": "v56",
+    "ok": true
+   },
+   "f57": {
+    "expected": "v57",
+    "got": "v57",
+    "ok": true
+   },
+   "f58": {
+    "expected": "v58",
+    "got": "v58",
+    "ok": true
+   },
+   "f59": {
+    "expected": "v59",
+    "got": "v59",
+    "ok": true
+   },
+   "f60": {
+    "expected": "v60",
+    "got": "v60",
+    "ok": true
+   },
+   "f61": {
+    "expected": "v61",
+    "got": "v61",
+    "ok": true
+   },
+   "f62": {
+    "expected": "v62",
+    "got": "v62",
+    "ok": true
+   },
+   "f63": {
+    "expected": "v63",
+    "got": "v63",
+    "ok": true
+   },
+   "f64": {
+    "expected": "v64",
+    "got": "v64",
+    "ok": true
+   },
+   "f65": {
+    "expected": "v65",
+    "got": "v65",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.64,
+  "tokens_in": 2460,
+  "tokens_out": 1230,
+  "schema_tokens": 1533,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "══════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S17\n[*] Ensuring all form sections are expanded...\n[*] Populating 65 field(s)...\n  [✓] Set & Verified 'f01' -> 'v1'\n  [✓] Set & Verified 'f02' -> 'v2'\n  [✓] Set & Verified 'f03' -> 'v3'\n  [✓] Set & Verified 'f04' -> 'v4'\n  [✓] Set & Verified 'f05' -> 'v5'\n  [✓] Set & Verified 'f06' -> 'v6'\n  [✓] Set & Verified 'f07' -> 'v7'\n  [✓] Set & Verified 'f08' -> 'v8'\n  [✓] Set & Verified 'f09' -> 'v9'\n  [✓] Set & Verified 'f10' -> 'v10'\n  [✓] Set & Verified 'f11' -> 'v11'\n  [✓] Set & Verified 'f12' -> 'v12'\n  [✓] Set & Verified 'f13' -> 'v13'\n  [✓] Set & Verified 'f14' -> 'v14'\n  [✓] Set & Verified 'f15' -> 'v15'\n  [✓] Set & Verified 'f16' -> 'v16'\n  [✓] Set & Verified 'f17' -> 'v17'\n  [✓] Set & Verified 'f18' -> 'v18'\n  [✓] Set & Verified 'f19' -> 'v19'\n  [✓] Set & Verified 'f20' -> 'v20'\n  [✓] Set & Verified 'f21' -> 'v21'\n  [✓] Set & Verified 'f22' -> 'v22'\n  [✓] Set & Verified 'f23' -> 'v23'\n  [✓] Set & Verified 'f24' -> 'v24'\n  [✓] Set & Verified 'f25' -> 'v25'\n  [✓] Set & Verified 'f26' -> 'v26'\n  [✓] Set & Verified 'f27' -> 'v27'\n  [✓] Set & Verified 'f28' -> 'v28'\n  [✓] Set & Verified 'f29' -> 'v29'\n  [✓] Set & Verified 'f30' -> 'v30'\n  [✓] Set & Verified 'f31' -> 'v31'\n  [✓] Set & Verified 'f32' -> 'v32'\n  [✓] Set & Verified 'f33' -> 'v33'\n  [✓] Set & Verified 'f34' -> 'v34'\n  [✓] Set & Verified 'f35' -> 'v35'\n  [✓] Set & Verified 'f36' -> 'v36'\n  [✓] Set & Verified 'f37' -> 'v37'\n  [✓] Set & Verified 'f38' -> 'v38'\n  [✓] Set & Verified 'f39' -> 'v39'\n  [✓] Set & Verified 'f40' -> 'v40'\n  [✓] Set & Verified 'f41' -> 'v41'\n  [✓] Set & Verified 'f42' -> 'v42'\n  [✓] Set & Verified 'f43' -> 'v43'\n  [✓] Set & Verified 'f44' -> 'v44'\n  [✓] Set & Verified 'f45' -> 'v45'\n  [✓] Set & Verified 'f46' -> 'v46'\n  [✓] Set & Verified 'f47' -> 'v47'\n  [✓] Set & Verified 'f48' -> 'v48'\n  [✓] Set & Verified 'f49' -> 'v49'\n  [✓] Set & Verified 'f50' -> 'v50'\n  [✓] Set & Verified 'f51' -> 'v51'\n  [✓] Set & Verified 'f52' -> 'v52'\n  [✓] Set & Verified 'f53' -> 'v53'\n  [✓] Set & Verified 'f54' -> 'v54'\n  [✓] Set & Verified 'f55' -> 'v55'\n  [✓] Set & Verified 'f56' -> 'v56'\n  [✓] Set & Verified 'f57' -> 'v57'\n  [✓] Set & Verified 'f58' -> 'v58'\n  [✓] Set & Verified 'f59' -> 'v59'\n  [✓] Set & Verified 'f60' -> 'v60'\n  [✓] Set & Verified 'f61' -> 'v61'\n  [✓] Set & Verified 'f62' -> 'v62'\n  [✓] Set & Verified 'f63' -> 'v63'\n  [✓] Set & Verified 'f64' -> 'v64'\n  [✓] Set & Verified 'f65' -> 'v65'\n[*] Fields summary: 65 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S17' ===\nURL: http://127.0.0.1:8900/s/S17\n\n📝 Text & Numeric Input Fields (65):\n  • Label: 'Field number 1' (ID: f01) = 'v1'\n  • Label: 'Field number 2' (ID: f02) = 'v2'\n  • Label: 'Field number 3' (ID: f03) = 'v3'\n  • Label: 'Field number 4' (ID: f04) = 'v4'\n  • Label: 'Field number 5' (ID: f05) = 'v5'\n  • Label: 'Field number 6' (ID: f06) = 'v6'\n  • Label: 'Field number 7' (ID: f07) = 'v7'\n  • Label: 'Field number 8' (ID: f08) = 'v8'\n  • Label: 'Field number 9' (ID: f09) = 'v9'\n  • Label: 'Field number 10' (ID: f10) = 'v10'\n  • Label: 'Field number 11' (ID: f11) = 'v11'\n  • Label: 'Field number 12' (ID: f12) = 'v12'\n  • Label: 'Field number 13' (ID: f13) = 'v13'\n  • Label: 'Field number 14' (ID: f14) = 'v14'\n  • Label: 'Field number 15' (ID: f15) = 'v15'\n  • Label: 'Field number 16' (ID: f16) = 'v16'\n  • Label: 'Field number 17' (ID: f17) = 'v17'\n  • Label: 'Field number 18' (ID: f18) = 'v18'\n  • Label: 'Field number 19' (ID: f19) = 'v19'\n  • Label: 'Field number 20' (ID: f20) = 'v20'\n  • Label: 'Field number 21' (ID: f21) = 'v21'\n  • Label: 'Field number 22' (ID: f22) = 'v22'\n  • Label: 'Field number 23' (ID: f23) = 'v23'\n  • Label: 'Field number 24' (ID: f24) = 'v24'\n  • Label: 'Field number 25' (ID: f25) = 'v25'\n  • Label: 'Field number 26' (ID: f26) = 'v26'\n  • ",
+  "tool_reported": {
+   "confirmed": [
+    "f01",
+    "f02",
+    "f03",
+    "f04",
+    "f05",
+    "f06",
+    "f07",
+    "f08",
+    "f09",
+    "f10",
+    "f11",
+    "f12",
+    "f13",
+    "f14",
+    "f15",
+    "f16",
+    "f17",
+    "f18",
+    "f19",
+    "f20",
+    "f21",
+    "f22",
+    "f23",
+    "f24",
+    "f25",
+    "f26",
+    "f27",
+    "f28",
+    "f29",
+    "f30",
+    "f31",
+    "f32",
+    "f33",
+    "f34",
+    "f35",
+    "f36",
+    "f37",
+    "f38",
+    "f39",
+    "f40",
+    "f41",
+    "f42",
+    "f43",
+    "f44",
+    "f45",
+    "f46",
+    "f47",
+    "f48",
+    "f49",
+    "f50",
+    "f51",
+    "f52",
+    "f53",
+    "f54",
+    "f55",
+    "f56",
+    "f57",
+    "f58",
+    "f59",
+    "f60",
+    "f61",
+    "f62",
+    "f63",
+    "f64",
+    "f65"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S18",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "extraction",
+  "precision": 1.0,
+  "recall": 1.0,
+  "extraction_detail": {
+   "precision": 1.0,
+   "recall": 1.0,
+   "matched": [
+    "age",
+    "comments",
+    "country",
+    "email",
+    "full_name",
+    "gender",
+    "resume",
+    "subscribe"
+   ],
+   "missing": [],
+   "spurious": []
+  },
+  "reported_success": true,
+  "false_success": false,
+  "steps": 1,
+  "wall_time_s": 0.48,
+  "schema_tokens": 250,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S18\n • Active Page URL      : http://127.0.0.1:8900/s/S18\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S18/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S18' ===\nURL: http://127.0.0.1:8900/s/S18\n\n📁 Sections (1): Gender\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Full name' (ID: full_name) [REQUIRED]\n  • Label: 'Email' (ID: email) [REQUIRED]\n  • Label: 'Age' (ID: age)\n  • Label: 'Comments' (ID: comments)\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'Country' (ID: country) [REQUIRED] = 'USA'\n\n🔘 Choice Groups (Radio / Checkbox) (2):\n  • Question: 'subscribe' -> [on]\n  • Question: 'Gender' -> [Male, Female]\n\n📎 File Upload Areas (1):\n  • Label: 'Resume' (ID: resume)\n\n🔘 Key Action Buttons (0):\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": false,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S19",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "name_ar": {
+    "expected": "محمد عبد الله",
+    "got": "محمد عبد الله",
+    "ok": true
+   },
+   "city_ar": {
+    "expected": "الخرطوم",
+    "got": "الخرطوم",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.06,
+  "tokens_in": 553,
+  "tokens_out": 276,
+  "schema_tokens": 130,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S19\n • Active Page URL      : http://127.0.0.1:8900/s/S19\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S19/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S19' ===\nURL: http://127.0.0.1:8900/s/S19\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'الاسم الكامل' (ID: name_ar)\n  • Label: 'المدينة' (ID: city_ar)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [BUTTON] 'إرسال' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S19\n • Active Page URL      : http://127.0.0.1:8900/s/S19\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S19\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'name_ar' -> 'محمد عبد الله'\n  [✓] Set & Verified 'city_ar' -> 'الخرطوم'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'إرسال'...\n  [✓] Successfully clicked 'إرسال'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S19' ===\nURL: http://127.0.0.1:8900/s/S19\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'الاسم الكامل' (ID: name_ar) = 'محمد عبد الله'\n  • Label: 'المدينة' (ID: city_ar) = 'الخرطوم'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [BUTTON] 'إرسال' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "city_ar",
+    "name_ar"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S20",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 2.31,
+  "tokens_in": 486,
+  "tokens_out": 243,
+  "schema_tokens": 45,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S20\n • Active Page URL      : http://127.0.0.1:8900/s/S20\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S20/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S20' ===\nURL: http://127.0.0.1:8900/s/S20\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (0):\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S20\n • Active Page URL      : http://127.0.0.1:8900/s/S20\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S20\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S20' ===\nURL: http://127.0.0.1:8900/s/S20\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (0):\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S21",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 2.02,
+  "tokens_in": 547,
+  "tokens_out": 273,
+  "schema_tokens": 90,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S21\n • Active Page URL      : http://127.0.0.1:8900/s/S21\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S21/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S21' ===\nURL: http://127.0.0.1:8900/s/S21\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (2):\n  • [CANCEL] 'Close' (ID: )\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S21\n • Active Page URL      : http://127.0.0.1:8900/s/S21\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S21\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S21' ===\nURL: http://127.0.0.1:8900/s/S21\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (3):\n  • [CANCEL] 'Close' (ID: )\n  • [SUBMIT] 'Submit' (ID: )\n  • [CANCEL] 'Close inner' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S22",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "first_name": {
+    "expected": "Alice",
+    "got": "Alice",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 519,
+  "tokens_out": 259,
+  "schema_tokens": 80,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S22\n • Active Page URL      : http://127.0.0.1:8900/s/S22\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S22/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S22' ===\nURL: http://127.0.0.1:8900/s/S22\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'First name' (ID: first_name)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S22\n • Active Page URL      : http://127.0.0.1:8900/s/S22\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S22\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'first_name' -> 'Alice'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S22' ===\nURL: http://127.0.0.1:8900/s/S22\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'First name' (ID: first_name) = 'Alice'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "first_name"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S23",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "phone": {
+    "expected": "(555) 010-7000",
+    "got": "(555) 010-7000",
+    "ok": true
+   },
+   "amount": {
+    "expected": "$1,234.56",
+    "got": "$1,234.56",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.08,
+  "tokens_in": 549,
+  "tokens_out": 274,
+  "schema_tokens": 98,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S23\n • Active Page URL      : http://127.0.0.1:8900/s/S23\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S23/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S23' ===\nURL: http://127.0.0.1:8900/s/S23\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Phone' (ID: phone)\n  • Label: 'Amount' (ID: amount)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S23\n • Active Page URL      : http://127.0.0.1:8900/s/S23\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S23\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'phone' -> '(555) 010-7000'\n  [✓] Set & Verified 'amount' -> '$1,234.56'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S23' ===\nURL: http://127.0.0.1:8900/s/S23\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Phone' (ID: phone) = '(555) 010-7000'\n  • Label: 'Amount' (ID: amount) = '$1,234.56'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "amount",
+    "phone"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S24",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "city": {
+    "expected": "Springfield",
+    "got": "Springfield",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.06,
+  "tokens_in": 509,
+  "tokens_out": 254,
+  "schema_tokens": 76,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S24\n • Active Page URL      : http://127.0.0.1:8900/s/S24\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S24/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S24' ===\nURL: http://127.0.0.1:8900/s/S24\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'City' (ID: q)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S24\n • Active Page URL      : http://127.0.0.1:8900/s/S24\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S24\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'city' -> 'Springfield'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S24' ===\nURL: http://127.0.0.1:8900/s/S24\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'City' (ID: q)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "city"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S25",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "country": {
+    "expected": "Japan",
+    "got": "Japan",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.1,
+  "tokens_in": 527,
+  "tokens_out": 263,
+  "schema_tokens": 78,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S25\n • Active Page URL      : http://127.0.0.1:8900/s/S25\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S25/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S25' ===\nURL: http://127.0.0.1:8900/s/S25\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Country search' (ID: q)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S25\n • Active Page URL      : http://127.0.0.1:8900/s/S25\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S25\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'country' -> 'Japan'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S25' ===\nURL: http://127.0.0.1:8900/s/S25\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Country search' (ID: q) = 'Japan'\n\n🔽 Dropdowns & Picklists (1):\n  • Label: 'country' (ID: country) = 'Japan'\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "country"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S26",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 4,
+  "fields_total": 4,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "applicant_name": {
+    "expected": "Alice Nakamura",
+    "got": "Alice Nakamura",
+    "ok": true
+   },
+   "ref_name": {
+    "expected": "Ref Person",
+    "got": "Ref Person",
+    "ok": true
+   },
+   "ec_name": {
+    "expected": "Emer Contact",
+    "got": "Emer Contact",
+    "ok": true
+   },
+   "ec_phone": {
+    "expected": "5550108",
+    "got": "5550108",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.09,
+  "tokens_in": 648,
+  "tokens_out": 324,
+  "schema_tokens": 154,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S26\n • Active Page URL      : http://127.0.0.1:8900/s/S26\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S26/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S26' ===\nURL: http://127.0.0.1:8900/s/S26\n\n📁 Sections (3): Applicant, Reference, Emergency Contact\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Name' (ID: applicant_name)\n  • Label: 'Name' (ID: ref_name)\n  • Label: 'Name' (ID: ec_name)\n  • Label: 'Phone' (ID: ec_phone)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S26\n • Active Page URL      : http://127.0.0.1:8900/s/S26\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S26\n[*] Ensuring all form sections are expanded...\n[*] Populating 4 field(s)...\n  [✓] Set & Verified 'applicant_name' -> 'Alice Nakamura'\n  [✓] Set & Verified 'ref_name' -> 'Ref Person'\n  [✓] Set & Verified 'ec_name' -> 'Emer Contact'\n  [✓] Set & Verified 'ec_phone' -> '5550108'\n[*] Fields summary: 4 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S26' ===\nURL: http://127.0.0.1:8900/s/S26\n\n📁 Sections (3): Applicant, Reference, Emergency Contact\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Name' (ID: applicant_name) = 'Alice Nakamura'\n  • Label: 'Name' (ID: ref_name) = 'Ref Person'\n  • Label: 'Name' (ID: ec_name) = 'Emer Contact'\n  • Label: 'Phone' (ID: ec_phone) = '5550108'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "applicant_name",
+    "ec_name",
+    "ec_phone",
+    "ref_name"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S27",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 3,
+  "fields_total": 3,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "emp_0": {
+    "expected": "Acme",
+    "got": "Acme",
+    "ok": true
+   },
+   "emp_1": {
+    "expected": "Globex",
+    "got": "Globex",
+    "ok": true
+   },
+   "emp_2": {
+    "expected": "Initech",
+    "got": "Initech",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.56,
+  "tokens_in": 615,
+  "tokens_out": 307,
+  "schema_tokens": 96,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S27\n • Active Page URL      : http://127.0.0.1:8900/s/S27\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S27/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S27' ===\nURL: http://127.0.0.1:8900/s/S27\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Employer 1' (ID: emp_0)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (2):\n  • [ADD_ENTRY] 'Add another employer' (ID: add)\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S27\n • Active Page URL      : http://127.0.0.1:8900/s/S27\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S27\n[*] Ensuring all form sections are expanded...\n[*] Populating 3 field(s)...\n  [✓] Set & Verified 'emp_0' -> 'Acme'\n  [+] Dynamically expanded section via 'Add another employer'\n  [✓] Set & Verified 'emp_1' -> 'Globex'\n  [+] Dynamically expanded section via 'Add another employer'\n  [✓] Set & Verified 'emp_2' -> 'Initech'\n[*] Fields summary: 3 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S27' ===\nURL: http://127.0.0.1:8900/s/S27\n\n📝 Text & Numeric Input Fields (3):\n  • Label: 'Employer 1' (ID: emp_0) = 'Acme'\n  • Label: 'Employer 2' (ID: emp_1) = 'Globex'\n  • Label: 'Employer 3' (ID: emp_2) = 'Initech'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (2):\n  • [ADD_ENTRY] 'Add another employer' (ID: add)\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "emp_0",
+    "emp_1",
+    "emp_2"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S28",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "first_name": {
+    "expected": "Alice",
+    "got": "Alice",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 584,
+  "tokens_out": 292,
+  "schema_tokens": 151,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S28\n • Active Page URL      : http://127.0.0.1:8900/s/S28\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S28/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S28' ===\nURL: http://127.0.0.1:8900/s/S28\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'First name' (ID: first_name)\n  • Label: 'hp_offscreen' (ID: hp_offscreen)\n  • Label: 'hp_zero' (ID: hp_zero)\n  • Label: 'hp_aria_hidden' (ID: hp_aria_hidden)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S28\n • Active Page URL      : http://127.0.0.1:8900/s/S28\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S28\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'first_name' -> 'Alice'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S28' ===\nURL: http://127.0.0.1:8900/s/S28\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'First name' (ID: first_name) = 'Alice'\n  • Label: 'hp_offscreen' (ID: hp_offscreen)\n  • Label: 'hp_zero' (ID: hp_zero)\n  • Label: 'hp_aria_hidden' (ID: hp_aria_hidden)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "first_name"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S29",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": false,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "coupon": {
+    "expected": "SAVE10",
+    "got": "SAVE10",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.13,
+  "tokens_in": 564,
+  "tokens_out": 282,
+  "schema_tokens": 78,
+  "failure_type": "timing",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S29\n • Active Page URL      : http://127.0.0.1:8900/s/S29\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S29/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S29' ===\nURL: http://127.0.0.1:8900/s/S29\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Coupon' (ID: coupon)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S29\n • Active Page URL      : http://127.0.0.1:8900/s/S29\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S29\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'coupon' -> 'SAVE10'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n  [!] Post-interaction check detected cleared/reverted field: 'coupon' -> 'SAVE10'\n  [?] Set but unconfirmed 'coupon' -> 'SAVE10'\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S29' ===\nURL: http://127.0.0.1:8900/s/S29\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Coupon' (ID: coupon)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n[!] Apply operation failed: Form completed with unconfirmed or failed fields.\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [],
+   "unconfirmed": [
+    "coupon"
+   ],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 1,
+  "tool_claimed_all_confirmed": false,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S30",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "phone": {
+    "expected": "(555) 010-7000",
+    "got": "(555) 010-7000",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.03,
+  "tokens_in": 517,
+  "tokens_out": 258,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S30\n • Active Page URL      : http://127.0.0.1:8900/s/S30\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S30/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S30' ===\nURL: http://127.0.0.1:8900/s/S30\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Phone' (ID: phone)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S30\n • Active Page URL      : http://127.0.0.1:8900/s/S30\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S30\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'phone' -> '5550107000'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S30' ===\nURL: http://127.0.0.1:8900/s/S30\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Phone' (ID: phone) = '(555) 010-7000'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "phone"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S31",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 0.0,
+  "fields_correct": 0,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": false,
+  "reported_success": false,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "code": {
+    "expected": "AliceNakamura",
+    "got": "Alice",
+    "ok": false
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.16,
+  "tokens_in": 535,
+  "tokens_out": 267,
+  "schema_tokens": 77,
+  "failure_type": "timing",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S31\n • Active Page URL      : http://127.0.0.1:8900/s/S31\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S31/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S31' ===\nURL: http://127.0.0.1:8900/s/S31\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Code' (ID: code)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S31\n • Active Page URL      : http://127.0.0.1:8900/s/S31\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S31\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [?] Set but unconfirmed 'code' -> 'AliceNakamura'\n[*] Fields summary: 0 confirmed | 1 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S31' ===\nURL: http://127.0.0.1:8900/s/S31\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Code' (ID: code) = 'Alice'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n[!] Apply operation failed: Form completed with unconfirmed or failed fields.\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [],
+   "unconfirmed": [
+    "code"
+   ],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": false,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S32",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "token": {
+    "expected": "abc123",
+    "got": "abc123",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.03,
+  "tokens_in": 516,
+  "tokens_out": 258,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S32\n • Active Page URL      : http://127.0.0.1:8900/s/S32\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S32/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S32' ===\nURL: http://127.0.0.1:8900/s/S32\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Token' (ID: token)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S32\n • Active Page URL      : http://127.0.0.1:8900/s/S32\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S32\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'token' -> '***REDACTED***'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S32' ===\nURL: http://127.0.0.1:8900/s/S32\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Token' (ID: token) = 'abc123'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "token"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S33",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "tag": {
+    "expected": "abc",
+    "got": "abc",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.13,
+  "tokens_in": 510,
+  "tokens_out": 255,
+  "schema_tokens": 76,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S33\n • Active Page URL      : http://127.0.0.1:8900/s/S33\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S33/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S33' ===\nURL: http://127.0.0.1:8900/s/S33\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Tag' (ID: tag)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S33\n • Active Page URL      : http://127.0.0.1:8900/s/S33\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S33\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'tag' -> 'abc'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S33' ===\nURL: http://127.0.0.1:8900/s/S33\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Tag' (ID: tag) = 'abc'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "tag"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S34",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 524,
+  "tokens_out": 262,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S34\n • Active Page URL      : http://127.0.0.1:8900/s/S34\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S34/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S34' ===\nURL: http://127.0.0.1:8900/s/S34\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S34\n • Active Page URL      : http://127.0.0.1:8900/s/S34\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S34\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S34' ===\nURL: http://127.0.0.1:8900/s/S34\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S35",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 565,
+  "tokens_out": 282,
+  "schema_tokens": 121,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S35\n • Active Page URL      : http://127.0.0.1:8900/s/S35\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S35/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S35' ===\nURL: http://127.0.0.1:8900/s/S35\n\n📝 Text & Numeric Input Fields (3):\n  • Label: 'Email' (ID: email)\n  • Label: 'Read only' (ID: ro) = 'fixed'\n  • Label: 'Disabled' (ID: dis) = 'off'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S35\n • Active Page URL      : http://127.0.0.1:8900/s/S35\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S35\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S35' ===\nURL: http://127.0.0.1:8900/s/S35\n\n📝 Text & Numeric Input Fields (3):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n  • Label: 'Read only' (ID: ro) = 'fixed'\n  • Label: 'Disabled' (ID: dis) = 'off'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S36",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.21,
+  "tokens_in": 524,
+  "tokens_out": 262,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S36\n • Active Page URL      : http://127.0.0.1:8900/s/S36\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S36/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S36' ===\nURL: http://127.0.0.1:8900/s/S36\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S36\n • Active Page URL      : http://127.0.0.1:8900/s/S36\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S36\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S36' ===\nURL: http://127.0.0.1:8900/s/S36\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S37",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.03,
+  "tokens_in": 524,
+  "tokens_out": 262,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S37\n • Active Page URL      : http://127.0.0.1:8900/s/S37\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S37/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S37' ===\nURL: http://127.0.0.1:8900/s/S37\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S37\n • Active Page URL      : http://127.0.0.1:8900/s/S37\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S37\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S37' ===\nURL: http://127.0.0.1:8900/s/S37\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S38",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "item": {
+    "expected": "A,B",
+    "got": "A,B",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 540,
+  "tokens_out": 270,
+  "schema_tokens": 99,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S38\n • Active Page URL      : http://127.0.0.1:8900/s/S38\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S38/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S38' ===\nURL: http://127.0.0.1:8900/s/S38\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Item 1' (ID: item_0)\n  • Label: 'Item 2' (ID: item_1)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S38\n • Active Page URL      : http://127.0.0.1:8900/s/S38\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S38\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'item_0' -> 'A'\n  [✓] Set & Verified 'item_1' -> 'B'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S38' ===\nURL: http://127.0.0.1:8900/s/S38\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Item 1' (ID: item_0) = 'A'\n  • Label: 'Item 2' (ID: item_1) = 'B'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "item_0",
+    "item_1"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 2,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S39",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 10,
+  "fields_total": 10,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "q1": {
+    "expected": "Yes",
+    "got": "Yes",
+    "ok": true
+   },
+   "q2": {
+    "expected": "No",
+    "got": "No",
+    "ok": true
+   },
+   "q3": {
+    "expected": "Yes",
+    "got": "Yes",
+    "ok": true
+   },
+   "q4": {
+    "expected": "No",
+    "got": "No",
+    "ok": true
+   },
+   "q5": {
+    "expected": "Yes",
+    "got": "Yes",
+    "ok": true
+   },
+   "q6": {
+    "expected": "No",
+    "got": "No",
+    "ok": true
+   },
+   "q7": {
+    "expected": "Yes",
+    "got": "Yes",
+    "ok": true
+   },
+   "q8": {
+    "expected": "No",
+    "got": "No",
+    "ok": true
+   },
+   "q9": {
+    "expected": "Yes",
+    "got": "Yes",
+    "ok": true
+   },
+   "q10": {
+    "expected": "No",
+    "got": "No",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.17,
+  "tokens_in": 881,
+  "tokens_out": 440,
+  "schema_tokens": 485,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S39\n • Active Page URL      : http://127.0.0.1:8900/s/S39\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S39/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S39' ===\nURL: http://127.0.0.1:8900/s/S39\n\n📁 Sections (10): Question 1, Question 2, Question 3, Question 4, Question 5, Question 6, Question 7, Question 8, Question 9, Question 10\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (10):\n  • Question: 'Question 1' -> [Yes, No]\n  • Question: 'Question 2' -> [Yes, No]\n  • Question: 'Question 3' -> [Yes, No]\n  • Question: 'Question 4' -> [Yes, No]\n  • Question: 'Question 5' -> [Yes, No]\n  • Question: 'Question 6' -> [Yes, No]\n  • Question: 'Question 7' -> [Yes, No]\n  • Question: 'Question 8' -> [Yes, No]\n  • Question: 'Question 9' -> [Yes, No]\n  • Question: 'Question 10' -> [Yes, No]\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S39\n • Active Page URL      : http://127.0.0.1:8900/s/S39\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S39\n[*] Ensuring all form sections are expanded...\n[*] Populating 10 field(s)...\n  [✓] Set & Verified 'q1' -> 'Yes'\n  [✓] Set & Verified 'q2' -> 'No'\n  [✓] Set & Verified 'q3' -> 'Yes'\n  [✓] Set & Verified 'q4' -> 'No'\n  [✓] Set & Verified 'q5' -> 'Yes'\n  [✓] Set & Verified 'q6' -> 'No'\n  [✓] Set & Verified 'q7' -> 'Yes'\n  [✓] Set & Verified 'q8' -> 'No'\n  [✓] Set & Verified 'q9' -> 'Yes'\n  [✓] Set & Verified 'q10' -> 'No'\n[*] Fields summary: 10 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S39' ===\nURL: http://127.0.0.1:8900/s/S39\n\n📁 Sections (10): Question 1, Question 2, Question 3, Question 4, Question 5, Question 6, Question 7, Question 8, Question 9, Question 10\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (10):\n  • Question: 'Question 1' -> [Yes, No] [Selected: Yes]\n  • Question: 'Question 2' -> [Yes, No] [Selected: No]\n  • Question: 'Question 3' -> [Yes, No] [Selected: Yes]\n  • Question: 'Question 4' -> [Yes, No] [Selected: No]\n  • Question: 'Question 5' -> [Yes, No] [Selected: Yes]\n  • Question: 'Question 6' -> [Yes, No] [Selected: No]\n  • Question: 'Question 7' -> [Yes, No] [Selected: Yes]\n  • Question: 'Question 8' -> [Yes, No] [Selected: No]\n  • Question: 'Question 9' -> [Yes, No] [Selected: Yes]\n  • Question: 'Question 10' -> [Yes, No] [Selected: No]\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "q1",
+    "q10",
+    "q2",
+    "q3",
+    "q4",
+    "q5",
+    "q6",
+    "q7",
+    "q8",
+    "q9"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S40",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "pw": {
+    "expected": "Secret-1",
+    "got": "Secret-1",
+    "ok": true
+   },
+   "pw2": {
+    "expected": "Secret-1",
+    "got": "Secret-1",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.07,
+  "tokens_in": 547,
+  "tokens_out": 273,
+  "schema_tokens": 102,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S40\n • Active Page URL      : http://127.0.0.1:8900/s/S40\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S40/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S40' ===\nURL: http://127.0.0.1:8900/s/S40\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Password' (ID: pw)\n  • Label: 'Confirm password' (ID: pw2)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S40\n • Active Page URL      : http://127.0.0.1:8900/s/S40\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S40\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'pw' -> 'Secret-1'\n  [✓] Set & Verified 'pw2' -> 'Secret-1'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S40' ===\nURL: http://127.0.0.1:8900/s/S40\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Password' (ID: pw) = 'Secret-1'\n  • Label: 'Confirm password' (ID: pw2) = 'Secret-1'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "pw",
+    "pw2"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S41",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 501,
+  "tokens_out": 250,
+  "schema_tokens": 57,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S41\n • Active Page URL      : http://127.0.0.1:8900/s/S41\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S41/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S41' ===\nURL: http://127.0.0.1:8900/s/S41\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S41\n • Active Page URL      : http://127.0.0.1:8900/s/S41\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S41\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S41' ===\nURL: http://127.0.0.1:8900/s/S41\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S42",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.03,
+  "tokens_in": 524,
+  "tokens_out": 262,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S42\n • Active Page URL      : http://127.0.0.1:8900/s/S42\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S42/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S42' ===\nURL: http://127.0.0.1:8900/s/S42\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S42\n • Active Page URL      : http://127.0.0.1:8900/s/S42\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S42\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S42' ===\nURL: http://127.0.0.1:8900/s/S42\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S43",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "comment": {
+    "expected": "This is a synthetic evaluation comment.",
+    "got": "This is a synthetic evaluation comment.",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.05,
+  "tokens_in": 533,
+  "tokens_out": 266,
+  "schema_tokens": 78,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S43\n • Active Page URL      : http://127.0.0.1:8900/s/S43\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S43/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S43' ===\nURL: http://127.0.0.1:8900/s/S43\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Comment' (ID: comment)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S43\n • Active Page URL      : http://127.0.0.1:8900/s/S43\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S43\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'comment' -> 'This is a synthetic evaluation comment.'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S43' ===\nURL: http://127.0.0.1:8900/s/S43\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Comment' (ID: comment) = 'This is a synthetic evaluation comment.'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "comment"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S44",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 0.0,
+  "fields_correct": 0,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": false,
+  "reported_success": false,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "first_name": {
+    "expected": "Alice",
+    "got": "",
+    "ok": false
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.1,
+  "tokens_in": 575,
+  "tokens_out": 287,
+  "schema_tokens": 82,
+  "failure_type": "timing",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S44\n • Active Page URL      : http://127.0.0.1:8900/s/S44\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S44/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S44' ===\nURL: http://127.0.0.1:8900/s/S44\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'First name' (ID: first_name)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: submit-btn)\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S44\n • Active Page URL      : http://127.0.0.1:8900/s/S44\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S44\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'first_name' -> 'Alice'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n  [!] Post-interaction check detected cleared/reverted field: 'first_name' -> 'Alice'\n  [?] Set but unconfirmed 'first_name' -> 'Alice'\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S44' ===\nURL: http://127.0.0.1:8900/s/S44\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'First name' (ID: first_name)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: submit-btn)\n\n[!] Apply operation failed: Form completed with unconfirmed or failed fields.\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [],
+   "unconfirmed": [
+    "first_name"
+   ],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": false,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S45",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.03,
+  "tokens_in": 612,
+  "tokens_out": 306,
+  "schema_tokens": 147,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S45\n • Active Page URL      : http://127.0.0.1:8900/s/S45\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S45/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S45' ===\nURL: http://127.0.0.1:8900/s/S45\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (6):\n  • [SUBMIT] 'Submit' (ID: )\n  • [SUBMIT] 'Submit later' (ID: )\n  • [SAVE] 'Save draft' (ID: )\n  • [SUBMIT] 'Do not submit' (ID: )\n  • [SUBMIT] 'Submit and pay' (ID: )\n  • [BUTTON] 'Delete account' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S45\n • Active Page URL      : http://127.0.0.1:8900/s/S45\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S45\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S45' ===\nURL: http://127.0.0.1:8900/s/S45\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (6):\n  • [SUBMIT] 'Submit' (ID: )\n  • [SUBMIT] 'Submit later' (ID: )\n  • [SAVE] 'Save draft' (ID: )\n  • [SUBMIT] 'Do not submit' (ID: )\n  • [SUBMIT] 'Submit and pay' (ID: )\n  • [BUTTON] 'Delete account' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S46",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "name": {
+    "expected": "Alice",
+    "got": "Alice",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.03,
+  "tokens_in": 576,
+  "tokens_out": 288,
+  "schema_tokens": 148,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S46\n • Active Page URL      : http://127.0.0.1:8900/s/S46\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S46/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S46' ===\nURL: http://127.0.0.1:8900/s/S46\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Name' (ID: name)\n  • Label: 'Last name' (ID: last_name)\n  • Label: 'Company name' (ID: company_name)\n  • Label: 'Name on card' (ID: name_on_card)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S46\n • Active Page URL      : http://127.0.0.1:8900/s/S46\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S46\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'name' -> 'Alice'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S46' ===\nURL: http://127.0.0.1:8900/s/S46\n\n📝 Text & Numeric Input Fields (4):\n  • Label: 'Name' (ID: name) = 'Alice'\n  • Label: 'Last name' (ID: last_name)\n  • Label: 'Company name' (ID: company_name)\n  • Label: 'Name on card' (ID: name_on_card)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "name"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S47",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 17,
+  "fields_total": 17,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "f01": {
+    "expected": "ok1",
+    "got": "ok1",
+    "ok": true
+   },
+   "f02": {
+    "expected": "ok2",
+    "got": "ok2",
+    "ok": true
+   },
+   "f03": {
+    "expected": "ok3",
+    "got": "ok3",
+    "ok": true
+   },
+   "f04": {
+    "expected": "ok4",
+    "got": "ok4",
+    "ok": true
+   },
+   "f05": {
+    "expected": "ok5",
+    "got": "ok5",
+    "ok": true
+   },
+   "f06": {
+    "expected": "ok6",
+    "got": "ok6",
+    "ok": true
+   },
+   "f07": {
+    "expected": "ok7",
+    "got": "ok7",
+    "ok": true
+   },
+   "f08": {
+    "expected": "ok8",
+    "got": "ok8",
+    "ok": true
+   },
+   "f09": {
+    "expected": "ok9",
+    "got": "ok9",
+    "ok": true
+   },
+   "f10": {
+    "expected": "ok10",
+    "got": "ok10",
+    "ok": true
+   },
+   "f11": {
+    "expected": "ok11",
+    "got": "ok11",
+    "ok": true
+   },
+   "f12": {
+    "expected": "ok12",
+    "got": "ok12",
+    "ok": true
+   },
+   "f13": {
+    "expected": "ok13",
+    "got": "ok13",
+    "ok": true
+   },
+   "f14": {
+    "expected": "ok14",
+    "got": "ok14",
+    "ok": true
+   },
+   "f15": {
+    "expected": "ok15",
+    "got": "ok15",
+    "ok": true
+   },
+   "f16": {
+    "expected": "ok16",
+    "got": "ok16",
+    "ok": true
+   },
+   "f17": {
+    "expected": "ok17",
+    "got": "ok17",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.19,
+  "tokens_in": 994,
+  "tokens_out": 497,
+  "schema_tokens": 475,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S47\n • Active Page URL      : http://127.0.0.1:8900/s/S47\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S47/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S47' ===\nURL: http://127.0.0.1:8900/s/S47\n\n📝 Text & Numeric Input Fields (20):\n  • Label: 'Field 1' (ID: f01)\n  • Label: 'Field 2' (ID: f02)\n  • Label: 'Field 3' (ID: f03)\n  • Label: 'Field 4' (ID: f04)\n  • Label: 'Field 5' (ID: f05)\n  • Label: 'Field 6' (ID: f06)\n  • Label: 'Field 7' (ID: f07)\n  • Label: 'Field 8' (ID: f08)\n  • Label: 'Field 9' (ID: f09)\n  • Label: 'Field 10' (ID: f10)\n  • Label: 'Field 11' (ID: f11)\n  • Label: 'Field 12' (ID: f12)\n  • Label: 'Field 13' (ID: f13)\n  • Label: 'Field 14' (ID: f14)\n  • Label: 'Field 15' (ID: f15)\n  • Label: 'Field 16' (ID: f16)\n  • Label: 'Field 17' (ID: f17)\n  • Label: 'Disabled 1' (ID: d1)\n  • Label: 'Disabled 2' (ID: d2)\n  • Label: 'Disabled 3' (ID: d3)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S47\n • Active Page URL      : http://127.0.0.1:8900/s/S47\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S47\n[*] Ensuring all form sections are expanded...\n[*] Populating 17 field(s)...\n  [✓] Set & Verified 'f01' -> 'ok1'\n  [✓] Set & Verified 'f02' -> 'ok2'\n  [✓] Set & Verified 'f03' -> 'ok3'\n  [✓] Set & Verified 'f04' -> 'ok4'\n  [✓] Set & Verified 'f05' -> 'ok5'\n  [✓] Set & Verified 'f06' -> 'ok6'\n  [✓] Set & Verified 'f07' -> 'ok7'\n  [✓] Set & Verified 'f08' -> 'ok8'\n  [✓] Set & Verified 'f09' -> 'ok9'\n  [✓] Set & Verified 'f10' -> 'ok10'\n  [✓] Set & Verified 'f11' -> 'ok11'\n  [✓] Set & Verified 'f12' -> 'ok12'\n  [✓] Set & Verified 'f13' -> 'ok13'\n  [✓] Set & Verified 'f14' -> 'ok14'\n  [✓] Set & Verified 'f15' -> 'ok15'\n  [✓] Set & Verified 'f16' -> 'ok16'\n  [✓] Set & Verified 'f17' -> 'ok17'\n[*] Fields summary: 17 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S47' ===\nURL: http://127.0.0.1:8900/s/S47\n\n📝 Text & Numeric Input Fields (20):\n  • Label: 'Field 1' (ID: f01) = 'ok1'\n  • Label: 'Field 2' (ID: f02) = 'ok2'\n  • Label: 'Field 3' (ID: f03) = 'ok3'\n  • Label: 'Field 4' (ID: f04) = 'ok4'\n  • Label: 'Field 5' (ID: f05) = 'ok5'\n  • Label: 'Field 6' (ID: f06) = 'ok6'\n  • Label: 'Field 7' (ID: f07) = 'ok7'\n  • Label: 'Field 8' (ID: f08) = 'ok8'\n  • Label: 'Field 9' (ID: f09) = 'ok9'\n  • Label: 'Field 10' (ID: f10) = 'ok10'\n  • Label: 'Field 11' (ID: f11) = 'ok11'\n  • Label: 'Field 12' (ID: f12) = 'ok12'\n  • Label: 'Field 13' (ID: f13) = 'ok13'\n  • Label: 'Field 14' (ID: f14) = 'ok14'\n  • Label: 'Field 15' (ID: f15) = 'ok15'\n  • Label: 'Field 16' (ID: f16) = 'ok16'\n  • Label: 'Field 17' (ID: f17) = 'ok17'\n  • Label: 'Disabled 1' (ID: d1)\n  • Label: 'Disabled 2' (ID: d2)\n  • Label: 'Disabled 3' (ID: d3)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "f01",
+    "f02",
+    "f03",
+    "f04",
+    "f05",
+    "f06",
+    "f07",
+    "f08",
+    "f09",
+    "f10",
+    "f11",
+    "f12",
+    "f13",
+    "f14",
+    "f15",
+    "f16",
+    "f17"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S48",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "name": {
+    "expected": "Alice",
+    "got": "Alice",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.05,
+  "tokens_in": 512,
+  "tokens_out": 256,
+  "schema_tokens": 77,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S48\n • Active Page URL      : http://127.0.0.1:8900/s/S48\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S48/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S48' ===\nURL: http://127.0.0.1:8900/s/S48\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Name' (ID: name)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S48\n • Active Page URL      : http://127.0.0.1:8900/s/S48\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S48\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'name' -> 'Alice'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Submit'...\n  [✓] Successfully clicked 'Submit'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S48' ===\nURL: http://127.0.0.1:8900/s/S48\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Name' (ID: name) = 'Alice'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [SUBMIT] 'Submit' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "name"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S49",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 1,
+  "fields_total": 1,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "email": {
+    "expected": "alice.nakamura@example.test",
+    "got": "alice.nakamura@example.test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.04,
+  "tokens_in": 540,
+  "tokens_out": 270,
+  "schema_tokens": 91,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S49\n • Active Page URL      : http://127.0.0.1:8900/s/S49\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S49/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S49' ===\nURL: http://127.0.0.1:8900/s/S49\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email)\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (2):\n  • [SAVE] 'Save' (ID: )\n  • [BUTTON] 'Delete account' (ID: )\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S49\n • Active Page URL      : http://127.0.0.1:8900/s/S49\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S49\n[*] Ensuring all form sections are expanded...\n[*] Populating 1 field(s)...\n  [✓] Set & Verified 'email' -> 'alice.nakamura@example.test'\n[*] Fields summary: 1 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Save'...\n  [✓] Successfully clicked 'Save'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S49' ===\nURL: http://127.0.0.1:8900/s/S49\n\n📝 Text & Numeric Input Fields (1):\n  • Label: 'Email' (ID: email) = 'alice.nakamura@example.test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (2):\n  • [SAVE] 'Save' (ID: )\n  • [BUTTON] 'Delete account' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "email"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ },
+ {
+  "scenario": "S50",
+  "tool": "webpilot",
+  "run": 1,
+  "mode": "fill",
+  "field_accuracy": 1.0,
+  "fields_correct": 2,
+  "fields_total": 2,
+  "submitted_count": 1,
+  "expected_submission": 1,
+  "form_pass": true,
+  "reported_success": true,
+  "false_success": false,
+  "wrong_target": {},
+  "critical_incidents": [],
+  "field_detail": {
+   "username": {
+    "expected": "test",
+    "got": "test",
+    "ok": true
+   },
+   "password": {
+    "expected": "test",
+    "got": "test",
+    "ok": true
+   }
+  },
+  "steps": 2,
+  "wall_time_s": 1.07,
+  "tokens_in": 523,
+  "tokens_out": 261,
+  "schema_tokens": 45,
+  "failure_type": "none",
+  "needed_workaround": "no",
+  "raw_output": "\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S50\n • Active Page URL      : http://127.0.0.1:8900/s/S50\n══════════════════════════════════════════════════════════════════════\n[✓] Full schema successfully saved to: /home/abdulkarim/webpilot_eval/results/v2012_clean/evidence/v2012_clean/S50/run1/schema.json\n\n=== FORM INSPECTION SUMMARY: 'S50' ===\nURL: http://127.0.0.1:8900/s/S50\n\n📝 Text & Numeric Input Fields (0):\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (0):\n\n\n--- stderr ---\n\n\n══════════════════════════════════════════════════════════════════════\n 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY\n══════════════════════════════════════════════════════════════════════\n • Layer 2 Worker PID   : 2145619\n • Layer 3 Chromium PID : 2145621\n • Active Tab Index     : Tab #0 (Total: 1)\n • Active Page Title    : S50\n • Active Page URL      : http://127.0.0.1:8900/s/S50\n══════════════════════════════════════════════════════════════════════\n[*] Navigating to target URL: http://127.0.0.1:8900/s/S50\n[*] Ensuring all form sections are expanded...\n[*] Populating 2 field(s)...\n  [✓] Set & Verified 'username' -> 'test'\n  [✓] Set & Verified 'password' -> '***REDACTED***'\n[*] Fields summary: 2 confirmed | 0 unconfirmed | 0 skipped.\n[*] Pressing button: 'Login'...\n  [✓] Successfully clicked 'Login'.\n[✓] Zero validation errors detected!\n\n=== FORM INSPECTION SUMMARY: 'S50' ===\nURL: http://127.0.0.1:8900/s/S50\n\n📝 Text & Numeric Input Fields (2):\n  • Label: 'Username' (ID: username) = 'test'\n  • Label: 'Password' (ID: password) = 'test'\n\n🔽 Dropdowns & Picklists (0):\n\n🔘 Choice Groups (Radio / Checkbox) (0):\n\n📎 File Upload Areas (0):\n\n🔘 Key Action Buttons (1):\n  • [LOGIN] 'Login' (ID: )\n\n\n--- stderr ---\n\n",
+  "tool_reported": {
+   "confirmed": [
+    "password",
+    "username"
+   ],
+   "unconfirmed": [],
+   "failed": []
+  },
+  "false_confirm_count": 0,
+  "false_unconfirm_count": 0,
+  "tool_claimed_all_confirmed": true,
+  "tool_label": "v2012_clean"
+ }
+]
