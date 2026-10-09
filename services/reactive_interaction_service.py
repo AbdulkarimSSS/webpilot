@@ -45,8 +45,8 @@ class ReactiveInteractionService:
         clean_id = target.lstrip("#")
         try:
             loc = self.page.locator(f"#{clean_id}")
-            if loc.count() > 0 and loc.first.is_visible():
-                loc.first.click()
+            if loc.count() > 0 and loc.first.is_visible(timeout=400):
+                loc.first.click(timeout=1000)
                 clicked = True
         except Exception:
             pass
@@ -65,8 +65,8 @@ class ReactiveInteractionService:
                     f"span:has-text('{target}')",
                 ]:
                     cand = self.page.locator(selector)
-                    if cand.count() > 0 and cand.first.is_visible():
-                        cand.first.click()
+                    if cand.count() > 0 and cand.first.is_visible(timeout=400):
+                        cand.first.click(timeout=1000)
                         clicked = True
                         break
             except Exception:

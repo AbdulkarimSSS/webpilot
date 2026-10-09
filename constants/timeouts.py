@@ -6,7 +6,7 @@ from typing import Final
 DEFAULT_NAV_TIMEOUT_MS: Final[int] = 45000
 DEFAULT_FORM_READY_TIMEOUT_MS: Final[int] = 10000
 DEFAULT_SUBMIT_WAIT_MS: Final[int] = 8000
-DEFAULT_EXPAND_SECTION_WAIT_MS: Final[int] = 800
+DEFAULT_EXPAND_SECTION_WAIT_MS: Final[int] = 200
 
 # Granular stabilization pauses in milliseconds
 PAUSE_DOM_CONTENT_LOADED_MS: Final[int] = 250

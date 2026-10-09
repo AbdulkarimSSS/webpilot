@@ -113,17 +113,18 @@ class AuthNavigationService:
             pass
 
         try:
-            for _ in range(6):
-                is_loading = self.page.evaluate(CHECK_FORM_LOADING_SCRIPT)
-                if not is_loading:
-                    break
-                self.page.wait_for_timeout(500)
-            self.page.wait_for_timeout(1000)
+            is_loading = self.page.evaluate(CHECK_FORM_LOADING_SCRIPT)
+            if is_loading:
+                for _ in range(6):
+                    self.page.wait_for_timeout(200)
+                    if not self.page.evaluate(CHECK_FORM_LOADING_SCRIPT):
+                        break
         except Exception as exc:
             print(f"[!] Warning waiting for form: {exc}")
 
     def expand_all_sections(self, wait_ms: int = DEFAULT_EXPAND_SECTION_WAIT_MS) -> int:
         """Safely expands any collapsed form sections without toggling open ones."""
         opened = self.page.evaluate(EXPAND_ALL_SECTIONS_SCRIPT)
-        self.page.wait_for_timeout(wait_ms)
+        if opened > 0:
+            self.page.wait_for_timeout(wait_ms)
         return opened
