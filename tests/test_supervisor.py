@@ -152,6 +152,7 @@ def test_worker_process_field_verification(monkeypatch):
     mock_field_svc = MagicMock()
     mock_field_svc.set_field.side_effect = lambda k, v: k != "skipped_field"
     mock_field_svc.verify_field_value.side_effect = lambda k, v, *args, **kwargs: k == "verified_field"
+    mock_field_svc.expand_dynamic_section.return_value = (False, None)
 
     monkeypatch.setattr("supervisor.worker_process.FieldInteractionService", lambda page: mock_field_svc)
     monkeypatch.setattr("supervisor.worker_process.AuthNavigationService", lambda p, c: MagicMock())

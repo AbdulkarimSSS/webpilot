@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, Optional, Tuple
 from playwright.sync_api import Page
 
 from adapters.dom_scripts import (
@@ -24,6 +24,24 @@ class FieldInteractionService:
 
     def __init__(self, page: Page):
         self.page = page
+
+    def expand_dynamic_section(self, target_identifier: str, value: Any) -> Tuple[bool, Optional[str]]:
+        """Handles dynamic repeating sections by finding and clicking 'Add' buttons to spawn missing inputs."""
+        add_btns = self.page.locator(
+            'button:has-text("Add"), button:has-text("add"), [id*="add" i], [class*="add" i], [aria-label*="add" i], a:has-text("Add")'
+        )
+        if add_btns.count() > 0:
+            for b_idx in range(min(add_btns.count(), 3)):
+                btn = add_btns.nth(b_idx)
+                try:
+                    btn_text = btn.inner_text().strip()
+                    btn.click(timeout=1000)
+                    self.page.wait_for_timeout(200)
+                    if self.set_field(target_identifier, value):
+                        return True, btn_text
+                except Exception:
+                    pass
+        return False, None
 
     def set_field(self, target_identifier: str, value: Any) -> bool:
         """Sets field value according to its widget type using JS manipulation or Playwright fallback."""

@@ -16,8 +16,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple
 
-from exceptions import ConfigurationError
-from models import DeviceProfile, ProxyConfig
+from core.exceptions import ConfigurationError
+from core.models import DeviceProfile, ProxyConfig
 
 # Project root and configuration paths
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

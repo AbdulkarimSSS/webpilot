@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from adapters.envelope_builder import BrowserContextEnvelopeBuilder
+from common.secrets import resolve_secret_value
 from core.exceptions import ConfigurationError, ValidationError
 from core.models import DeviceProfile, ProxyConfig
 from config.settings import (
@@ -35,9 +37,6 @@ class FormPayloadBuilder:
     @staticmethod
     def load_from_file(filepath: str) -> List[Tuple[str, Any]]:
         """Load field key-value pairs from an external JSON file or stdin ('-' or '@stdin')."""
-        import sys
-        from common.secrets import resolve_secret_value
-
         if filepath in ("-", "@stdin"):
             try:
                 raw_data = json.load(sys.stdin)

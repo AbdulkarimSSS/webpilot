@@ -33,19 +33,10 @@ class FormFillerService:
             """Attempt fill + DOM verify. Returns 'confirmed', 'unconfirmed', or 'failed'."""
             success = self.field_service.set_field(key, val)
             if not success:
-                # Dynamic repeating section check (e.g. S27 emp_1, emp_2)
-                add_btns = self.page.locator('button:has-text("Add"), button:has-text("add"), [id*="add" i], [class*="add" i], [aria-label*="add" i], a:has-text("Add")')
-                if add_btns.count() > 0:
-                    for b_idx in range(min(add_btns.count(), 3)):
-                        btn = add_btns.nth(b_idx)
-                        try:
-                            btn.click()
-                            self.page.wait_for_timeout(200)
-                            success = self.field_service.set_field(key, val)
-                            if success:
-                                break
-                        except Exception:
-                            pass
+                dyn_res = getattr(self.field_service, "expand_dynamic_section", None)
+                if callable(dyn_res):
+                    res = dyn_res(key, val)
+                    success = res[0] if isinstance(res, tuple) and len(res) == 2 else bool(res)
             if not success:
                 return "failed"
 

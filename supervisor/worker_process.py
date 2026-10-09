@@ -45,6 +45,26 @@ class OperationalWorker:
         self.headed = headed
         self.coordinator: Optional[SessionCoordinator] = None
 
+    @staticmethod
+    def _reverify_fields(
+        field_svc: FieldInteractionService,
+        confirmed: List[Tuple[str, Any]],
+        unconfirmed: List[Tuple[str, Any]],
+        lines: List[str],
+        stage_name: str,
+    ) -> List[Tuple[str, Any]]:
+        """Re-verifies that previously confirmed fields have not been wiped or reverted."""
+        still_confirmed = []
+        for key, val in confirmed:
+            display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
+            if field_svc.verify_field_value(key, val):
+                still_confirmed.append((key, val))
+            else:
+                unconfirmed.append((key, val))
+                lines.append(f"  [!] {stage_name} detected cleared/reverted field: '{key}' -> '{display_val}'")
+                lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
+        return still_confirmed
+
     def _ensure_session(self, req: SupervisorActionRequest) -> SessionCoordinator:
         """Initializes or returns active SessionCoordinator."""
         if (
@@ -264,21 +284,15 @@ class OperationalWorker:
                 display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
                 success = field_svc.set_field(key, val)
                 if not success:
-                    # Dynamic repeating section handler (e.g. S27 emp_1, emp_2):
-                    # Check if clicking an 'Add' / 'Add another' / '+' button creates the missing field
-                    add_btns = page.locator('button:has-text("Add"), button:has-text("add"), [id*="add" i], [class*="add" i], [aria-label*="add" i], a:has-text("Add")')
-                    if add_btns.count() > 0:
-                        for b_idx in range(min(add_btns.count(), 3)):
-                            btn = add_btns.nth(b_idx)
-                            try:
-                                btn.click()
-                                page.wait_for_timeout(200)
-                                success = field_svc.set_field(key, val)
-                                if success:
-                                    lines.append(f"  [+] Dynamically expanded section via '{btn.inner_text().strip()}'")
-                                    break
-                            except Exception:
-                                pass
+                    dyn_res = getattr(field_svc, "expand_dynamic_section", None)
+                    if callable(dyn_res):
+                        res = dyn_res(key, val)
+                        if isinstance(res, tuple) and len(res) == 2:
+                            success, btn_label = res
+                        else:
+                            success, btn_label = bool(res), None
+                        if success and btn_label:
+                            lines.append(f"  [+] Dynamically expanded section via '{btn_label}'")
 
                 if success:
                     # Post-fill verification: read back DOM value with fast-path check
@@ -310,16 +324,7 @@ class OperationalWorker:
         # 5. Pre-submit verification barrier (ACT-05 / WP-004)
         # Prior to clicking buttons or submitting, re-verify confirmed fields to detect silent/delayed reverts (e.g. S44)
         if confirmed and (req.press_buttons or req.submit):
-            still_confirmed = []
-            for key, val in confirmed:
-                display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
-                if field_svc.verify_field_value(key, val):
-                    still_confirmed.append((key, val))
-                else:
-                    unconfirmed.append((key, val))
-                    lines.append(f"  [!] Pre-submit check detected reverted/cleared field: '{key}' -> '{display_val}'")
-                    lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
-            confirmed = still_confirmed
+            confirmed = self._reverify_fields(field_svc, confirmed, unconfirmed, lines, "Pre-submit check")
 
         # 6. Handle buttons with reactive observation
         inspection_svc = InspectionService(page)
@@ -372,24 +377,7 @@ class OperationalWorker:
 
         # Post-interaction verification pass: detect click handlers that clear/revert inputs (e.g. S44)
         if confirmed and (req.press_buttons or req.submit):
-            post_confirmed = []
-            for key, val in confirmed:
-                display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
-                actual = None
-                try:
-                    actual = page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [key, str(val).strip().lower()])
-                except Exception:
-                    pass
-                if actual and actual.get("found"):
-                    if field_svc._match_actual_dom_data(actual, val):
-                        post_confirmed.append((key, val))
-                    else:
-                        unconfirmed.append((key, val))
-                        lines.append(f"  [!] Post-interaction check detected cleared/reverted field: '{key}' -> '{display_val}'")
-                        lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
-                else:
-                    post_confirmed.append((key, val))
-            confirmed = post_confirmed
+            confirmed = self._reverify_fields(field_svc, confirmed, unconfirmed, lines, "Post-interaction check")
 
         # 8. Capture screenshot if requested
         if req.screenshot_path:
