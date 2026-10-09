@@ -109,7 +109,7 @@ class FieldInteractionService:
             if checked_any:
                 return True
 
-        # 0c. Direct element ID or Name locator with Playwright trusted typing (fills S33 / controlled inputs)
+        # 0c. Direct element ID or Name locator with Playwright (pierces Shadow DOM)
         for sel in [f'#{safe_target}', f'input[name="{safe_target}"]', f'textarea[name="{safe_target}"]']:
             try:
                 loc = page.locator(sel)
@@ -118,10 +118,6 @@ class FieldInteractionService:
                     loc.first.fill(strval)
                     loc.first.dispatch_event("input")
                     loc.first.dispatch_event("change")
-                    if self.verify_field_value(target, value, settle_delay_ms=20):
-                        return True
-                    # If still not verified (e.g. strict isTrusted trap), simulate physical keypresses
-                    loc.first.press_sequentially(strval, delay=15)
                     return True
             except Exception:
                 pass
@@ -150,11 +146,11 @@ class FieldInteractionService:
             except Exception:
                 pass
 
-        # 2. Native radio by ARIA role
+        # 2. Native radio scoped to target radio group
         try:
-            radio = page.get_by_role("radio", name=strval, exact=False)
-            if radio.count() > 0:
-                radio.first.click()
+            scoped_radio = page.locator(f'input[type="radio"][name="{safe_target}"][value="{safe_strval}"]').first
+            if scoped_radio.count() > 0:
+                scoped_radio.click()
                 return True
         except Exception:
             pass
@@ -371,14 +367,28 @@ class FieldInteractionService:
         expected_str = str(expected).strip().lower() if expected is not None else ""
         try:
             actual = self.page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [target, expected_str])
-            if self._match_actual_dom_data(actual, expected):
-                return True
+            if actual and actual.get("found"):
+                if self._match_actual_dom_data(actual, expected):
+                    return True
+
+            # Shadow DOM fallback: check Playwright locator which pierces open Shadow DOM
+            try:
+                safe_t = self._escape_css_attr(target)
+                for shadow_sel in [f'#{safe_t}', f'input[name="{safe_t}"]', f'textarea[name="{safe_t}"]']:
+                    loc = self.page.locator(shadow_sel)
+                    if loc.count() > 0:
+                        v = loc.first.input_value()
+                        if self._match_actual_dom_data(v, expected):
+                            return True
+            except Exception:
+                pass
 
             # If first read was negative, allow a brief settle pause for async frameworks (React/Vue/Angular)
             if settle_delay_ms > 0:
                 self.page.wait_for_timeout(settle_delay_ms)
                 retry_actual = self.page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [target, expected_str])
-                return self._match_actual_dom_data(retry_actual, expected)
+                if retry_actual and retry_actual.get("found"):
+                    return self._match_actual_dom_data(retry_actual, expected)
             return False
         except Exception:
             return False

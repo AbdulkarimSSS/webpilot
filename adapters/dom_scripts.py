@@ -602,7 +602,8 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
 
     // 4. Radios & Radio Groups
     const radios = Array.from(document.querySelectorAll('input[type="radio"], [role="radio"]'));
-    const targetRadio = (exactEl && (exactEl.type === 'radio' || (exactEl.getAttribute && exactEl.getAttribute('role') === 'radio'))) ? exactEl : radios.find(matchEl);
+    const matchingRadios = radios.filter(r => matchEl(r) || (r.name && r.name.toLowerCase() === lower));
+    const targetRadio = (exactEl && (exactEl.type === 'radio' || (exactEl.getAttribute && exactEl.getAttribute('role') === 'radio'))) ? exactEl : (matchingRadios.find(r => r.checked) || matchingRadios[0]);
     if (targetRadio) {
         const isChecked = targetRadio.checked === true || targetRadio.getAttribute('aria-checked') === 'true';
         return {
