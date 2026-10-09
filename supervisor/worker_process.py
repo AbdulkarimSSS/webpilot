@@ -320,6 +320,7 @@ class OperationalWorker:
                 else:
                     unconfirmed.append((key, val))
                     lines.append(f"  [!] Pre-submit check detected reverted/cleared field: '{key}' -> '{display_val}'")
+                    lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
             confirmed = still_confirmed
 
         # 6. Handle buttons with reactive observation
@@ -387,6 +388,7 @@ class OperationalWorker:
                     else:
                         unconfirmed.append((key, val))
                         lines.append(f"  [!] Post-interaction check detected cleared/reverted field: '{key}' -> '{display_val}'")
+                        lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
                 else:
                     post_confirmed.append((key, val))
             confirmed = post_confirmed
