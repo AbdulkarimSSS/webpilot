@@ -49,9 +49,12 @@ class FieldInteractionService:
             except Exception as exc:
                 print(f"    [!] Picklist click error: {exc}")
 
-        # Non-picklist JS success
+        # Non-picklist JS success: verify whether the DOM actually accepted the value.
+        # If an input has an isTrusted check or synthetic event rejection (e.g. S33),
+        # the JS write will be immediately wiped, so we fall through to Playwright native interaction.
         if res.get("success") and res.get("type") not in ("picklist",):
-            return True
+            if self.verify_field_value(target_identifier, value, settle_delay_ms=20):
+                return True
 
         # Fallback to Playwright native interaction
         return self._playwright_click_fallback(target_identifier, value)
@@ -68,6 +71,60 @@ class FieldInteractionService:
         lower = target.lower().strip()
         safe_target = self._escape_css_attr(target)
         safe_strval = self._escape_css_attr(strval)
+
+        # 0a. Native <select> (single or multi-select)
+        try:
+            for sel_css in [f'select#{safe_target}', f'select[name="{safe_target}"]']:
+                s_loc = page.locator(sel_css)
+                if s_loc.count() > 0 and s_loc.first.is_visible(timeout=300):
+                    if s_loc.first.get_attribute("multiple") is not None:
+                        parts = [x.strip() for x in strval.split(",") if x.strip()]
+                        s_loc.first.select_option(parts)
+                        return True
+                    else:
+                        s_loc.first.select_option(strval)
+                        return True
+        except Exception:
+            pass
+
+        # 0b. Checkbox group with comma-separated values (e.g. "AI,Security")
+        if "," in strval:
+            parts = [x.strip() for x in strval.split(",") if x.strip()]
+            checked_any = False
+            for p in parts:
+                p_safe = self._escape_css_attr(p)
+                for cb_sel in [
+                    f'input[name="{safe_target}"][value="{p_safe}"]',
+                    f'input[type="checkbox"][name="{safe_target}"][value="{p_safe}"]',
+                    f'input[type="checkbox"][value="{p_safe}"]',
+                ]:
+                    try:
+                        cb = page.locator(cb_sel)
+                        if cb.count() > 0:
+                            cb.first.check()
+                            checked_any = True
+                            break
+                    except Exception:
+                        pass
+            if checked_any:
+                return True
+
+        # 0c. Direct element ID or Name locator with Playwright trusted typing (fills S33 / controlled inputs)
+        for sel in [f'#{safe_target}', f'input[name="{safe_target}"]', f'textarea[name="{safe_target}"]']:
+            try:
+                loc = page.locator(sel)
+                if loc.count() > 0 and loc.first.is_visible(timeout=300):
+                    loc.first.focus()
+                    loc.first.fill(strval)
+                    loc.first.dispatch_event("input")
+                    loc.first.dispatch_event("change")
+                    if self.verify_field_value(target, value, settle_delay_ms=20):
+                        return True
+                    # If still not verified (e.g. strict isTrusted trap), simulate physical keypresses
+                    loc.first.press_sequentially(strval, delay=15)
+                    return True
+            except Exception:
+                pass
 
         # 1. Picklist combobox by aria-label, title, id, name, or placeholder
         for loc in [
@@ -222,6 +279,17 @@ class FieldInteractionService:
                     return False
                 return expected_str in val or val in expected_str
 
+            # Checkbox group (multiple checkboxes)
+            if ctype == "checkbox_group":
+                val = str(actual.get("value", "")).strip().lower()
+                if not val:
+                    return False
+                if "," in expected_str or "," in val:
+                    exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
+                    val_parts = set(x.strip() for x in val.split(",") if x.strip())
+                    return exp_parts == val_parts or exp_parts.issubset(val_parts)
+                return expected_str == val or expected_str in val
+
             # Native <select>
             if ctype == "select":
                 val = str(actual.get("value", "")).strip().lower()
@@ -230,6 +298,13 @@ class FieldInteractionService:
                     return False
                 if val in junk and text in junk:
                     return False
+                # Comma-separated multi-select comparison
+                if "," in expected_str or "," in val or "," in text:
+                    exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
+                    val_parts = set(x.strip() for x in val.split(",") if x.strip())
+                    text_parts = set(x.strip() for x in text.split(",") if x.strip())
+                    if exp_parts and (exp_parts == val_parts or exp_parts == text_parts or exp_parts.issubset(val_parts) or exp_parts.issubset(text_parts)):
+                        return True
                 if expected_str == val or expected_str == text:
                     return True
                 if expected_str and (expected_str in text or expected_str in val or val in expected_str or text in expected_str):

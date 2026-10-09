@@ -263,9 +263,28 @@ class OperationalWorker:
             for key, val in fields_to_set:
                 display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
                 success = field_svc.set_field(key, val)
+                if not success:
+                    # Dynamic repeating section handler (e.g. S27 emp_1, emp_2):
+                    # Check if clicking an 'Add' / 'Add another' / '+' button creates the missing field
+                    add_btns = page.locator('button:has-text("Add"), button:has-text("add"), [id*="add" i], [class*="add" i], [aria-label*="add" i], a:has-text("Add")')
+                    if add_btns.count() > 0:
+                        for b_idx in range(min(add_btns.count(), 3)):
+                            btn = add_btns.nth(b_idx)
+                            try:
+                                btn.click()
+                                page.wait_for_timeout(200)
+                                success = field_svc.set_field(key, val)
+                                if success:
+                                    lines.append(f"  [+] Dynamically expanded section via '{btn.inner_text().strip()}'")
+                                    break
+                            except Exception:
+                                pass
+
                 if success:
+                    # Allow 250ms settle window to ensure framework state and detect delayed revert traps (e.g. S44)
+                    page.wait_for_timeout(250)
                     # Post-fill verification: read back DOM value to confirm it was applied
-                    verified = field_svc.verify_field_value(key, val)
+                    verified = field_svc.verify_field_value(key, val, settle_delay_ms=0)
                     if verified:
                         confirmed.append((key, val))
                         lines.append(f"  [✓] Set & Verified '{key}' -> '{display_val}'")

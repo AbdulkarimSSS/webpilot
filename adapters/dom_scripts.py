@@ -332,6 +332,21 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val]) => {
     const targetSelect = exactEl && exactEl.tagName === 'SELECT' ? exactEl : selects.find(matchElement);
     if (targetSelect) {
         const strVal = String(val).toLowerCase();
+        if (targetSelect.multiple) {
+            const parts = strVal.split(',').map(s => s.trim().toLowerCase());
+            let matchedCount = 0;
+            for (let opt of targetSelect.options) {
+                const optVal = opt.value.toLowerCase();
+                const optText = (opt.text || opt.innerText || '').toLowerCase();
+                if (parts.includes(optVal) || parts.some(p => p && (optText === p || optText.includes(p)))) {
+                    opt.selected = true;
+                    matchedCount++;
+                }
+            }
+            targetSelect.dispatchEvent(new Event('input', { bubbles: true }));
+            targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            return { success: matchedCount > 0, type: 'select', id: targetSelect.id, multiple: true };
+        }
         let matched = false;
         for (let opt of targetSelect.options) {
             if (opt.value.toLowerCase() === strVal || opt.text.toLowerCase().includes(strVal)) {
@@ -360,6 +375,24 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val]) => {
     const matchingChoices = choices.filter(c => matchElement(c) || (c.name && c.name.toLowerCase().includes(lowerTarget)));
     if (matchingChoices.length > 0) {
         const strVal = String(val).toLowerCase();
+        // Handle multi-value checkbox group (e.g. "AI,Security")
+        if (strVal.includes(',') && matchingChoices.some(c => c.type === 'checkbox')) {
+            const parts = strVal.split(',').map(s => s.trim().toLowerCase());
+            let checkedCount = 0;
+            for (let c of matchingChoices) {
+                if (c.type !== 'checkbox') continue;
+                const cLabel = (c.value + ' ' + (c.nextSibling ? c.nextSibling.textContent : '') + ' ' + (c.parentElement ? c.parentElement.innerText : '')).toLowerCase();
+                if (parts.some(p => p && (c.value.toLowerCase() === p || cLabel.includes(p)))) {
+                    c.checked = true;
+                    c.dispatchEvent(new Event('change', { bubbles: true }));
+                    c.dispatchEvent(new Event('click', { bubbles: true }));
+                    checkedCount++;
+                }
+            }
+            if (checkedCount > 0) {
+                return { success: true, type: 'checkbox_group', id: matchingChoices[0].id || target, count: checkedCount };
+            }
+        }
         let chosen = null;
         for (let c of matchingChoices) {
             const cLabel = (c.value + ' ' + (c.nextSibling ? c.nextSibling.textContent : '') + ' ' + (c.parentElement ? c.parentElement.innerText : '')).toLowerCase();
@@ -368,7 +401,7 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val]) => {
                 break;
             }
         }
-        if (!chosen && matchingChoices.length === 1 && (val === true || strVal === 'yes' || strVal === 'true')) {
+        if (!chosen && matchingChoices.length === 1 && (val === true || strVal === 'yes' || strVal === 'true' || strVal === 'on')) {
             chosen = matchingChoices[0];
         }
         if (chosen) {
@@ -406,7 +439,17 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val]) => {
         if (targetText.maxLength > 0 && toSet.length > targetText.maxLength) {
             toSet = toSet.substring(0, targetText.maxLength);
         }
-        targetText.value = toSet;
+        // Invoke native prototype descriptor setter for React / controlled synthetic state
+        try {
+            const proto = Object.getPrototypeOf(targetText);
+            const protoDesc = Object.getOwnPropertyDescriptor(proto, 'value');
+            if (protoDesc && protoDesc.set) {
+                protoDesc.set.call(targetText, toSet);
+            }
+        } catch(e){}
+        try {
+            targetText.value = toSet;
+        } catch(e){}
         targetText.dispatchEvent(new Event('input', { bubbles: true }));
         targetText.dispatchEvent(new Event('change', { bubbles: true }));
         targetText.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -485,6 +528,18 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
     const selects = Array.from(document.querySelectorAll('select'));
     const targetSelect = (exactEl && exactEl.tagName === 'SELECT') ? exactEl : selects.find(matchEl);
     if (targetSelect) {
+        if (targetSelect.multiple) {
+            const selOpts = Array.from(targetSelect.selectedOptions);
+            const vals = selOpts.map(o => (o.value || '').trim()).filter(Boolean);
+            const texts = selOpts.map(o => (o.text || o.innerText || '').trim()).filter(Boolean);
+            return {
+                found: true,
+                type: 'select',
+                multiple: true,
+                value: vals.join(','),
+                text: texts.join(',')
+            };
+        }
         const val = (targetSelect.value || '').trim();
         const selOpt = targetSelect.selectedOptions && targetSelect.selectedOptions[0];
         const text = selOpt ? (selOpt.text || '').trim() : '';
@@ -520,6 +575,16 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
 
     // 3. Checkboxes & Switches
     const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"], [role="checkbox"], [role="switch"]'));
+    const targetCheckboxes = checkboxes.filter(c => matchEl(c) || (c.name && c.name.toLowerCase().includes(lower)));
+    if (targetCheckboxes.length > 1) {
+        const checkedVals = targetCheckboxes.filter(c => c.checked).map(c => (c.value || c.getAttribute('aria-label') || '').trim());
+        return {
+            found: true,
+            type: 'checkbox_group',
+            value: checkedVals.join(','),
+            count: checkedVals.length
+        };
+    }
     const targetCheckbox = (exactEl && (exactEl.type === 'checkbox' || (exactEl.getAttribute && exactEl.getAttribute('role') === 'checkbox'))) ? exactEl : checkboxes.find(matchEl);
     if (targetCheckbox) {
         const isChecked = targetCheckbox.checked === true ||
@@ -570,10 +635,25 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
     });
     const targetText = exactEl || textInputs.find(matchEl);
     if (targetText) {
+        let v = (targetText.value || '').trim();
+        if (!v) {
+            if (targetText.getAttribute('data-state')) {
+                v = targetText.getAttribute('data-state').trim();
+            } else {
+                try {
+                    const proto = Object.getPrototypeOf(targetText);
+                    const protoDesc = Object.getOwnPropertyDescriptor(proto, 'value');
+                    if (protoDesc && protoDesc.get) {
+                        const pv = protoDesc.get.call(targetText);
+                        if (pv) v = String(pv).trim();
+                    }
+                } catch(e){}
+            }
+        }
         return {
             found: true,
             type: targetText.tagName.toLowerCase(),
-            value: (targetText.value || '').trim()
+            value: v
         };
     }
 

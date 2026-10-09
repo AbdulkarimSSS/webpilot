@@ -33,17 +33,31 @@ class FormFillerService:
             """Attempt fill + DOM verify. Returns 'confirmed', 'unconfirmed', or 'failed'."""
             success = self.field_service.set_field(key, val)
             if not success:
+                # Dynamic repeating section check (e.g. S27 emp_1, emp_2)
+                add_btns = self.page.locator('button:has-text("Add"), button:has-text("add"), [id*="add" i], [class*="add" i], [aria-label*="add" i], a:has-text("Add")')
+                if add_btns.count() > 0:
+                    for b_idx in range(min(add_btns.count(), 3)):
+                        btn = add_btns.nth(b_idx)
+                        try:
+                            btn.click()
+                            self.page.wait_for_timeout(200)
+                            success = self.field_service.set_field(key, val)
+                            if success:
+                                break
+                        except Exception:
+                            pass
+            if not success:
                 return "failed"
 
-            self.page.wait_for_timeout(PAUSE_INPUT_SET_MS)
-            if self.field_service.verify_field_value(key, val):
+            self.page.wait_for_timeout(250)
+            if self.field_service.verify_field_value(key, val, settle_delay_ms=0):
                 return "confirmed"
 
             # One retry via pure Playwright click
             self.page.wait_for_timeout(PAUSE_RETRY_FALLBACK_MS)
             self.field_service._playwright_click_fallback(key, val)
-            self.page.wait_for_timeout(PAUSE_RETRY_FALLBACK_MS)
-            if self.field_service.verify_field_value(key, val):
+            self.page.wait_for_timeout(250)
+            if self.field_service.verify_field_value(key, val, settle_delay_ms=0):
                 return "confirmed"
             return "unconfirmed"
 
