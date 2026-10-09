@@ -19,6 +19,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from adapters.browser_adapter import BrowserAdapter
+from adapters.dom_scripts import VERIFY_FIELD_DOM_SCRIPT
 from adapters.upload_adapter import UploadAdapter
 from common.cookies import save_cookies
 from common.logging import is_sensitive_key
