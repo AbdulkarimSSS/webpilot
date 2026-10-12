@@ -206,6 +206,19 @@ class OperationalWorker:
             auth_svc.bypass_job_landing_portal()
             page = coord.switch_to_latest_page()
 
+        # Automatically wait for form readiness and expand all collapsed sections (e.g. SAP/Workday accordions)
+        try:
+            auth_svc.wait_for_form_ready(self.settings.form_ready_timeout_ms)
+            auth_svc.expand_all_sections(self.settings.expand_section_wait_ms)
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if "execution context was destroyed" in err_str or "navigation" in err_str:
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=4000)
+                    auth_svc.expand_all_sections(self.settings.expand_section_wait_ms)
+                except Exception:
+                    pass
+
         inspection_svc = InspectionService(page)
         schema = inspection_svc.inspect(unpack_options=req.unpack_options)
 
@@ -376,8 +389,19 @@ class OperationalWorker:
                 submit_failed = True
 
         # Post-interaction verification pass: detect click handlers that clear/revert inputs (e.g. S44)
-        if confirmed and (req.press_buttons or req.submit):
-            confirmed = self._reverify_fields(field_svc, confirmed, unconfirmed, lines, "Post-interaction check")
+        has_navigated = False
+        if last_reactive_event and (last_reactive_event.get("redirected") or last_reactive_event.get("new_window")):
+            has_navigated = True
+
+        if confirmed and (req.press_buttons or req.submit) and not has_navigated:
+            try:
+                confirmed = self._reverify_fields(field_svc, confirmed, unconfirmed, lines, "Post-interaction check")
+            except Exception as exc:
+                err_str = str(exc).lower()
+                if "execution context was destroyed" in err_str or "navigation" in err_str:
+                    lines.append("  [*] Navigation in progress; skipping post-interaction check on previous form.")
+                else:
+                    lines.append(f"  [!] Post-interaction check notice: {exc}")
 
         # 8. Capture screenshot if requested
         if req.screenshot_path:
@@ -394,7 +418,11 @@ class OperationalWorker:
                 lines.append(f"[!] Warning saving cookies: {exc}")
 
         # 10. Validation checks
-        validation_errors = validator.get_validation_errors()
+        try:
+            validation_errors = validator.get_validation_errors()
+        except Exception:
+            validation_errors = []
+
         if validation_errors:
             lines.append(f"[!] Validation Notices: {validation_errors}")
         else:
@@ -402,7 +430,10 @@ class OperationalWorker:
 
         schema = None
         if req.auto_inspect:
-            schema = inspection_svc.inspect(unpack_options=False)
+            try:
+                schema = inspection_svc.inspect(unpack_options=False)
+            except Exception:
+                schema = None
 
         # Honesty contract: success requires zero failed fields, zero unconfirmed fields, and all requested button presses succeeding
         overall_success = (len(failed) == 0 and len(unconfirmed) == 0 and not press_failed and not submit_failed)

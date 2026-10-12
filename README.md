@@ -1,8 +1,8 @@
-# 🚀 WebPilot Engine v2.0.12
+# 🚀 WebPilot Engine v2.0.13
 
 ### Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime
 
-[![Version](https://img.shields.io/badge/version-v2.0.12-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-v2.0.13-blue.svg)](pyproject.toml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/playwright-v1.40%2B-green.svg)](https://playwright.dev/)
 [![Architecture](https://img.shields.io/badge/architecture-3--Tier%20Multi--Process-orange.svg)](#-3-tier-multi-process-architecture)

@@ -5,6 +5,20 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.13] - 2026-10-12
+
+### Fixed
+- **Navigation Race Condition & Context Destruction**: Wrapped `Page.evaluate` calls across `ReactiveInteractionService`, `FormValidator`, and `InspectionService` with resilient try/catch and automatic `domcontentloaded` lifecycle settling. When a click triggers an immediate HTTP 302 or SPA client-side route redirection, the engine gracefully transitions without throwing unhandled `Execution context was destroyed` exceptions.
+- **Omission of Automatic Section Expansion in Supervisor**: Restored missing `auth_svc.wait_for_form_ready()` and `auth_svc.expand_all_sections()` calls in `OperationalWorker._handle_inspect()`, achieving full architectural parity with `engine.py` and `flow_orchestrator.py`. Forms with initially collapsed accordion sections (SAP SuccessFactors, Workday, Bootstrap, HTML5 `<details>`) are now deeply unwrapped automatically during inspection.
+- **SAP SuccessFactors & Enterprise Picklist Resolution**: Enhanced `PICKLIST_AUTO_SCROLL_SCRIPT` with intelligent list container discovery (`${inpId}:_listSelect`, `[role="listbox"]`, `.rcmpaginatedselectlist`, `.globalMenu`), and added synthetic W3C mouse lifecycle event dispatching (`mousedown`, `click`, `mouseup`) ensuring 100% reliable option selection on complex enterprise dropdowns.
+- **Universal Accordion & Master Expand Selector Coverage**: Extended `EXPAND_ALL_SECTIONS_SCRIPT` to detect and trigger global master expand buttons (`Expand all sections`, `[aria-label*="Expand all" i]`) and modern CSS framework accordions (Bootstrap, Tailwind, Shadcn, HTML5 `<details>`).
+- **Post-Interaction Verification on Navigation**: In `_handle_apply()`, automatically detected route changes to skip stale post-interaction DOM checks on unmounted forms.
+
+### Platform & CLI
+- **Native PowerShell Wrapper**: Added `wp.ps1` and `webpilot.ps1` wrappers in System PATH to prevent Windows `cmd.exe` quote stripping on URLs containing ampersands (`&`), ensuring direct and lossless argument forwarding.
+
+---
+
 ## [2.0.7] - 2026-10-09
 
 ### Fixed

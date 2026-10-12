@@ -15,14 +15,26 @@ class FormValidator:
         if self.page is None:
             return []
 
-        errors = self.page.evaluate("""(selector) => {
-            const errorNodes = Array.from(document.querySelectorAll(selector));
-            const texts = errorNodes.map(e => e.innerText.trim()).filter(t => t.length > 0);
+        def _do_eval():
+            return self.page.evaluate("""(selector) => {
+                const errorNodes = Array.from(document.querySelectorAll(selector));
+                const texts = errorNodes.map(e => e.innerText.trim()).filter(t => t.length > 0);
 
-            // Also inspect lines starting with error glyphs
-            const bodyLines = document.body.innerText.split('\\n').map(l => l.trim());
-            const errLines = bodyLines.filter(l => l.includes('is required') || l.includes('Please correct the errors'));
-            return Array.from(new Set([...texts, ...errLines]));
-        }""", SELECTOR_VALIDATION_ERRORS)
+                // Also inspect lines starting with error glyphs
+                const bodyLines = document.body.innerText.split('\\n').map(l => l.trim());
+                const errLines = bodyLines.filter(l => l.includes('is required') || l.includes('Please correct the errors'));
+                return Array.from(new Set([...texts, ...errLines]));
+            }""", SELECTOR_VALIDATION_ERRORS)
 
-        return list(errors)
+        try:
+            errors = _do_eval()
+            return list(errors)
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if "execution context was destroyed" in err_str or "navigation" in err_str:
+                try:
+                    self.page.wait_for_load_state("domcontentloaded", timeout=4000)
+                    return list(_do_eval())
+                except Exception:
+                    return []
+            return []

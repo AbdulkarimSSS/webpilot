@@ -14,7 +14,28 @@ class InspectionService:
 
     def inspect(self, unpack_options: bool = True) -> Dict[str, Any]:
         """Deep inspection of the active page. Extracts form components, inputs, buttons, and uploads."""
-        raw = self.page.evaluate(INSPECT_PAGE_DOM_SCRIPT)
+        try:
+            raw = self.page.evaluate(INSPECT_PAGE_DOM_SCRIPT)
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if "execution context was destroyed" in err_str or "navigation" in err_str:
+                try:
+                    self.page.wait_for_load_state("domcontentloaded", timeout=4000)
+                    raw = self.page.evaluate(INSPECT_PAGE_DOM_SCRIPT)
+                except Exception:
+                    raw = {
+                        "title": self.page.title() if self.page else "",
+                        "url": self.page.url if self.page else "",
+                        "buttons": [], "dropdowns": [], "inputs": [], "choices": [],
+                        "file_uploads": [], "sections": [], "already_uploaded_files": []
+                    }
+            else:
+                raw = {
+                    "title": self.page.title() if self.page else "",
+                    "url": self.page.url if self.page else "",
+                    "buttons": [], "dropdowns": [], "inputs": [], "choices": [],
+                    "file_uploads": [], "sections": [], "already_uploaded_files": []
+                }
 
         if unpack_options:
             print("[*] Probing picklist samples (unpack_options=True)...")

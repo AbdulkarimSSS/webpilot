@@ -74,7 +74,14 @@ class ReactiveInteractionService:
 
         # Strategy C: JavaScript fallback
         if not clicked:
-            clicked = self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
+            try:
+                clicked = self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
+            except Exception as exc:
+                err_str = str(exc).lower()
+                if "execution context was destroyed" in err_str or "navigation" in err_str:
+                    clicked = True
+                else:
+                    pass
 
         # Strategy D: Modal Dismiss / Escape fallback
         if not clicked and target.lower().strip() in ("close", "dismiss", "cancel", "escape"):
@@ -87,7 +94,14 @@ class ReactiveInteractionService:
         # Strategy E: Dismiss blocking modal/backdrop and retry
         if not clicked:
             if self.dismiss_blocking_overlays():
-                clicked = self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
+                try:
+                    clicked = self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
+                except Exception as exc:
+                    err_str = str(exc).lower()
+                    if "execution context was destroyed" in err_str or "navigation" in err_str:
+                        clicked = True
+                    else:
+                        pass
 
         if not clicked:
             return {"success": False, "target": target}
@@ -99,9 +113,17 @@ class ReactiveInteractionService:
         except Exception:
             pass
 
-        self._wait_for_loading_dissolution()
+        try:
+            self._wait_for_loading_dissolution()
+        except Exception:
+            pass
 
         # 3. Assess reactive changes
+        try:
+            alerts = self.form_validator.get_validation_errors()
+        except Exception:
+            alerts = []
+
         outcome: Dict[str, Any] = {
             "success": True,
             "target": target,
@@ -112,44 +134,65 @@ class ReactiveInteractionService:
             "modal_text": "",
             "new_inputs_count": 0,
             "schema": None,
-            "alerts": self.form_validator.get_validation_errors(),
+            "alerts": alerts,
         }
 
         # Check for new window / tab
-        if len(self.context.pages) > pre_tabs_count:
+        try:
+            pages_count = len(self.context.pages)
+        except Exception:
+            pages_count = pre_tabs_count
+
+        if pages_count > pre_tabs_count:
             self.page = self.context.pages[-1]
             if self.on_active_page_change:
                 self.on_active_page_change(self.page)
             outcome["new_window"] = True
-            outcome["new_url"] = self.page.url
-            outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+            try:
+                outcome["new_url"] = self.page.url
+                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+            except Exception:
+                pass
             return outcome
 
         # Check for URL redirect / client-side route change
-        post_url = self.page.url
+        try:
+            post_url = self.page.url
+        except Exception:
+            post_url = pre_url
+
         if post_url != pre_url:
             outcome["redirected"] = True
             outcome["new_url"] = post_url
-            outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+            try:
+                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+            except Exception:
+                pass
             return outcome
 
         # Check for modal / dialog appearance
-        post_modals = self.page.locator(SELECTOR_MODAL_DIALOGS)
-        if post_modals.count() > pre_modals_count:
-            outcome["modal_opened"] = True
-            try:
-                outcome["modal_text"] = post_modals.first.inner_text().strip()[:400]
-            except Exception:
-                pass
-            outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
-            return outcome
+        try:
+            post_modals = self.page.locator(SELECTOR_MODAL_DIALOGS)
+            if post_modals.count() > pre_modals_count:
+                outcome["modal_opened"] = True
+                try:
+                    outcome["modal_text"] = post_modals.first.inner_text().strip()[:400]
+                except Exception:
+                    pass
+                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+                return outcome
+        except Exception:
+            pass
 
         # Check for dynamic DOM form inputs growth
-        post_inputs_count = self.page.locator("input, select, textarea").count()
-        if post_inputs_count > pre_inputs_count:
-            outcome["new_inputs_count"] = post_inputs_count - pre_inputs_count
-            outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
-            return outcome
+        try:
+            post_inputs_count = self.page.locator("input, select, textarea").count()
+            if post_inputs_count > pre_inputs_count:
+                outcome["new_inputs_count"] = post_inputs_count - pre_inputs_count
+                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+                return outcome
+        except Exception:
+            pass
 
         return outcome
 

@@ -61,12 +61,32 @@ CHECK_FORM_LOADING_SCRIPT: Final[str] = (
 
 EXPAND_ALL_SECTIONS_SCRIPT: Final[str] = """() => {
     let count = 0;
-    const sections = Array.from(document.querySelectorAll('.rcmFormSection, [class*="rcmFormSection"]'));
+    // 1. Check for master 'Expand all' buttons (SuccessFactors, Workday, Taleo, etc.)
+    const masterBtns = Array.from(document.querySelectorAll('button, a, [role="button"]')).filter(el => {
+        const id = (el.id || '').toLowerCase();
+        const text = (el.innerText || el.textContent || '').trim().toLowerCase();
+        return id.includes('expandallsections') || id.includes('expandall') || text === 'expand all' || text.includes('expand all sections');
+    });
+    for (let mb of masterBtns) {
+        try {
+            mb.click();
+            count++;
+        } catch (e) {}
+    }
+
+    // 2. Expand individual form sections and accordions
+    const sections = Array.from(document.querySelectorAll('.rcmFormSection, [class*="rcmFormSection"], [class*="accordion"], .accordion-item, details:not([open])'));
     for (let s of sections) {
-        const btn = s.querySelector('button.rcmFormSectionTopBar, .rcmFormSectionTopBar');
-        const content = s.querySelector('.sectionContent, [class*="sectionContent"]');
+        if (s.tagName && s.tagName.toLowerCase() === 'details') {
+            s.setAttribute('open', '');
+            count++;
+            continue;
+        }
+        const btn = s.querySelector('button.rcmFormSectionTopBar, .rcmFormSectionTopBar, [aria-expanded="false"], .accordion-button.collapsed');
+        const content = s.querySelector('.sectionContent, [class*="sectionContent"], .accordion-collapse:not(.show)');
         const isClosed = (btn && btn.getAttribute('aria-expanded') === 'false') ||
-                         (content && content.classList.contains('sectionContentClosed'));
+                         (content && content.classList.contains('sectionContentClosed')) ||
+                         (btn && btn.classList.contains('collapsed'));
         if (isClosed && btn) {
             btn.click();
             count++;
@@ -460,32 +480,46 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val]) => {
 }"""
 
 PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
-    const input = document.getElementById(inpId);
-    const owns = input ? input.getAttribute('aria-owns') : null;
-    const list = owns ? document.getElementById(owns) : null;
-    if (!list) return { success: false, reason: 'no list container' };
+    const input = inpId ? document.getElementById(inpId) : null;
+    let list = null;
+    if (input) {
+        const owns = input.getAttribute('aria-owns');
+        if (owns) list = document.getElementById(owns);
+        if (!list && inpId.includes(':_input')) {
+            const listId = inpId.replace(':_input', ':_listSelect');
+            list = document.getElementById(listId);
+        }
+    }
+    if (!list) {
+        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"]), [class*="listSelect"]:not([style*="display: none"]), [id$=":_listSelect"]');
+    }
+    if (!list) {
+        list = document;
+    }
 
     const targetLower = String(target).trim().toLowerCase();
-    const scrollParent = list.closest('.scroll, .scrolling, div[style*="overflow"]') || list.parentElement;
+    const scrollParent = list !== document ? (list.closest('.scroll, .scrolling, div[style*="overflow"]') || list.parentElement) : null;
 
     for (let scrollStep = 0; scrollStep < 5; scrollStep++) {
-        const items = Array.from(list.querySelectorAll('a, li'));
+        const items = Array.from(list.querySelectorAll('a, li, [role="option"], .globalMenuItem, .picklistOption'));
         const match = items.find(el => {
             const title = (el.getAttribute('title') || '').trim().toLowerCase();
-            const text = (el.innerText || '').trim().toLowerCase();
+            const text = (el.innerText || el.textContent || '').trim().toLowerCase();
             return title === targetLower || text === targetLower ||
-                   (targetLower.length > 3 && (title.includes(targetLower) || text.includes(targetLower)));
+                   (targetLower.length > 2 && (title.includes(targetLower) || text.includes(targetLower)));
         });
 
         if (match) {
+            try { match.dispatchEvent(new Event('mousedown', { bubbles: true })); } catch (e) {}
             match.click();
-            return { success: true, text: match.getAttribute('title') || match.innerText };
+            try { match.dispatchEvent(new Event('mouseup', { bubbles: true })); } catch (e) {}
+            return { success: true, text: match.getAttribute('title') || match.innerText || match.textContent };
         }
 
-        if (scrollParent) {
-            scrollParent.scrollTop = scrollParent.scrollHeight;
+        if (scrollParent && scrollParent.scrollHeight > scrollParent.clientHeight) {
+            scrollParent.scrollTop += 200;
             scrollParent.dispatchEvent(new Event('scroll', { bubbles: true }));
-            await new Promise(r => setTimeout(r, 450));
+            await new Promise(r => setTimeout(r, 200));
         } else {
             break;
         }
