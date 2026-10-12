@@ -23,7 +23,7 @@ from common.text import decode_unicode_escapes
 from config.settings import get_settings, load_device_profile
 from orchestration.context import SessionContext
 from orchestration.session_coordinator import SessionCoordinator
-from services.auth_navigation_service import AuthNavigationService
+from services.page_lifecycle_service import PageLifecycleService
 from services.field_interaction_service import FieldInteractionService
 from services.form_application_pipeline import FormApplicationPipeline
 from services.inspection_service import InspectionService
@@ -196,21 +196,21 @@ class OperationalWorker:
             page = coord.page
 
         # Landing portal transition if needed
-        auth_svc = AuthNavigationService(page, coord.context)
+        lifecycle_svc = PageLifecycleService(page, coord.context)
         if req.url and ("jobs." in page.url or page.locator("button.dropdown-toggle, .dialogApplyBtn").count() > 0):
-            auth_svc.bypass_job_landing_portal()
+            lifecycle_svc.bypass_job_landing_portal()
             page = coord.switch_to_latest_page()
 
         # Automatically wait for form readiness and expand all collapsed sections
         try:
-            auth_svc.wait_for_form_ready(self.settings.form_ready_timeout_ms)
-            auth_svc.expand_all_sections(self.settings.expand_section_wait_ms)
+            lifecycle_svc.wait_for_form_ready(self.settings.form_ready_timeout_ms)
+            lifecycle_svc.expand_all_sections(self.settings.expand_section_wait_ms)
         except Exception as exc:
             err_str = str(exc).lower()
             if "execution context was destroyed" in err_str or "navigation" in err_str:
                 try:
                     page.wait_for_load_state("domcontentloaded", timeout=4000)
-                    auth_svc.expand_all_sections(self.settings.expand_section_wait_ms)
+                    lifecycle_svc.expand_all_sections(self.settings.expand_section_wait_ms)
                 except Exception:
                     pass
 
@@ -321,19 +321,19 @@ class OperationalWorker:
                     message="Target URL (--url) is required when starting a new session without an active page.",
                 )
 
-        auth_svc = AuthNavigationService(page, ctx)
+        lifecycle_svc = PageLifecycleService(page, ctx)
 
         # 1. Landing portal bypass
         if req.url and ("jobs." in page.url or page.locator("button.dropdown-toggle, .dialogApplyBtn").count() > 0):
             lines.append("[*] Bypassing landing page to active application...")
-            auth_svc.bypass_job_landing_portal()
+            lifecycle_svc.bypass_job_landing_portal()
             page = coord.switch_to_latest_page()
 
         # 2. Wait for form readiness & expand accordions
-        auth_svc.wait_for_form_ready(self.settings.form_ready_timeout_ms)
+        lifecycle_svc.wait_for_form_ready(self.settings.form_ready_timeout_ms)
         lines.append("[*] Ensuring all form sections are expanded...")
         try:
-            auth_svc.expand_all_sections(self.settings.expand_section_wait_ms)
+            lifecycle_svc.expand_all_sections(self.settings.expand_section_wait_ms)
         except Exception:
             pass
 

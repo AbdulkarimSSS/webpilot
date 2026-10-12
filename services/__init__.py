@@ -1,6 +1,6 @@
 """Services package for universal web applier."""
 
-from services.auth_navigation_service import AuthNavigationService
+from services.page_lifecycle_service import PageLifecycleService
 from services.dom_verifier import DOMDataMatcher
 from services.field_interaction_service import FieldInteractionService
 from services.form_application_pipeline import FormApplicationPipeline, FormPipelineResult
@@ -12,7 +12,7 @@ from services.schema_merger import SchemaMerger
 from services.target_descriptor import TargetDescriptor, TargetDescriptorParser
 
 __all__ = [
-    "AuthNavigationService",
+    "PageLifecycleService",
     "DOMDataMatcher",
     "FieldInteractionService",
     "FormApplicationPipeline",

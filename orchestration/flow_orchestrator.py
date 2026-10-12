@@ -16,7 +16,7 @@ from orchestration.context import (
     SessionContext,
 )
 from orchestration.session_coordinator import SessionCoordinator
-from services.auth_navigation_service import AuthNavigationService
+from services.page_lifecycle_service import PageLifecycleService
 from services.field_interaction_service import FieldInteractionService
 from services.form_application_pipeline import FormApplicationPipeline
 from services.inspection_formatter_service import InspectionFormatterService
@@ -92,17 +92,17 @@ class FlowOrchestrator:
                 else:
                     raise ValueError("Target URL (--url) is required when starting a new session without an active page.")
 
-            auth_svc = AuthNavigationService(page, ctx)
+            lifecycle_svc = PageLifecycleService(page, ctx)
 
             # 1. Landing portal transition if applicable
             if "jobs." in page.url or page.locator("button.dropdown-toggle, .dialogApplyBtn").count() > 0:
                 print("[*] Transitioning past landing portal...")
-                auth_svc.bypass_job_landing_portal()
+                lifecycle_svc.bypass_job_landing_portal()
                 page = coordinator.switch_to_latest_page()
 
             # 2. Form readiness & section expansion
-            auth_svc.wait_for_form_ready(settings.form_ready_timeout_ms)
-            auth_svc.expand_all_sections(settings.expand_section_wait_ms)
+            lifecycle_svc.wait_for_form_ready(settings.form_ready_timeout_ms)
+            lifecycle_svc.expand_all_sections(settings.expand_section_wait_ms)
 
             # 3. Inspect page schema
             print("[*] Inspecting page components and form schema...")
@@ -203,12 +203,12 @@ class FlowOrchestrator:
                 else:
                     raise ValueError("Target URL (--url) is required when starting a new session without an active page.")
 
-            auth_svc = AuthNavigationService(page, ctx)
+            lifecycle_svc = PageLifecycleService(page, ctx)
 
             # 1. Landing portal bypass
             if req.url and ("jobs." in page.url or page.locator("button.dropdown-toggle, .dialogApplyBtn").count() > 0):
                 print("[*] Bypassing landing page to active application...")
-                auth_svc.bypass_job_landing_portal()
+                lifecycle_svc.bypass_job_landing_portal()
                 page = coordinator.switch_to_latest_page()
 
             print("[*] Current active URL:", page.url)

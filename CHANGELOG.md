@@ -17,10 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `inspection.py`: Full-page DOM schema introspection and picklist option probing.
   - `probe.py`: Dynamic field-level attribute and state probing.
   - `reactive.py`: Dynamic reactive button clickers.
-  - `auth.py`: Legacy compatibility layer.
 - **Unified Page Lifecycle Architecture (`PageLifecycleService`)**:
   - Replaced legacy auth-specific hacks with a generalized page readiness and accordion expansion service.
-  - Modernized `AuthNavigationService` as a lightweight compatibility layer inheriting from `PageLifecycleService`, treating authentication portals as standard web forms with zero special-casing.
+  - Eliminated `auth_navigation_service.py` entirely, treating authentication portals and login pages as standard web forms with zero special-casing.
 - **Separation of Concerns in Services & Pipeline**:
   - Extracted `FormApplicationPipeline` (`services/form_application_pipeline.py`) from `OperationalWorker`, encapsulating the 5-phase fill lifecycle (preparation, dynamic expansion, execution, pre-submit reverification, and reactive verification).
   - Extracted `DOMDataMatcher` (`services/dom_verifier.py`) for deterministic DOM value comparison.

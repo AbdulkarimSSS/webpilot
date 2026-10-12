@@ -76,7 +76,7 @@ def test_pre_submit_barrier_catches_delayed_silent_revert(monkeypatch):
     mock_reactive.click_button.return_value = {"success": True}
 
     monkeypatch.setattr("supervisor.worker_process.FieldInteractionService", lambda page: mock_field_svc)
-    monkeypatch.setattr("supervisor.worker_process.AuthNavigationService", lambda p, c: MagicMock())
+    monkeypatch.setattr("supervisor.worker_process.PageLifecycleService", lambda p, c: MagicMock())
     monkeypatch.setattr("supervisor.worker_process.FormValidator", lambda p: MagicMock(get_validation_errors=lambda: []))
     monkeypatch.setattr("supervisor.worker_process.InspectionService", lambda p: MagicMock())
     monkeypatch.setattr("supervisor.worker_process.ReactiveInteractionService", lambda **kwargs: mock_reactive)

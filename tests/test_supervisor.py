@@ -155,7 +155,7 @@ def test_worker_process_field_verification(monkeypatch):
     mock_field_svc.expand_dynamic_section.return_value = (False, None)
 
     monkeypatch.setattr("supervisor.worker_process.FieldInteractionService", lambda page: mock_field_svc)
-    monkeypatch.setattr("supervisor.worker_process.AuthNavigationService", lambda p, c: MagicMock())
+    monkeypatch.setattr("supervisor.worker_process.PageLifecycleService", lambda p, c: MagicMock())
     monkeypatch.setattr("supervisor.worker_process.FormValidator", lambda p: MagicMock(get_validation_errors=lambda: []))
     monkeypatch.setattr("supervisor.worker_process.InspectionService", lambda p: MagicMock())
 

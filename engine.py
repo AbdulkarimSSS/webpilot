@@ -13,7 +13,7 @@ from adapters.browser_adapter import BrowserAdapter
 from adapters.upload_adapter import UploadAdapter
 from config.settings import Settings, get_settings, load_device_profile
 from core.models import DeviceProfile
-from services.auth_navigation_service import AuthNavigationService
+from services.page_lifecycle_service import PageLifecycleService
 from services.field_interaction_service import FieldInteractionService
 from services.form_filler_service import FormFillerService
 from services.inspection_formatter_service import InspectionFormatterService
@@ -53,7 +53,7 @@ class UniversalFormEngine:
         )
 
         # Service instances initialized upon start()
-        self.auth_service: Optional[AuthNavigationService] = None
+        self.lifecycle_service: Optional[PageLifecycleService] = None
         self.inspection_service: Optional[InspectionService] = None
         self.field_service: Optional[FieldInteractionService] = None
         self.filler_service: Optional[FormFillerService] = None
@@ -82,14 +82,19 @@ class UniversalFormEngine:
         if self._services_ready():
             self._bind_services(p)
 
+    @property
+    def auth_service(self) -> Optional[PageLifecycleService]:
+        """Backwards-compatibility alias for lifecycle_service."""
+        return self.lifecycle_service
+
     def _services_ready(self) -> bool:
-        return self.auth_service is not None
+        return self.lifecycle_service is not None
 
     def _bind_services(self, active_page: Page) -> None:
         """Binds active page to services and adapters."""
         ctx = self.context
         assert ctx is not None
-        self.auth_service = AuthNavigationService(active_page, ctx)
+        self.lifecycle_service = PageLifecycleService(active_page, ctx)
         self.inspection_service = InspectionService(active_page)
         self.field_service = FieldInteractionService(active_page)
         self.filler_service = FormFillerService(active_page, self.field_service)
@@ -121,29 +126,16 @@ class UniversalFormEngine:
         """Navigates to URL and waits for DOM content loaded."""
         self.browser_adapter.navigate(url=url, wait_timeout=wait_timeout)
 
-    def handle_login_if_needed(self, email: str, password: str, cookies_save_path: Optional[str] = None) -> bool:
-        """Detects if page is a login/sign-in page and completes authentication automatically."""
-        assert self.auth_service is not None, "Engine not started."
-        return self.auth_service.handle_login_if_needed(email, password, cookies_save_path)
-
-    def bypass_job_landing_portal(self) -> bool:
-        """Generic helper: Clicks Apply Now on portal landing pages to enter ATS application."""
-        assert self.auth_service is not None, "Engine not started."
-        res = self.auth_service.bypass_job_landing_portal()
-        if self.page != self.auth_service.page:
-            self.page = self.auth_service.page
-        return res
-
     def wait_for_form_ready(self, timeout_ms: Optional[int] = None) -> None:
         """Waits for form elements to be rendered in DOM, dismissing 'Loading...' state."""
-        assert self.auth_service is not None, "Engine not started."
+        assert self.lifecycle_service is not None, "Engine not started."
         effective_timeout = timeout_ms if timeout_ms is not None else self.settings.form_ready_timeout_ms
-        self.auth_service.wait_for_form_ready(timeout_ms=effective_timeout)
+        self.lifecycle_service.wait_for_form_ready(timeout_ms=effective_timeout)
 
     def expand_all_sections(self) -> int:
         """Safely expands any collapsed form sections without toggling already-open ones."""
-        assert self.auth_service is not None, "Engine not started."
-        return self.auth_service.expand_all_sections(wait_ms=self.settings.expand_section_wait_ms)
+        assert self.lifecycle_service is not None, "Engine not started."
+        return self.lifecycle_service.expand_all_sections(wait_ms=self.settings.expand_section_wait_ms)
 
     def fill_form_sequential(self, field_mappings: List[Tuple[str, Any]]) -> Dict[str, List[Tuple[str, Any]]]:
         """Universal sequential form filler (section-by-section + global fallback)."""
@@ -152,7 +144,7 @@ class UniversalFormEngine:
 
     def inspect(self, unpack_options: bool = True) -> Dict[str, Any]:
         """Deep inspection of the active page form components and schema."""
-        assert self.auth_service is not None and self.inspection_service is not None, "Engine not started."
+        assert self.lifecycle_service is not None and self.inspection_service is not None, "Engine not started."
         self.wait_for_form_ready()
         self.expand_all_sections()
         return self.inspection_service.inspect(unpack_options=unpack_options)

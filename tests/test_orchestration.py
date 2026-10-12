@@ -126,7 +126,7 @@ def test_flow_orchestrator_execute_inspection_flow(tmp_path):
     }
 
     with patch("orchestration.flow_orchestrator.SessionCoordinator") as mock_coord_cls, \
-         patch("orchestration.flow_orchestrator.AuthNavigationService") as mock_auth_cls, \
+         patch("orchestration.flow_orchestrator.PageLifecycleService") as mock_auth_cls, \
          patch("orchestration.flow_orchestrator.InspectionService") as mock_insp_cls, \
          patch("orchestration.flow_orchestrator.InspectionFormatterService") as mock_fmt_cls:
 
