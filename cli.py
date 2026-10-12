@@ -5,42 +5,35 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
-from typing import Any, Dict
+from pathlib import Path
 
+try:
+    from cli_parser import build_cli_parser
+except ImportError:
+    try:
+        from .cli_parser import build_cli_parser
+    except Exception:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from cli_parser import build_cli_parser
+from common.telemetry import print_telemetry_banner
 from orchestration.context import ApplyRequestContext, InspectionRequestContext
 from orchestration.flow_orchestrator import FlowOrchestrator
 from services.inspection_formatter_service import InspectionFormatterService
-from supervisor.client import DEFAULT_SUPERVISOR_URL, SupervisorClient
+from supervisor.client import SupervisorClient
 from supervisor.contracts import SupervisorActionRequest, SupervisorActionResponse
 
 
-def print_telemetry_banner(resp: SupervisorActionResponse) -> None:
-    """Renders real-time process tree telemetry across Layer 1, 2, and 3."""
-    if resp.browser_pid or resp.worker_pid or resp.active_url:
-        print("\n" + "═" * 70)
-        print(" 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY")
-        print("═" * 70)
-        if resp.worker_pid:
-            print(f" • Layer 2 Worker PID   : {resp.worker_pid}")
-        if resp.browser_pid:
-            print(f" • Layer 3 Chromium PID : {resp.browser_pid}")
-        if resp.active_tab_index is not None:
-            print(f" • Active Tab Index     : Tab #{resp.active_tab_index} (Total: {resp.total_tabs})")
-        if resp.active_title:
-            print(f" • Active Page Title    : {resp.active_title}")
-        if resp.active_url:
-            print(f" • Active Page URL      : {resp.active_url}")
-        print("═" * 70)
-
-
 def get_base_url(args: argparse.Namespace) -> str:
+    """Returns Master Supervisor HTTP base URL resolved from command-line arguments."""
     host = getattr(args, "host", None) or "127.0.0.1"
     port = getattr(args, "port", None) or 9333
     return f"http://{host}:{port}"
 
 
 def get_supervisor_client(args: argparse.Namespace) -> SupervisorClient:
+    """Instantiates a SupervisorClient configured with target host, port, and security token."""
     token = getattr(args, "token", None)
     return SupervisorClient(base_url=get_base_url(args), token=token)
 
@@ -67,7 +60,6 @@ def inspect_cmd(args: argparse.Namespace) -> None:
         FlowOrchestrator.execute_inspection_flow(req)
         return
 
-    # Multi-tier Master Supervisor execution (default)
     client = get_supervisor_client(args)
 
     if args.close_session:
@@ -121,8 +113,8 @@ def apply_cmd(args: argparse.Namespace) -> None:
     """Executes the universal form filling and submission workflow."""
     auto_inspect = not getattr(args, "no_auto_inspect", False)
 
-    from common.secrets import parse_and_resolve_fill_args
     from builder import FormPayloadBuilder
+    from common.secrets import parse_and_resolve_fill_args
 
     raw_fill_args = args.fill or []
     resolved_pairs = parse_and_resolve_fill_args(raw_fill_args)
@@ -163,7 +155,6 @@ def apply_cmd(args: argparse.Namespace) -> None:
         FlowOrchestrator.execute_apply_flow(req)
         return
 
-    # Multi-tier Master Supervisor execution (default)
     client = get_supervisor_client(args)
 
     if args.close_session:
@@ -206,12 +197,89 @@ def apply_cmd(args: argparse.Namespace) -> None:
         print(line)
 
     if resp.schema and auto_inspect:
-        summary = InspectionFormatterService.format_summary(resp.schema)
-        print("\n" + summary)
+        if getattr(args, "full_inspect", False) or getattr(args, "inspect_all", False):
+            summary = InspectionFormatterService.format_summary(resp.schema)
+            print("\n" + summary)
+        else:
+            touched_keys = [k for k, _ in resolved_pairs]
+            if effective_data_path and os.path.isfile(effective_data_path):
+                try:
+                    loaded = FormPayloadBuilder.load_from_file(effective_data_path)
+                    touched_keys.extend([k for k, _ in loaded])
+                except Exception:
+                    pass
+            targeted_summary = InspectionFormatterService.format_targeted_summary(resp.schema, touched_keys)
+            if targeted_summary:
+                print("\n" + targeted_summary)
+                print("\n💡 (Note: Use --full-inspect to display all form fields)")
+            else:
+                summary = InspectionFormatterService.format_summary(resp.schema)
+                print("\n" + summary)
 
     if not resp.success:
         print(f"[!] Apply operation failed: {resp.message}")
         sys.exit(1)
+
+
+def find_cmd(args: argparse.Namespace) -> None:
+    """Probes a specific element/field and inspects its properties, options, or HTML."""
+    client = get_supervisor_client(args)
+    req = SupervisorActionRequest(
+        action="probe",
+        url=args.url,
+        cookies_path=args.cookies,
+        tab_index=args.tab,
+        target_field=args.target,
+        include_options=args.options,
+        query=args.query,
+        include_html=args.html,
+        headed=args.headed,
+        timeout_minutes=args.timeout_minutes,
+    )
+    resp = client.execute(req)
+    print_telemetry_banner(resp)
+
+    if not resp.success:
+        print(f"\n[!] {resp.message}")
+        sys.exit(1)
+
+    details = resp.field_details or {}
+    if getattr(args, "json", False):
+        print(json.dumps(details, indent=2, ensure_ascii=False))
+        return
+
+    print("\n" + "═" * 70)
+    local_id_str = details.get("local_id") or "@fld"
+    type_str = (details.get("type") or "element").upper()
+    print(f" 🔍 WEBPILOT ELEMENT DIAGNOSTIC | {local_id_str} | {type_str}")
+    print("═" * 70)
+    print(f" • Label       : {details.get('label')}")
+    print(f" • Local ID    : {details.get('local_id')}")
+    print(f" • DOM ID      : {details.get('id')}")
+    print(f" • Widget Type : {details.get('type')}")
+    print(f" • Current Val : {details.get('value')}")
+    print(f" • Required    : {details.get('required')}")
+    print(f" • Disabled    : {details.get('disabled')}")
+    print(f" • Visible     : {details.get('visible')}")
+
+    opts = details.get("options")
+    if opts is not None:
+        total_cnt = details.get("options_count", len(opts))
+        print(f"\n 📋 Options ({total_cnt} total):")
+        for o in opts[:30]:
+            if isinstance(o, dict):
+                loc = f"[{o.get('local_id')}] " if o.get('local_id') else ""
+                val_part = f" (value: {o.get('value')})" if o.get('value') and o.get('value') != o.get('text') else ""
+                print(f"   • {loc}'{o.get('text')}'{val_part}")
+            else:
+                print(f"   • {o}")
+        if len(opts) > 30:
+            print(f"   ... and {len(opts) - 30} more options (use --query to filter).")
+
+    outer_html = details.get("outerHTML") or details.get("html")
+    if args.html and outer_html:
+        print(f"\n 🌐 Outer HTML:\n{outer_html}")
+    print("═" * 70 + "\n")
 
 
 def service_cmd(args: argparse.Namespace) -> None:
@@ -267,128 +335,8 @@ def shell_cmd(args: argparse.Namespace) -> None:
     run_interactive_shell(host=args.host, port=args.port, token=getattr(args, "token", None))
 
 
-def main():
-    if "--run-daemon" in sys.argv:
-        from supervisor.master_daemon import run_master_daemon
-        idx = sys.argv.index("--run-daemon")
-        port = 9333
-        token = os.environ.get("WEBPILOT_SUPERVISOR_TOKEN")
-        if len(sys.argv) > idx + 1 and sys.argv[idx + 1].isdigit():
-            port = int(sys.argv[idx + 1])
-        if not token and len(sys.argv) > idx + 2:
-            token = sys.argv[idx + 2]
-        run_master_daemon(port=port, token=token)
-        return
-
-    if "--run-worker" in sys.argv:
-        from supervisor.worker_process import run_worker_loop
-        run_worker_loop()
-        return
-
-    parser = argparse.ArgumentParser(
-        prog="webpilot",
-        description="WebPilot: Autonomous Multi-Tier Browser Automation Engine & AI Agent Web Runtime",
-    )
-    parser.add_argument("--config", help="Path to custom settings.json configuration file")
-    parser.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
-    parser.add_argument("--env-file", help="Path to custom .env file")
-    parser.add_argument("--host", default="127.0.0.1", help="Supervisor host address (default: 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=9333, help="Supervisor port (default: 9333)")
-    parser.add_argument("--token", help="Explicit Master Supervisor authentication token")
-
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    # 1. Inspect Subcommand
-    p_inspect = subparsers.add_parser("inspect", help="Inspect URL and return full schema of inputs, dropdowns, buttons, uploads")
-    p_inspect.add_argument("--url", nargs="?", default=None, help="Target URL to inspect (optional if connecting to existing live session)")
-    p_inspect.add_argument("--cookies", help="Path to cookies JSON file")
-    p_inspect.add_argument("--output", help="Path to save full inspection JSON schema")
-    p_inspect.add_argument("--screenshot", help="Path to save visual screenshot")
-    p_inspect.add_argument("--unpack-options", action="store_true", help="Probe dropdowns to sample options (burns more tokens/time)")
-    p_inspect.add_argument("--headed", action="store_true", help="Run headed browser")
-    p_inspect.add_argument("--keep-alive", action="store_true", help="Keep browser open across sequential commands")
-    p_inspect.add_argument("--close-session", action="store_true", help="Terminate active live browser session and exit")
-    p_inspect.add_argument("--list-tabs", action="store_true", help="List all open tabs in active session")
-    p_inspect.add_argument("--tab", type=int, default=None, help="Target specific tab by index (0-based)")
-    p_inspect.add_argument("--timeout-minutes", type=int, default=30, help="Inactivity timeout in minutes (default: 30, 0 = disable)")
-    p_inspect.add_argument("--standalone", action="store_true", help="Run in-process via FlowOrchestrator instead of Master Supervisor")
-    p_inspect.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
-    p_inspect.add_argument("--port", type=int, default=9333, help="Supervisor port")
-    p_inspect.add_argument("--token", help="Explicit Master Supervisor authentication token")
-    p_inspect.add_argument("--config", help="Path to custom settings.json configuration file")
-    p_inspect.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
-    p_inspect.add_argument("--env-file", help="Path to custom .env file")
-
-    # 2. Apply / Fill Subcommand
-    p_apply = subparsers.add_parser("apply", help="Fill fields dynamically via JSON file or CLI flags, and optionally submit")
-    p_apply.add_argument("--url", nargs="?", default=None, help="Target URL to fill (optional if connecting to existing live session)")
-    p_apply.add_argument("--data", help="Path to JSON file containing key-value mappings")
-    p_apply.add_argument("--fill", action="append", help="Field to set, e.g. --fill 'First Name=John' (can be repeated)")
-    p_apply.add_argument("--press", action="append", help="Button to click, e.g. --press 'Next' (can be repeated)")
-    p_apply.add_argument("--upload", action="append", help="File to upload, e.g. --upload 'resume=sample.pdf' (can be repeated)")
-    p_apply.add_argument("--cookies", help="Path to cookies JSON file")
-    p_apply.add_argument("--submit", action="store_true", help="Click Apply/Submit after filling")
-    p_apply.add_argument("--screenshot", help="Path to save screenshot")
-    p_apply.add_argument("--headed", action="store_true", help="Run headed browser")
-    p_apply.add_argument("--keep-alive", action="store_true", help="Keep browser open across sequential commands")
-    p_apply.add_argument("--close-session", action="store_true", help="Terminate active live browser session and exit")
-    p_apply.add_argument("--list-tabs", action="store_true", help="List all open tabs in active session")
-    p_apply.add_argument("--tab", type=int, default=None, help="Target specific tab by index (0-based)")
-    p_apply.add_argument("--timeout-minutes", type=int, default=30, help="Inactivity timeout in minutes (default: 30, 0 = disable)")
-    p_apply.add_argument("--no-auto-inspect", action="store_true", help="Disable automatic post-interaction form inspection")
-    p_apply.add_argument("--standalone", action="store_true", help="Run in-process via FlowOrchestrator instead of Master Supervisor")
-    p_apply.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
-    p_apply.add_argument("--port", type=int, default=9333, help="Supervisor port")
-    p_apply.add_argument("--token", help="Explicit Master Supervisor authentication token")
-    p_apply.add_argument("--config", help="Path to custom settings.json configuration file")
-    p_apply.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
-    p_apply.add_argument("--env-file", help="Path to custom .env file")
-
-    # 3. Interactive REPL Shell Subcommand
-    p_shell = subparsers.add_parser("shell", help="Launch interactive REPL automation shell")
-    p_shell.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
-    p_shell.add_argument("--port", type=int, default=9333, help="Supervisor port")
-    p_shell.add_argument("--token", help="Explicit Master Supervisor authentication token")
-
-    # 4. Supervisor Service Management Subcommand
-    p_service = subparsers.add_parser("service", help="Manage Master Supervisor background daemon")
-    p_service.add_argument("service_action", choices=["status", "restart", "stop", "start"], help="Action to execute")
-    p_service.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
-    p_service.add_argument("--port", type=int, default=9333, help="Supervisor port")
-    p_service.add_argument("--token", help="Explicit Master Supervisor authentication token")
-
-    # 5. Browser Binaries Installation Subcommand
-    p_install = subparsers.add_parser("install", help="Download and configure required Playwright Chromium browser")
-    p_install.add_argument("--all", action="store_true", help="Download all browsers (Chromium, Firefox, WebKit)")
-
-    # 6. Skill Specification Subcommand
-    p_skill = subparsers.add_parser("skill", help="Output the AI agent skill specification (SKILL.md) to terminal")
-
-    args = parser.parse_args()
-    try:
-        if args.command == "inspect":
-            inspect_cmd(args)
-        elif args.command == "apply":
-            apply_cmd(args)
-        elif args.command == "shell":
-            shell_cmd(args)
-        elif args.command == "service":
-            service_cmd(args)
-        elif args.command == "install":
-            install_cmd(args)
-        elif args.command == "skill":
-            skill_cmd(args)
-    except KeyboardInterrupt:
-        print("\n[!] Operation cancelled by user.")
-        sys.exit(130)
-    except Exception as exc:
-        print(f"\n[!] Error: {exc}", file=sys.stderr)
-        sys.exit(1)
-
-
 def install_cmd(args: argparse.Namespace) -> None:
     """Installs required Playwright browser binaries."""
-    import subprocess
     print("\n" + "═" * 70)
     print(" 🚀 WEBPILOT | BROWSER BINARY INSTALLER")
     print("═" * 70)
@@ -408,7 +356,6 @@ def install_cmd(args: argparse.Namespace) -> None:
 
 def skill_cmd(args: argparse.Namespace) -> None:
     """Outputs the AI agent skill specification (SKILL.md) to terminal."""
-    from pathlib import Path
     base_dir = Path(__file__).resolve().parent
     candidates = [
         base_dir / "skills" / "webpilot-automation" / "SKILL.md",
@@ -424,6 +371,48 @@ def skill_cmd(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
+def main():
+    if "--run-daemon" in sys.argv:
+        from supervisor.master_daemon import run_master_daemon
+        idx = sys.argv.index("--run-daemon")
+        port = 9333
+        token = os.environ.get("WEBPILOT_SUPERVISOR_TOKEN")
+        if len(sys.argv) > idx + 1 and sys.argv[idx + 1].isdigit():
+            port = int(sys.argv[idx + 1])
+        if not token and len(sys.argv) > idx + 2:
+            token = sys.argv[idx + 2]
+        run_master_daemon(port=port, token=token)
+        return
+
+    if "--run-worker" in sys.argv:
+        from supervisor.worker_process import run_worker_loop
+        run_worker_loop()
+        return
+
+    parser = build_cli_parser()
+    args = parser.parse_args()
+    try:
+        if args.command == "inspect":
+            inspect_cmd(args)
+        elif args.command == "apply":
+            apply_cmd(args)
+        elif args.command in ("find", "probe"):
+            find_cmd(args)
+        elif args.command == "shell":
+            shell_cmd(args)
+        elif args.command == "service":
+            service_cmd(args)
+        elif args.command == "install":
+            install_cmd(args)
+        elif args.command == "skill":
+            skill_cmd(args)
+    except KeyboardInterrupt:
+        print("\n[!] Operation cancelled by user.")
+        sys.exit(130)
+    except Exception as exc:
+        print(f"\n[!] Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
-

@@ -6,10 +6,9 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+from adapters.live_session_manager import LiveSessionManager
 from builder import FormPayloadBuilder
-from common.logging import log_event
 from config.settings import get_settings, load_device_profile
-from constants.timeouts import DEFAULT_SUBMIT_WAIT_MS
 from core.models import ApplyExecutionResult, InspectionResult
 from orchestration.context import (
     ApplyRequestContext,
@@ -19,11 +18,10 @@ from orchestration.context import (
 from orchestration.session_coordinator import SessionCoordinator
 from services.auth_navigation_service import AuthNavigationService
 from services.field_interaction_service import FieldInteractionService
+from services.form_application_pipeline import FormApplicationPipeline
 from services.inspection_formatter_service import InspectionFormatterService
 from services.inspection_service import InspectionService
 from services.reactive_interaction_service import ReactiveInteractionService
-from adapters.live_session_manager import LiveSessionManager
-from adapters.upload_adapter import UploadAdapter
 from validators.form_validator import FormValidator
 
 
@@ -96,7 +94,7 @@ class FlowOrchestrator:
 
             auth_svc = AuthNavigationService(page, ctx)
 
-            # 1. Landing portal bypass if applicable
+            # 1. Landing portal transition if applicable
             if "jobs." in page.url or page.locator("button.dropdown-toggle, .dialogApplyBtn").count() > 0:
                 print("[*] Transitioning past landing portal...")
                 auth_svc.bypass_job_landing_portal()
@@ -237,36 +235,28 @@ class FlowOrchestrator:
 
             field_svc = FieldInteractionService(page)
             confirmed = []
+            unconfirmed = []
             failed = []
 
-            # 4. Populate fields dynamically
+            # 4. Populate fields dynamically using unified cascading pipeline
             if fields_to_set:
-                print(f"\n[*] Populating {len(fields_to_set)} field(s)...")
-                for key, val in fields_to_set:
-                    success = field_svc.set_field(key, val)
-                    if success:
-                        confirmed.append((key, val))
-                        print(f"  [✓] Set '{key}' -> '{val}'")
-                    else:
-                        failed.append((key, val))
-                        print(f"  [~] Unmatched/Failed '{key}' -> '{val}'")
-                print(f"[*] Fields summary: {len(confirmed)} set | {len(failed)} skipped.")
+                fill_lines: List[str] = []
+                confirmed, unconfirmed, failed = FormApplicationPipeline.execute_cascading_fill(
+                    page=page,
+                    field_svc=field_svc,
+                    fields_to_set=fields_to_set,
+                    cached_schema=None,
+                    lines=fill_lines,
+                )
+                for l in fill_lines:
+                    print(l)
 
             # 5. Handle document uploads
-            upload_adapter = UploadAdapter(page)
             if req.upload_files:
-                for up in req.upload_files:
-                    if "=" in up:
-                        kw, path = up.split("=", 1)
-                        kw, path = kw.strip(), path.strip()
-                    else:
-                        kw, path = "", up.strip()
-
-                    if os.path.isfile(path):
-                        print(f"[*] Uploading file '{path}' (Keyword: '{kw}')...")
-                        upload_adapter.upload_document(path, kw)
-                    else:
-                        print(f"[!] Warning: Upload file not found: {path}")
+                upload_lines: List[str] = []
+                FormApplicationPipeline.execute_uploads(page, req.upload_files, upload_lines)
+                for l in upload_lines:
+                    print(l)
 
             # 6. Handle custom button presses with reactive observation
             inspection_svc = InspectionService(page)
@@ -298,61 +288,63 @@ class FlowOrchestrator:
                     elif res.get("redirected"):
                         print(f"\n[🔀 Redirect / Navigation Detected]: {res['new_url']}")
                         if req.auto_inspect:
-                            schema = res.get("schema") or inspection_svc.inspect(unpack_options=False)
-                            print(InspectionFormatterService.format_summary(schema))
+                            current_schema = inspection_svc.inspect(unpack_options=False)
+                            print(InspectionFormatterService.format_summary(current_schema))
                     elif res.get("modal_opened"):
                         print(f"\n[🪟 New Modal / Dialog Appeared]:\n{res['modal_text']}")
-                        if req.auto_inspect and res.get("schema"):
-                            print(InspectionFormatterService.format_summary(res["schema"]))
                     elif res.get("new_inputs_count", 0) > 0:
-                        print(f"\n[📋 Dynamic Form Expansion (+{res['new_inputs_count']} new inputs detected)]")
-                        if req.auto_inspect and res.get("schema"):
-                            print(InspectionFormatterService.format_summary(res["schema"]))
-                    else:
-                        if req.auto_inspect:
-                            print(f"\n[*] Auto-inspecting post-interaction state for: '{page.title()}' ({page.url})...")
-                            post_inspection = inspection_svc.inspect(unpack_options=False)
-                            print(InspectionFormatterService.format_summary(post_inspection))
+                        print(f"\n[📋 Dynamic Form Expansion (+{res['new_inputs_count']} new inputs)]")
 
-                    if res.get("alerts"):
-                        print("\n[📢 Page Notices / Alerts]:", res["alerts"])
+            # 7. Final Form Submission if requested
+            submitted = False
+            if req.submit:
+                print("\n[*] Executing final form submission (submit=True)...")
+                res = reactive_svc.click_button("apply")
+                if not res.get("success"):
+                    res = reactive_svc.click_button("submit")
+                if res.get("success"):
+                    submitted = True
+                    print("  [✓] Form submitted successfully.")
+                    page = coordinator.switch_to_latest_page()
+                    coordinator.adapter.print_page_telemetry()
+                else:
+                    print("  [!] Submission button clicked or not found; moving to validation.")
 
-            # 7. Screenshot state
+            # 8. Post-submission screenshot
+            confirmation_screenshot = None
             if req.screenshot_path:
+                confirmation_screenshot = req.screenshot_path
                 coordinator.adapter.capture_screenshot(req.screenshot_path, full_page=True)
-                print(f"[✓] Form filled state captured: {req.screenshot_path}")
+                print(f"[✓] Form state captured: {req.screenshot_path}")
 
-            # 8. Validation checks
-            validation_errors = validator.get_validation_errors()
+            # 9. Validation checks
+            try:
+                validation_errors = validator.get_validation_errors()
+            except Exception:
+                validation_errors = []
+
             if validation_errors:
-                print("\n[!] Form Validation Notices:", validation_errors)
+                print("\n[!] Form Validation Notices / Field Errors:")
+                for err in validation_errors:
+                    print(f"    - {err}")
             else:
                 print("\n[✓] Zero validation errors detected!")
 
-            # 9. Final submission
-            confirmation_screenshot = None
-            if req.submit:
-                print("\n[*] Executing final submission...")
-                reactive_svc.click_button("apply")
-                page.wait_for_timeout(settings.submission_wait_ms)
-
-                post_errors = validator.get_validation_errors()
-                if post_errors:
-                    print("[!] Post-Submit Notices:", post_errors)
-                else:
-                    print("[✓] Application submitted successfully!")
-
-                if req.screenshot_path:
-                    confirmation_screenshot = "submission_final_confirmation.png"
-                    coordinator.adapter.capture_screenshot(confirmation_screenshot, full_page=True)
-                    print(f"[✓] Confirmation screenshot saved: {confirmation_screenshot}")
+            # 10. Auto-inspect form after submission/filling
+            if req.auto_inspect:
+                print("\n[*] Executing automatic post-interaction form inspection...")
+                try:
+                    schema = inspection_svc.inspect(unpack_options=False)
+                    print(InspectionFormatterService.format_summary(schema))
+                except Exception as exc:
+                    print(f"[!] Warning during auto-inspection: {exc}")
 
             return ApplyExecutionResult(
                 confirmed_fields=confirmed,
-                unconfirmed_fields=[],
+                unconfirmed_fields=unconfirmed,
                 failed_fields=failed,
                 final_url=page.url,
                 validation_errors=validation_errors,
-                submitted=req.submit,
+                submitted=submitted,
                 confirmation_screenshot=confirmation_screenshot,
             )

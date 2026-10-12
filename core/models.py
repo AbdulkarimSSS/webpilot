@@ -119,6 +119,7 @@ class InputField:
     type: str = "text"
     required: bool = False
     value: str = ""
+    local_id: str = ""
 
 
 @dataclass
@@ -132,6 +133,7 @@ class DropdownField:
     trigger_id: str = ""
     sample_options: List[str] = field(default_factory=list)
     options_count: int = 0
+    local_id: str = ""
 
 
 @dataclass
@@ -142,6 +144,7 @@ class ChoiceGroup:
     required: bool = False
     options: List[str] = field(default_factory=list)
     selected: Optional[str] = None
+    local_id: str = ""
 
 
 @dataclass
@@ -150,6 +153,7 @@ class FileUploadField:
     id: str
     label: str
     required: bool = False
+    local_id: str = ""
 
 
 @dataclass
@@ -158,6 +162,7 @@ class ActionButton:
     id: str
     text: str
     action: str = "action"
+    local_id: str = ""
 
 
 @dataclass

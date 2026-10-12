@@ -24,6 +24,10 @@ class SupervisorActionRequest:
     headed: bool = False
     auto_inspect: bool = True
     timeout_minutes: int = 30
+    target_field: Optional[str] = None
+    include_options: bool = True
+    include_html: bool = False
+    query: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -54,6 +58,7 @@ class SupervisorActionResponse:
     validation_errors: List[str] = field(default_factory=list)
     reactive_event: Optional[Dict[str, Any]] = None
     output_lines: List[str] = field(default_factory=list)
+    field_details: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

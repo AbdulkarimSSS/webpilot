@@ -2,21 +2,19 @@
 
 from __future__ import annotations
 
-import re
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from playwright.sync_api import Page
 
 from adapters.dom_scripts import (
-    SET_FIELD_DOM_SCRIPT,
     PICKLIST_AUTO_SCROLL_SCRIPT,
+    PROBE_FIELD_DOM_SCRIPT,
+    SET_FIELD_DOM_SCRIPT,
     VERIFY_FIELD_DOM_SCRIPT,
 )
-from constants.timeouts import (
-    PAUSE_INPUT_SET_MS,
-    PAUSE_RETRY_FALLBACK_MS,
-    PAUSE_PICKLIST_EXPAND_MS,
-    PAUSE_PICKLIST_CLOSE_MS,
-)
+from adapters.locator_fallbacks import PlaywrightLocatorFallback
+from constants.timeouts import PAUSE_PICKLIST_CLOSE_MS
+from services.dom_verifier import DOMDataMatcher
+from services.target_descriptor import TargetDescriptorParser
 
 
 class FieldInteractionService:
@@ -24,361 +22,213 @@ class FieldInteractionService:
 
     def __init__(self, page: Page):
         self.page = page
+        self.last_failure_reason: str = "No matching element found"
 
     def expand_dynamic_section(self, target_identifier: str, value: Any) -> Tuple[bool, Optional[str]]:
         """Handles dynamic repeating sections by finding and clicking 'Add' buttons to spawn missing inputs."""
-        add_btns = self.page.locator(
-            'button:has-text("Add"), button:has-text("add"), [id*="add" i], [class*="add" i], [aria-label*="add" i], a:has-text("Add")'
-        )
-        if add_btns.count() > 0:
-            for b_idx in range(min(add_btns.count(), 3)):
+        add_selectors = [
+            '[id$="_addRowBtn"]',
+            '[class*="addRowBtn" i]',
+            '[class*="add-row" i]',
+            '[class*="add_row" i]',
+            'button:has-text("Add")',
+            'button:has-text("+ Add")',
+            'input[type="button"][value*="Add" i]',
+            '[role="button"]:has-text("Add")',
+            'button[aria-label*="Add" i]',
+            'button[title*="Add" i]',
+        ]
+        orig_url = self.page.url
+        for sel in add_selectors:
+            try:
+                add_btns = self.page.locator(sel)
+                count = min(add_btns.count(), 3)
+            except Exception:
+                count = 0
+            for b_idx in range(count):
                 btn = add_btns.nth(b_idx)
                 try:
                     btn_text = btn.inner_text().strip()
+                    btn_id = (btn.get_attribute("id") or "").lower()
+                    if "address" in btn_id or "address" in btn_text.lower():
+                        continue
                     btn.click(timeout=1000)
-                    self.page.wait_for_timeout(200)
+                    self.page.wait_for_timeout(300)
+                    if self.page.url != orig_url:
+                        return False, None
                     if self.set_field(target_identifier, value):
                         return True, btn_text
                 except Exception:
                     pass
         return False, None
 
-    def set_field(self, target_identifier: str, value: Any) -> bool:
-        """Sets field value according to its widget type using JS manipulation or Playwright fallback."""
-        res = self.page.evaluate(SET_FIELD_DOM_SCRIPT, [target_identifier, value])
-
-        # Picklist: trigger button click + scoped auto-scrolling
-        if res.get("type") == "picklist" and res.get("trigger_button"):
-            try:
-                btn_loc = self.page.locator(f'[id="{res["trigger_button"]}"]').first
-                if btn_loc.is_visible(timeout=1500):
-                    btn_loc.scroll_into_view_if_needed()
-                    btn_loc.click(force=True)
-                    self.page.wait_for_timeout(PAUSE_PICKLIST_EXPAND_MS)
-
-                    pick_res = self.page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, [res["id"], value])
-
-                    if pick_res.get("success"):
-                        self.page.wait_for_timeout(300)
-                        return True
-                    else:
-                        self.page.keyboard.press("Escape")
-                        self.page.wait_for_timeout(PAUSE_PICKLIST_CLOSE_MS)
-            except Exception as exc:
-                print(f"    [!] Picklist click error: {exc}")
-
-        # Non-picklist JS success: verify whether the DOM actually accepted the value.
-        # If an input has an isTrusted check or synthetic event rejection (e.g. S33),
-        # the JS write will be immediately wiped, so we fall through to Playwright native interaction.
-        if res.get("success") and res.get("type") not in ("picklist",):
-            if self.verify_field_value(target_identifier, value, settle_delay_ms=20):
-                return True
-
-        # Fallback to Playwright native interaction
-        return self._playwright_click_fallback(target_identifier, value)
+    @staticmethod
+    def parse_target_descriptor(target: str) -> Tuple[Optional[str], str, Optional[str]]:
+        """Parses optional type hint prefix and hierarchy scoping from target string."""
+        return TargetDescriptorParser.parse(target).to_tuple()
 
     @staticmethod
     def _escape_css_attr(val: str) -> str:
         """Escapes special characters in CSS attribute selectors."""
-        return str(val).replace("\\", "\\\\").replace('"', '\\"')
+        return PlaywrightLocatorFallback.escape_css_attr(val)
 
     def _playwright_click_fallback(self, target: str, value: Any) -> bool:
         """Fallback setter using Playwright native locators (click / fill)."""
-        page = self.page
-        strval = str(value)
-        lower = target.lower().strip()
-        safe_target = self._escape_css_attr(target)
-        safe_strval = self._escape_css_attr(strval)
-
-        # 0a. Native <select> (single or multi-select)
-        try:
-            for sel_css in [f'select#{safe_target}', f'select[name="{safe_target}"]']:
-                s_loc = page.locator(sel_css)
-                if s_loc.count() > 0 and s_loc.first.is_visible(timeout=300):
-                    if s_loc.first.get_attribute("multiple") is not None:
-                        parts = [x.strip() for x in strval.split(",") if x.strip()]
-                        s_loc.first.select_option(parts)
-                        return True
-                    else:
-                        s_loc.first.select_option(strval)
-                        return True
-        except Exception:
-            pass
-
-        # 0b. Checkbox group with comma-separated values (e.g. "AI,Security")
-        if "," in strval:
-            parts = [x.strip() for x in strval.split(",") if x.strip()]
-            checked_any = False
-            for p in parts:
-                p_safe = self._escape_css_attr(p)
-                for cb_sel in [
-                    f'input[name="{safe_target}"][value="{p_safe}"]',
-                    f'input[type="checkbox"][name="{safe_target}"][value="{p_safe}"]',
-                    f'input[type="checkbox"][value="{p_safe}"]',
-                ]:
-                    try:
-                        cb = page.locator(cb_sel)
-                        if cb.count() > 0:
-                            cb.first.check()
-                            checked_any = True
-                            break
-                    except Exception:
-                        pass
-            if checked_any:
-                return True
-
-        # 0c. Direct element ID or Name locator with Playwright (pierces Shadow DOM)
-        for sel in [f'#{safe_target}', f'input[name="{safe_target}"]', f'textarea[name="{safe_target}"]']:
-            try:
-                loc = page.locator(sel)
-                if loc.count() > 0 and loc.first.is_visible(timeout=300):
-                    loc.first.focus()
-                    loc.first.fill(strval)
-                    loc.first.dispatch_event("input")
-                    loc.first.dispatch_event("change")
-                    return True
-            except Exception:
-                pass
-
-        # 1. Picklist combobox by aria-label, title, id, name, or placeholder
-        for loc in [
-            page.locator(f'input[aria-label*="{safe_target}"][role="combobox"]'),
-            page.locator(f'input[title*="{safe_target}"][role="combobox"]'),
-            page.locator(f'input[id*="{safe_target}"][role="combobox"]'),
-            page.locator(f'input[name*="{safe_target}"][role="combobox"]'),
-            page.locator(f'input#{safe_target}[role="combobox"]'),
-            page.locator(f'#{safe_target}-input[role="combobox"]'),
-        ]:
-            try:
-                if loc.count() > 0 and loc.first.is_visible(timeout=300):
-                    loc.first.click()
-                    loc.first.fill(strval)
-                    page.wait_for_timeout(300)
-                    for role_name in ["option", "menuitem", "listitem"]:
-                        opt = page.locator(f'[role="{role_name}"]:has-text("{safe_strval}")')
-                        if opt.count() > 0:
-                            opt.first.click()
-                            page.wait_for_timeout(PAUSE_RETRY_FALLBACK_MS)
-                            return True
-                    page.keyboard.press("Escape")
-            except Exception:
-                pass
-
-        # 2. Native radio scoped to target radio group
-        try:
-            scoped_radio = page.locator(f'input[type="radio"][name="{safe_target}"][value="{safe_strval}"]').first
-            if scoped_radio.count() > 0:
-                scoped_radio.click()
-                return True
-        except Exception:
-            pass
-
-        # 3. Custom ARIA radioLabel spans (SuccessFactors)
-        for selector in [
-            f'.radioLabel:text-is("{safe_strval}")',
-            f'.radioLabel:has-text("{safe_strval}")',
-        ]:
-            try:
-                spans = page.locator(selector)
-                if spans.count() > 0:
-                    spans.first.click()
-                    return True
-            except Exception:
-                pass
-
-        # 4. Text / Textarea via label (strictly avoid clicking checkboxes or switches)
-        try:
-            field = page.get_by_label(lower, exact=False)
-            if field.count() > 0 and field.first.is_visible(timeout=300):
-                field_type = (field.first.get_attribute("type") or "").lower()
-                field_role = (field.first.get_attribute("role") or "").lower()
-                if field_type not in ("checkbox", "radio") and field_role not in ("checkbox", "switch"):
-                    field.first.fill(strval)
-                    field.first.dispatch_event("input")
-                    field.first.dispatch_event("change")
-                    # If this input is a combobox, select the option that appeared
-                    if field_role == "combobox":
-                        page.wait_for_timeout(200)
-                        for role_name in ["option", "menuitem", "listitem"]:
-                            opt = page.locator(f'[role="{role_name}"]:has-text("{safe_strval}")')
-                            if opt.count() > 0:
-                                opt.first.click()
-                                page.wait_for_timeout(PAUSE_RETRY_FALLBACK_MS)
-                                break
-                    return True
-        except Exception:
-            pass
-
-        # 5. Text via placeholder
-        try:
-            field = page.get_by_placeholder(lower, exact=False)
-            if field.count() > 0 and field.first.is_visible(timeout=300):
-                field.first.fill(strval)
-                field.first.dispatch_event("change")
-                return True
-        except Exception:
-            pass
-
-        # 6. Username / Email generic heuristic
-        if lower in ("username", "user", "email", "login", "user name", "email address"):
-            for sel in [
-                'input[type="email"]',
-                'input[name*="user" i]',
-                'input[id*="user" i]',
-                'input[name*="email" i]',
-                'input[id*="email" i]',
-                'input[autocomplete="username"]',
-                'input[autocomplete="email"]',
-            ]:
-                try:
-                    f = page.locator(sel)
-                    if f.count() > 0 and f.first.is_visible(timeout=300):
-                        f.first.fill(strval)
-                        f.first.dispatch_event("input")
-                        f.first.dispatch_event("change")
-                        return True
-                except Exception:
-                    pass
-
-        # 7. Password generic heuristic
-        if lower in ("password", "pass", "pwd", "user password"):
-            try:
-                f = page.locator('input[type="password"]')
-                if f.count() > 0 and f.first.is_visible(timeout=300):
-                    f.first.fill(strval)
-                    f.first.dispatch_event("input")
-                    f.first.dispatch_event("change")
-                    return True
-            except Exception:
-                pass
-
-        return False
+        return PlaywrightLocatorFallback.execute(self.page, target, value)
 
     def _match_actual_dom_data(self, actual: Any, expected: Any) -> bool:
         """Evaluates whether actual DOM readback matches expected value across control types."""
-        if actual is None:
+        return DOMDataMatcher.match(actual, expected)
+
+    def set_field(
+        self,
+        target_identifier: str,
+        value: Any,
+        debug_lines: Optional[List[str]] = None,
+        **kwargs: Any,
+    ) -> bool:
+        """Sets field value according to its widget type using JS manipulation or Playwright fallback."""
+        type_hint, clean_target, scoped_parent = self.parse_target_descriptor(target_identifier)
+
+        res = self.page.evaluate(SET_FIELD_DOM_SCRIPT, [clean_target, value, type_hint, scoped_parent])
+        self.last_failure_reason = res.get("reason") or "No matching element found"
+        if debug_lines is not None:
+            debug_lines.append(f"    [debug] target='{clean_target}' (hint={type_hint}, scope={scoped_parent}), res={res}")
+
+        # If scoped parent does not exist, fast fail immediately
+        if not res.get("success") and res.get("reason") and "Scoped parent" in res.get("reason"):
+            self.last_failure_reason = res.get("reason")
+            if debug_lines is not None:
+                debug_lines.append(f"    [!] Fast-fail: {res.get('reason')}")
             return False
 
-        expected_str = str(expected).strip().lower() if expected is not None else ""
-        junk = {"login/ view profile", "no selection", "select", "choose", "-- select --", ""}
+        # Cascading dependent fields readiness check:
+        # If element is missing or temporarily disabled/updating via parent reactive onChange/AJAX,
+        # poll for up to 1200ms (150ms steps) to allow cascading DOM updates.
+        if not res.get("success") and (
+            "disabled" in str(res.get("reason")).lower()
+            or res.get("reason") in ("No matching element found", "Element disabled or not interactable")
+        ):
+            for _ in range(8):
+                self.page.wait_for_timeout(150)
+                retry_res = self.page.evaluate(SET_FIELD_DOM_SCRIPT, [clean_target, value, type_hint, scoped_parent])
+                if retry_res.get("success") or (retry_res.get("type") == "picklist" and retry_res.get("trigger_button")):
+                    res = retry_res
+                    self.last_failure_reason = res.get("reason") or ""
+                    if debug_lines is not None:
+                        debug_lines.append(f"    [debug] Cascading readiness resolved for '{clean_target}'")
+                    break
+                elif retry_res.get("reason"):
+                    self.last_failure_reason = retry_res.get("reason")
 
-        if isinstance(actual, dict):
-            ctype = actual.get("type", "")
-
-            # Checkbox / Toggle switch
-            if ctype == "checkbox":
-                is_checked = bool(actual.get("checked", False))
-                if isinstance(expected, bool):
-                    return is_checked is expected
-                if expected_str in ("true", "yes", "1", "checked", "on"):
-                    return is_checked is True
-                if expected_str in ("false", "no", "0", "unchecked", "off"):
-                    return is_checked is False
-                return is_checked is True
-
-            # Radio button
-            if ctype == "radio":
-                is_checked = bool(actual.get("checked", False))
-                val = str(actual.get("value", "")).strip().lower()
-                if is_checked:
-                    if not expected_str or expected_str in ("true", "checked", "yes", "1"):
-                        return True
-                    return expected_str == val or expected_str in val or val in expected_str
-                return False
-
-            # Radio group
-            if ctype == "radio_group":
-                val = str(actual.get("value", "")).strip().lower()
-                if not val or val in junk:
-                    return False
-                return expected_str in val or val in expected_str
-
-            # Checkbox group (multiple checkboxes)
-            if ctype == "checkbox_group":
-                val = str(actual.get("value", "")).strip().lower()
-                if not val:
-                    return False
-                if "," in expected_str or "," in val:
-                    exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
-                    val_parts = set(x.strip() for x in val.split(",") if x.strip())
-                    return exp_parts == val_parts or exp_parts.issubset(val_parts)
-                return expected_str == val or expected_str in val
-
-            # Native <select>
-            if ctype == "select":
-                val = str(actual.get("value", "")).strip().lower()
-                text = str(actual.get("text", "")).strip().lower()
-                if not val and not text:
-                    return False
-                if val in junk and text in junk:
-                    return False
-                # Comma-separated multi-select comparison
-                if "," in expected_str or "," in val or "," in text:
-                    exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
-                    val_parts = set(x.strip() for x in val.split(",") if x.strip())
-                    text_parts = set(x.strip() for x in text.split(",") if x.strip())
-                    if exp_parts and (exp_parts == val_parts or exp_parts == text_parts or exp_parts.issubset(val_parts) or exp_parts.issubset(text_parts)):
-                        return True
-                if expected_str == val or expected_str == text:
-                    return True
-                if expected_str and (expected_str in text or expected_str in val or val in expected_str or text in expected_str):
-                    return True
-                if len(val) == 2 and len(expected_str) > 2 and (expected_str.startswith(val) or val in expected_str):
-                    return True
-                return False
-
-            # Custom picklist / combobox
-            if ctype == "picklist":
-                val = str(actual.get("value", "")).strip().lower()
-                sel_text = str(actual.get("selected_text", "")).strip().lower()
-                target_str = sel_text if sel_text and sel_text not in junk else val
-                if not target_str or target_str in junk:
-                    return False
-                if expected_str == target_str or expected_str in target_str or target_str in expected_str:
-                    return True
-                if len(target_str) == 2 and len(expected_str) > 2 and expected_str.startswith(target_str):
-                    return True
-                return False
-
-            # Standard text / textarea
-            val = str(actual.get("value", "")).strip()
-            val_lower = val.lower()
-            if not val:
-                return expected_str == ""
-            if expected_str == val_lower:
-                return True
-            # Whitespace normalized comparison
-            if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", val_lower).strip():
-                return True
-            # Phone / digits normalization
-            digits_exp = re.sub(r"\D", "", expected_str)
-            digits_val = re.sub(r"\D", "", val_lower)
-            if digits_exp and digits_val and digits_exp == digits_val:
-                return True
-            # Currency / numeric normalization (e.g. "$1,234.56" vs "1234.56")
-            clean_exp = re.sub(r"[^\d.]", "", expected_str)
-            clean_val = re.sub(r"[^\d.]", "", val_lower)
-            if clean_exp and clean_val and clean_exp == clean_val:
-                return True
+        # If user explicitly requested a dropdown/picklist and element does not exist in DOM -> fast fail
+        if type_hint in ("picklist", "select") and res.get("reason") == "No matching element found":
+            self.last_failure_reason = f"Dropdown/Picklist '{clean_target}' not found in DOM"
+            if debug_lines is not None:
+                debug_lines.append(f"    [!] Fast-fail: Dropdown/Picklist '{clean_target}' not found in DOM")
             return False
 
-        # Fallback for plain string readback
-        actual_lower = str(actual).strip().lower()
-        if actual_lower in junk:
+        # Picklist: trigger button click + scoped auto-scrolling
+        if res.get("type") == "picklist":
+            inp_id = res.get("id")
+            trig_id = res.get("trigger_button")
+            # 1. First attempt: click trigger button and scroll/select
+            if trig_id:
+                try:
+                    btn_loc = self.page.locator(f'[id="{trig_id}"]').first
+                    is_vis = btn_loc.is_visible(timeout=1500)
+                    if debug_lines is not None:
+                        debug_lines.append(f"    [debug] trig_id='{trig_id}', is_visible={is_vis}")
+                    if is_vis:
+                        btn_loc.scroll_into_view_if_needed()
+                        btn_loc.click(force=True)
+                        self.page.wait_for_timeout(350)
+
+                        pick_res = self.page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, [inp_id, value])
+                        if debug_lines is not None:
+                            debug_lines.append(f"    [debug] pick_res={pick_res}")
+                        if pick_res.get("success"):
+                            self.page.wait_for_timeout(200)
+                            return True
+                        else:
+                            self.page.keyboard.press("Escape")
+                            self.page.wait_for_timeout(PAUSE_PICKLIST_CLOSE_MS)
+                except Exception as exc:
+                    if debug_lines is not None:
+                        debug_lines.append(f"    [debug] Picklist click error: {exc}")
+
+            # 2. Second attempt: type directly into input to trigger autocomplete filter
+            if inp_id:
+                try:
+                    inp_loc = self.page.locator(f'[id="{inp_id}"]').first
+                    inp_vis = inp_loc.is_visible(timeout=1500)
+                    if debug_lines is not None:
+                        debug_lines.append(f"    [debug] inp_id='{inp_id}', is_visible={inp_vis}")
+                    if inp_vis:
+                        inp_loc.scroll_into_view_if_needed()
+                        inp_loc.click(force=True)
+                        inp_loc.fill(str(value))
+                        self.page.wait_for_timeout(200)
+                        self.page.keyboard.press("Enter")
+                        self.page.wait_for_timeout(200)
+
+                        if self.verify_field_value(inp_id, value, settle_delay_ms=20):
+                            if debug_lines is not None:
+                                debug_lines.append(f"    [debug] Verified '{inp_id}' directly after fill & Enter")
+                            return True
+
+                        # Check if any matching option appeared in DOM
+                        safe_val = self._escape_css_attr(str(value))
+                        for opt_sel in [
+                            f'[role="option"]:has-text("{safe_val}")',
+                            f'[role="menuitem"]:has-text("{safe_val}")',
+                            f'.globalMenuItem:has-text("{safe_val}")',
+                            f'.picklistOption:has-text("{safe_val}")',
+                            f'[class*="selectListOption"]:has-text("{safe_val}")',
+                        ]:
+                            try:
+                                opt = self.page.locator(opt_sel)
+                                if opt.count() > 0 and opt.first.is_visible(timeout=500):
+                                    opt.first.click(force=True)
+                                    self.page.wait_for_timeout(200)
+                                    if debug_lines is not None:
+                                        debug_lines.append(f"    [debug] Clicked matching option via selector: {opt_sel}")
+                                    return True
+                            except Exception:
+                                pass
+
+                        pick_res = self.page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, [inp_id, value])
+                        if debug_lines is not None:
+                            debug_lines.append(f"    [debug] inp pick_res={pick_res}")
+                        if pick_res.get("success"):
+                            self.page.wait_for_timeout(200)
+                            return True
+
+                        if self.verify_field_value(inp_id, value, settle_delay_ms=20):
+                            return True
+                except Exception as exc:
+                    if debug_lines is not None:
+                        debug_lines.append(f"    [debug] Picklist input type error: {exc}")
+
+            # Picklist failed after thorough probe -> fast fail, do not attempt unrelated click fallback
+            self.last_failure_reason = f"Option '{value}' not found in picklist '{clean_target}'"
+            if debug_lines is not None:
+                debug_lines.append(f"    [!] Fast-fail: {self.last_failure_reason}")
             return False
-        if expected_str == actual_lower:
-            return True
-        if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", actual_lower).strip():
-            return True
-        digits_exp = re.sub(r"\D", "", expected_str)
-        digits_val = re.sub(r"\D", "", actual_lower)
-        if digits_exp and digits_val and digits_exp == digits_val:
-            return True
-        clean_exp = re.sub(r"[^\d.]", "", expected_str)
-        clean_val = re.sub(r"[^\d.]", "", actual_lower)
-        if clean_exp and clean_val and clean_exp == clean_val:
-            return True
-        return False
+
+        # Non-picklist JS success: verify whether the DOM actually accepted the value.
+        # If an input has an isTrusted check or synthetic event rejection,
+        # the JS write will be immediately wiped, so we fall through to Playwright native interaction.
+        if res.get("success") and res.get("type") not in ("picklist",):
+            if self.verify_field_value(clean_target, value, settle_delay_ms=20):
+                self.last_failure_reason = ""
+                return True
+
+        # Fallback to Playwright native interaction
+        fallback_res = self._playwright_click_fallback(clean_target, value)
+        if fallback_res:
+            self.last_failure_reason = ""
+        return fallback_res
 
     def verify_field_value(self, target: str, expected: Any, settle_delay_ms: int = 50) -> bool:
         """Reads back current DOM value and confirms state, allowing framework settle window."""
@@ -410,3 +260,19 @@ class FieldInteractionService:
             return False
         except Exception:
             return False
+
+    def probe_field(
+        self,
+        target: str,
+        include_options: bool = True,
+        query: Optional[str] = None,
+        include_html: bool = False,
+    ) -> Optional[Dict[str, Any]]:
+        """Probes a specific form field or picklist and retrieves deep diagnostic metadata."""
+        try:
+            return self.page.evaluate(
+                PROBE_FIELD_DOM_SCRIPT,
+                [target, include_options, query or "", include_html],
+            )
+        except Exception:
+            return None

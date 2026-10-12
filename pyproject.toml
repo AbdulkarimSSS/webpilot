@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webpilot-engine"
-version = "2.0.14"
+version = "2.1.0"
 description = "WebPilot: Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime"
 readme = "README.md"
 authors = [
@@ -72,7 +72,7 @@ universal-applier = "cli:main"
 uapply = "cli:main"
 
 [tool.setuptools]
-py-modules = ["cli", "mcp_server", "engine", "builder", "models", "exceptions"]
+py-modules = ["cli", "cli_parser", "mcp_server", "engine", "builder", "models", "exceptions"]
 
 [tool.setuptools.packages.find]
 where = ["."]

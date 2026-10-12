@@ -24,7 +24,8 @@ class InspectionFormatterService:
         for inp in inputs:
             req_flag = " [REQUIRED]" if inp.get("required") else ""
             cur = f" = '{inp['value']}'" if inp.get("value") else ""
-            lines.append(f"  • Label: '{inp['label']}' (ID: {inp['id']}){req_flag}{cur}")
+            lid = f" [{inp['local_id']}]" if inp.get("local_id") else ""
+            lines.append(f"  • Label: '{inp['label']}'{lid} (ID: {inp['id']}){req_flag}{cur}")
         lines.append("")
 
         # Dropdowns
@@ -35,7 +36,8 @@ class InspectionFormatterService:
             cur = f" = '{dd['value']}'" if dd.get("value") else ""
             opts = dd.get("sample_options") or []
             sample_str = f" [Sample: {', '.join(opts[:4])}]" if opts else ""
-            lines.append(f"  • Label: '{dd['label']}' (ID: {dd['id']}){req_flag}{cur}{sample_str}")
+            lid = f" [{dd['local_id']}]" if dd.get("local_id") else ""
+            lines.append(f"  • Label: '{dd['label']}'{lid} (ID: {dd['id']}){req_flag}{cur}{sample_str}")
         lines.append("")
 
         # Choices
@@ -45,7 +47,8 @@ class InspectionFormatterService:
             req_flag = " [REQUIRED]" if ch.get("required") else ""
             opts_str = ", ".join(ch.get("options", []))
             sel = f" [Selected: {ch['selected']}]" if ch.get("selected") else ""
-            lines.append(f"  • Question: '{ch['question']}'{req_flag} -> [{opts_str}]{sel}")
+            lid = f" [{ch['local_id']}]" if ch.get("local_id") else ""
+            lines.append(f"  • Question: '{ch['question']}'{lid}{req_flag} -> [{opts_str}]{sel}")
         lines.append("")
 
         # File Uploads
@@ -53,7 +56,8 @@ class InspectionFormatterService:
         lines.append(f"📎 File Upload Areas ({len(uploads)}):")
         for up in uploads:
             req_flag = " [REQUIRED]" if up.get("required") else ""
-            lines.append(f"  • Label: '{up['label']}' (ID: {up['id']}){req_flag}")
+            lid = f" [{up['local_id']}]" if up.get("local_id") else ""
+            lines.append(f"  • Label: '{up['label']}'{lid} (ID: {up['id']}){req_flag}")
         if data.get("already_uploaded_files"):
             lines.append(f"    Already attached: {data['already_uploaded_files']}")
         lines.append("")
@@ -62,7 +66,88 @@ class InspectionFormatterService:
         buttons = data.get("buttons", [])
         lines.append(f"🔘 Key Action Buttons ({len(buttons)}):")
         for btn in buttons:
-            lines.append(f"  • [{btn.get('action', 'action').upper()}] '{btn['text']}' (ID: {btn['id']})")
+            lid = f" [{btn['local_id']}]" if btn.get("local_id") else ""
+            lines.append(f"  • [{btn.get('action', 'action').upper()}] '{btn['text']}'{lid} (ID: {btn['id']})")
         lines.append("")
 
         return "\n".join(lines)
+
+    @staticmethod
+    def format_targeted_summary(data: Dict[str, Any], targets: list[str]) -> str:
+        """Formats a concise summary showing ONLY the fields that were targeted during interaction."""
+        if not targets:
+            return ""
+
+        clean_targets = set()
+        for t in targets:
+            raw = str(t).strip()
+            if raw.startswith("@"):
+                clean_targets.add(raw.lower())
+            if ":" in raw and not raw.startswith("@"):
+                parts = raw.split(":")
+                clean_targets.add(parts[-1].strip().lower())
+                clean_targets.add(raw.lower())
+            else:
+                clean_targets.add(raw.lower())
+
+        def matches(item: Dict[str, Any]) -> bool:
+            lid = (item.get("local_id") or "").lower()
+            iid = (item.get("id") or "").lower()
+            lbl = (item.get("label") or item.get("question") or "").lower()
+            name = (item.get("name") or "").lower()
+            return any(
+                ct == lid or ct == iid or ct == name or ct in lbl or lbl in ct
+                for ct in clean_targets
+            )
+
+        lines = []
+        lines.append(f"=== TARGETED FIELDS SUMMARY: '{data.get('title')}' ===")
+        lines.append(f"URL: {data.get('url')}\n")
+
+        # Filtered inputs
+        matched_inputs = [inp for inp in data.get("inputs", []) if matches(inp)]
+        if matched_inputs:
+            lines.append(f"📝 Text & Numeric Input Fields ({len(matched_inputs)}):")
+            for inp in matched_inputs:
+                req_flag = " [REQUIRED]" if inp.get("required") else ""
+                cur = f" = '{inp['value']}'" if inp.get("value") else ""
+                lid = f" [{inp['local_id']}]" if inp.get("local_id") else ""
+                lines.append(f"  • Label: '{inp['label']}'{lid} (ID: {inp['id']}){req_flag}{cur}")
+            lines.append("")
+
+        # Filtered dropdowns
+        matched_dropdowns = [dd for dd in data.get("dropdowns", []) if matches(dd)]
+        if matched_dropdowns:
+            lines.append(f"🔽 Dropdowns & Picklists ({len(matched_dropdowns)}):")
+            for dd in matched_dropdowns:
+                req_flag = " [REQUIRED]" if dd.get("required") else ""
+                cur = f" = '{dd['value']}'" if dd.get("value") else ""
+                lid = f" [{dd['local_id']}]" if dd.get("local_id") else ""
+                lines.append(f"  • Label: '{dd['label']}'{lid} (ID: {dd['id']}){req_flag}{cur}")
+            lines.append("")
+
+        # Filtered choices
+        matched_choices = [ch for ch in data.get("choices", []) if matches(ch)]
+        if matched_choices:
+            lines.append(f"🔘 Choice Groups ({len(matched_choices)}):")
+            for ch in matched_choices:
+                req_flag = " [REQUIRED]" if ch.get("required") else ""
+                sel = f" [Selected: {ch['selected']}]" if ch.get("selected") else ""
+                lid = f" [{ch['local_id']}]" if ch.get("local_id") else ""
+                lines.append(f"  • Question: '{ch['question']}'{lid}{req_flag}{sel}")
+            lines.append("")
+
+        # Filtered uploads
+        matched_uploads = [up for up in data.get("file_uploads", []) if matches(up)]
+        if matched_uploads:
+            lines.append(f"📎 File Upload Areas ({len(matched_uploads)}):")
+            for up in matched_uploads:
+                lid = f" [{up['local_id']}]" if up.get("local_id") else ""
+                lines.append(f"  • Label: '{up['label']}'{lid} (ID: {up['id']})")
+            lines.append("")
+
+        if len(lines) <= 2:
+            return ""
+
+        return "\n".join(lines).strip()
+

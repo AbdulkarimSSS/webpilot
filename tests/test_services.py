@@ -106,3 +106,64 @@ def test_inspection_formatter():
     assert "Resume" in summary
     assert "resume_v1.pdf" in summary
     assert "SUBMIT" in summary
+
+
+def test_target_descriptor_parsing():
+    """Verify parse_target_descriptor extracts type hints, scope, and local_id."""
+    from services.field_interaction_service import FieldInteractionService
+
+    # 1. Type hint only
+    hint, target, scope = FieldInteractionService.parse_target_descriptor("text:First Name")
+    assert hint == "text"
+    assert target == "First Name"
+    assert scope is None
+
+    # 2. Picklist with scope
+    hint, target, scope = FieldInteractionService.parse_target_descriptor("picklist:Education Level > Degree")
+    assert hint == "picklist"
+    assert target == "Degree"
+    assert scope == "Education Level"
+
+    # 3. Local ID
+    hint, target, scope = FieldInteractionService.parse_target_descriptor("@fld-1")
+    assert hint is None
+    assert target == "@fld-1"
+    assert scope is None
+
+    # 4. Scope without explicit type
+    hint, target, scope = FieldInteractionService.parse_target_descriptor("Work History > Company")
+    assert hint is None
+    assert target == "Company"
+    assert scope == "Work History"
+
+
+def test_fill_arguments_with_hierarchy_and_types():
+    """Verify parse_and_resolve_fill_args correctly parses 'Parent > Option' and type prefixes."""
+    from common.secrets import parse_and_resolve_fill_args
+
+    args = [
+        "text:first_name=Alice",
+        "Degree > Bachelors",
+        "@drop-1=Saudi Arabia",
+        "picklist:country=UAE",
+    ]
+    parsed = parse_and_resolve_fill_args(args)
+    assert ("text:first_name", "Alice") in parsed
+    assert ("picklist:Degree", "Bachelors") in parsed
+    assert ("@drop-1", "Saudi Arabia") in parsed
+    assert ("picklist:country", "UAE") in parsed
+
+
+def test_inspection_formatter_with_local_ids():
+    """Verify InspectionFormatterService outputs [local_id] for clear user targeting."""
+    data = {
+        "title": "Profile Form",
+        "url": "https://example.com",
+        "inputs": [{"id": "fn", "label": "First Name", "local_id": "@fld-1", "value": ""}],
+        "dropdowns": [{"id": "deg", "label": "Degree", "local_id": "@drop-1", "value": ""}],
+        "buttons": [{"id": "sub", "text": "Apply", "local_id": "@btn-1", "action": "submit"}],
+    }
+    summary = InspectionFormatterService.format_summary(data)
+    assert "[@fld-1]" in summary
+    assert "[@drop-1]" in summary
+    assert "[@btn-1]" in summary

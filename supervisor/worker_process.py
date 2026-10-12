@@ -10,29 +10,25 @@ from __future__ import annotations
 import json
 import os
 import sys
-import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 # Ensure project root is on sys.path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from adapters.browser_adapter import BrowserAdapter
-from adapters.dom_scripts import VERIFY_FIELD_DOM_SCRIPT
-from adapters.upload_adapter import UploadAdapter
-from common.cookies import save_cookies
-from common.logging import is_sensitive_key
 from builder import FormPayloadBuilder
+from common.cookies import save_cookies
+from common.text import decode_unicode_escapes
 from config.settings import get_settings, load_device_profile
-from core.models import DeviceProfile
 from orchestration.context import SessionContext
 from orchestration.session_coordinator import SessionCoordinator
 from services.auth_navigation_service import AuthNavigationService
 from services.field_interaction_service import FieldInteractionService
-from services.inspection_formatter_service import InspectionFormatterService
+from services.form_application_pipeline import FormApplicationPipeline
 from services.inspection_service import InspectionService
 from services.reactive_interaction_service import ReactiveInteractionService
+from services.schema_merger import SchemaMerger
 from supervisor.contracts import SupervisorActionRequest, SupervisorActionResponse
 from validators.form_validator import FormValidator
 
@@ -44,6 +40,12 @@ class OperationalWorker:
         self.settings = get_settings()
         self.headed = headed
         self.coordinator: Optional[SessionCoordinator] = None
+        self.cached_schema: Optional[Dict[str, Any]] = None
+        self.cached_url: Optional[str] = None
+
+    def _merge_schemas(self, old_schema: Dict[str, Any], new_schema: Dict[str, Any]) -> Dict[str, Any]:
+        """Performs a smart delta merge of two schemas from the same URL, preserving LocalIDs."""
+        return SchemaMerger.merge(old_schema, new_schema)
 
     @staticmethod
     def _reverify_fields(
@@ -54,16 +56,7 @@ class OperationalWorker:
         stage_name: str,
     ) -> List[Tuple[str, Any]]:
         """Re-verifies that previously confirmed fields have not been wiped or reverted."""
-        still_confirmed = []
-        for key, val in confirmed:
-            display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
-            if field_svc.verify_field_value(key, val):
-                still_confirmed.append((key, val))
-            else:
-                unconfirmed.append((key, val))
-                lines.append(f"  [!] {stage_name} detected cleared/reverted field: '{key}' -> '{display_val}'")
-                lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
-        return still_confirmed
+        return FormApplicationPipeline.reverify_fields(field_svc, confirmed, unconfirmed, lines, stage_name)
 
     def _ensure_session(self, req: SupervisorActionRequest) -> SessionCoordinator:
         """Initializes or returns active SessionCoordinator."""
@@ -90,7 +83,6 @@ class OperationalWorker:
     def handle_request(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         """Dispatches action to internal services and returns structured response."""
         action = req.action.lower().strip()
-        lines: List[str] = []
 
         try:
             if action in ("ping", "status"):
@@ -107,6 +99,9 @@ class OperationalWorker:
 
             elif action == "apply":
                 return self._handle_apply(req)
+
+            elif action in ("probe", "find"):
+                return self._handle_probe(req)
 
             elif action in ("stop", "shutdown"):
                 self.shutdown()
@@ -206,7 +201,7 @@ class OperationalWorker:
             auth_svc.bypass_job_landing_portal()
             page = coord.switch_to_latest_page()
 
-        # Automatically wait for form readiness and expand all collapsed sections (e.g. SAP/Workday accordions)
+        # Automatically wait for form readiness and expand all collapsed sections
         try:
             auth_svc.wait_for_form_ready(self.settings.form_ready_timeout_ms)
             auth_svc.expand_all_sections(self.settings.expand_section_wait_ms)
@@ -219,8 +214,16 @@ class OperationalWorker:
                 except Exception:
                     pass
 
+        if self.cached_url and self.cached_url != page.url:
+            self.cached_schema = None
+            self.cached_url = None
+
         inspection_svc = InspectionService(page)
         schema = inspection_svc.inspect(unpack_options=req.unpack_options)
+        if self.cached_schema and self.cached_url == page.url:
+            schema = self._merge_schemas(self.cached_schema, schema)
+        self.cached_schema = schema
+        self.cached_url = page.url
 
         if req.screenshot_path:
             coord.adapter.capture_screenshot(req.screenshot_path, full_page=True)
@@ -236,6 +239,61 @@ class OperationalWorker:
             active_title=page.title(),
             total_tabs=len(coord.context.pages) if coord.context else 0,
             schema=schema,
+        )
+
+    def _handle_probe(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        page = coord.page
+        assert page is not None
+
+        if req.url:
+            coord.adapter.navigate(req.url)
+            page = coord.page
+
+        target = req.target_field or ""
+        if not target:
+            return SupervisorActionResponse(
+                success=False,
+                action="probe",
+                message="Missing target field to probe.",
+            )
+
+        if target.startswith("@"):
+            try:
+                has_stamp = page.evaluate("([t]) => !!document.querySelector('[data-wp-id=\"' + t + '\"]')", [target])
+                if not has_stamp:
+                    InspectionService(page).inspect()
+            except Exception:
+                pass
+
+        interaction_svc = FieldInteractionService(page)
+        decoded_target = decode_unicode_escapes(target)
+        decoded_query = decode_unicode_escapes(req.query or "")
+        details = interaction_svc.probe_field(
+            target=decoded_target,
+            include_options=req.include_options,
+            query=decoded_query,
+            include_html=req.include_html,
+        )
+
+        if not details or not details.get("found"):
+            return SupervisorActionResponse(
+                success=False,
+                action="probe",
+                message=f"Field not found: '{target}'",
+                active_tab_index=coord.adapter.get_active_tab_index(),
+                active_url=page.url,
+                active_title=page.title(),
+            )
+
+        return SupervisorActionResponse(
+            success=True,
+            action="probe",
+            message=f"Found element '{details.get('local_id') or details.get('id') or target}': {details.get('label')}",
+            active_tab_index=coord.adapter.get_active_tab_index(),
+            active_url=page.url,
+            active_title=page.title(),
+            field_details=details,
         )
 
     def _handle_apply(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
@@ -287,55 +345,24 @@ class OperationalWorker:
             fields_to_set.extend(FormPayloadBuilder.parse_cli_fill_arguments(req.fill_arguments))
 
         field_svc = FieldInteractionService(page)
-        confirmed = []
-        unconfirmed = []
-        failed = []
+        confirmed: List[Tuple[str, Any]] = []
+        unconfirmed: List[Tuple[str, Any]] = []
+        failed: List[Tuple[str, Any]] = []
 
         if fields_to_set:
-            lines.append(f"[*] Populating {len(fields_to_set)} field(s)...")
-            for key, val in fields_to_set:
-                display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
-                success = field_svc.set_field(key, val)
-                if not success:
-                    dyn_res = getattr(field_svc, "expand_dynamic_section", None)
-                    if callable(dyn_res):
-                        res = dyn_res(key, val)
-                        if isinstance(res, tuple) and len(res) == 2:
-                            success, btn_label = res
-                        else:
-                            success, btn_label = bool(res), None
-                        if success and btn_label:
-                            lines.append(f"  [+] Dynamically expanded section via '{btn_label}'")
-
-                if success:
-                    # Post-fill verification: read back DOM value with fast-path check
-                    verified = field_svc.verify_field_value(key, val)
-                    if verified:
-                        confirmed.append((key, val))
-                        lines.append(f"  [✓] Set & Verified '{key}' -> '{display_val}'")
-                    else:
-                        unconfirmed.append((key, val))
-                        lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'")
-                else:
-                    failed.append((key, val))
-                    lines.append(f"  [~] Unmatched/Failed '{key}' -> '{display_val}'")
-            lines.append(f"[*] Fields summary: {len(confirmed)} confirmed | {len(unconfirmed)} unconfirmed | {len(failed)} skipped.")
+            confirmed, unconfirmed, failed = FormApplicationPipeline.execute_cascading_fill(
+                page=page,
+                field_svc=field_svc,
+                fields_to_set=fields_to_set,
+                cached_schema=self.cached_schema,
+                lines=lines,
+            )
 
         # 4. Handle uploads
         if req.upload_files:
-            upload_adapter = UploadAdapter(page)
-            for up in req.upload_files:
-                if "=" in up:
-                    kw, path = up.split("=", 1)
-                    kw, path = kw.strip(), path.strip()
-                else:
-                    kw, path = "", up.strip()
-                if os.path.isfile(path):
-                    lines.append(f"[*] Uploading '{path}' (Keyword: '{kw}')...")
-                    upload_adapter.upload_document(path, kw)
+            FormApplicationPipeline.execute_uploads(page, req.upload_files, lines)
 
-        # 5. Pre-submit verification barrier (ACT-05 / WP-004)
-        # Prior to clicking buttons or submitting, re-verify confirmed fields to detect silent/delayed reverts (e.g. S44)
+        # 5. Pre-submit verification barrier
         if confirmed and (req.press_buttons or req.submit):
             confirmed = self._reverify_fields(field_svc, confirmed, unconfirmed, lines, "Pre-submit check")
 
@@ -388,7 +415,7 @@ class OperationalWorker:
                 lines.append("  [!] Submission button clicked or not found; moving to validation.")
                 submit_failed = True
 
-        # Post-interaction verification pass: detect click handlers that clear/revert inputs (e.g. S44)
+        # Post-interaction verification pass
         has_navigated = False
         if last_reactive_event and (last_reactive_event.get("redirected") or last_reactive_event.get("new_window")):
             has_navigated = True

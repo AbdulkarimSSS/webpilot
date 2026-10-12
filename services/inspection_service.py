@@ -12,16 +12,23 @@ class InspectionService:
     def __init__(self, page: Page):
         self.page = page
 
-    def inspect(self, unpack_options: bool = True) -> Dict[str, Any]:
+    def inspect(self, unpack_options: bool = True, pua_mode: Optional[str] = None) -> Dict[str, Any]:
         """Deep inspection of the active page. Extracts form components, inputs, buttons, and uploads."""
         try:
-            raw = self.page.evaluate(INSPECT_PAGE_DOM_SCRIPT)
+            from config.settings import get_settings
+            effective_pua_mode = pua_mode or get_settings().pua_mode
+        except Exception:
+            effective_pua_mode = pua_mode or "escape"
+
+        dom_args = {"puaMode": effective_pua_mode}
+        try:
+            raw = self.page.evaluate(INSPECT_PAGE_DOM_SCRIPT, dom_args)
         except Exception as exc:
             err_str = str(exc).lower()
             if "execution context was destroyed" in err_str or "navigation" in err_str:
                 try:
                     self.page.wait_for_load_state("domcontentloaded", timeout=4000)
-                    raw = self.page.evaluate(INSPECT_PAGE_DOM_SCRIPT)
+                    raw = self.page.evaluate(INSPECT_PAGE_DOM_SCRIPT, dom_args)
                 except Exception:
                     raw = {
                         "title": self.page.title() if self.page else "",

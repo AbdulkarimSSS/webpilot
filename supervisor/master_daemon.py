@@ -13,28 +13,28 @@ import subprocess
 import sys
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 from typing import Any, Dict, Optional
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from common.process_manager import get_process_manager
 from supervisor.contracts import SupervisorActionRequest, SupervisorActionResponse
+from supervisor.handler import create_supervisor_handler
 from supervisor.security import (
     generate_supervisor_token,
-    save_supervisor_token,
-    remove_supervisor_token,
-    validate_supervisor_token,
     load_supervisor_token,
+    remove_supervisor_token,
+    save_supervisor_token,
 )
-from common.process_manager import get_process_manager
+from supervisor.watchdog import InactivityWatchdog
 
 DEFAULT_SUPERVISOR_HOST: str = "127.0.0.1"
 DEFAULT_SUPERVISOR_PORT: int = 9333
 DEFAULT_INACTIVITY_TIMEOUT_SECONDS: int = 1800  # 30 minutes
 LOG_FILE: str = os.path.join(PROJECT_ROOT, "master_daemon.log")
-
 
 
 class LogWriter:
@@ -87,9 +87,14 @@ class MasterSupervisor:
         self.lock = threading.Lock()
         self._is_running = True
 
-        # Launch watchdog thread
-        self.watchdog_thread = threading.Thread(target=self._watchdog_loop, daemon=True)
-        self.watchdog_thread.start()
+        # Launch watchdog sentinel
+        self.watchdog = InactivityWatchdog(
+            get_last_active_time=lambda: self.last_active_time,
+            get_worker_process=lambda: self.worker_process,
+            terminate_worker=self.terminate_worker,
+            timeout_seconds=self.inactivity_timeout_seconds,
+        )
+        self.watchdog.start()
 
     def _spawn_worker(self) -> subprocess.Popen:
         """Spawns Layer 2 Worker subprocess with process group isolation."""
@@ -117,7 +122,6 @@ class MasterSupervisor:
 
         proc = subprocess.Popen(worker_cmd, **popen_kwargs)
 
-        # WP-013: Drain worker stderr in background thread to prevent pipe deadlocks
         def _drain_stderr(pipe):
             try:
                 for line in iter(pipe.readline, ""):
@@ -156,6 +160,7 @@ class MasterSupervisor:
         if req.action in ("stop", "shutdown"):
             self.terminate_worker()
             self._is_running = False
+            self.watchdog.stop()
             return SupervisorActionResponse(
                 success=True,
                 action="stop",
@@ -208,7 +213,6 @@ class MasterSupervisor:
         with self.lock:
             old_pid = self.worker_process.pid if self.worker_process else None
             self.terminate_worker()
-            # Spawn fresh Worker using unified helper with start_new_session on POSIX
             new_worker = self._spawn_worker()
             self.worker_process = new_worker
             self.last_active_time = time.time()
@@ -240,114 +244,6 @@ class MasterSupervisor:
             "inactivity_timeout_seconds": self.inactivity_timeout_seconds,
         }
 
-    def _watchdog_loop(self) -> None:
-        """Periodically checks inactivity. Kills idle Worker to release 100% of browser RAM."""
-        while self._is_running:
-            time.sleep(15)
-            if self.worker_process and self.worker_process.poll() is None:
-                idle = time.time() - self.last_active_time
-                if idle > self.inactivity_timeout_seconds:
-                    print(f"[*] Inactivity watchdog triggered ({idle:.0f}s idle). Terminating Worker to release RAM.")
-                    self.terminate_worker()
-
-
-def create_supervisor_handler(supervisor: MasterSupervisor):
-    """Factory creating an HTTP Request Handler bound to the supervisor instance."""
-
-    class SupervisorHTTPHandler(BaseHTTPRequestHandler):
-        def log_message(self, format, *args):
-            # Suppress default stdout HTTP access logs
-            return
-
-        def _send_json(self, status_code: int, data: Dict[str, Any]):
-            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-            self.send_response(status_code)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def _check_host(self) -> bool:
-            """WP-011: Validates incoming Host header to protect against DNS rebinding attacks."""
-            host = self.headers.get("Host")
-            if not host:
-                return True
-            host_clean = host.split(":")[0].strip().lower()
-            if host_clean in ("127.0.0.1", "localhost", "::1"):
-                return True
-            self._send_json(
-                403,
-                {
-                    "success": False,
-                    "error": f"Forbidden: Host '{host}' is rejected by DNS rebinding defense.",
-                },
-            )
-            return False
-
-        def _authenticate(self) -> bool:
-            """Validates incoming HTTP request against the supervisor's secure token."""
-            if not self._check_host():
-                return False
-
-            header_token = self.headers.get("X-Supervisor-Token") or self.headers.get("Authorization")
-            try:
-                is_valid = validate_supervisor_token(header_token, supervisor.token)
-            except Exception:
-                is_valid = False
-
-            if not is_valid:
-                self._send_json(
-                    401,
-                    {
-                        "success": False,
-                        "error": "Unauthorized: Invalid or missing supervisor authentication token.",
-                    },
-                )
-                return False
-            return True
-
-        def do_GET(self):
-            if not self._authenticate():
-                return
-
-            if self.path == "/ping":
-                self._send_json(200, {"status": "ok", "supervisor_pid": os.getpid()})
-            elif self.path == "/status":
-                status = supervisor.get_status()
-                self._send_json(200, status)
-            else:
-                self._send_json(404, {"error": "Not Found"})
-
-        def do_POST(self):
-            if not self._authenticate():
-                return
-
-            content_length = int(self.headers.get("Content-Length", 0))
-            raw_body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
-
-            try:
-                data = json.loads(raw_body)
-            except Exception:
-                data = {}
-
-            if self.path == "/execute":
-                req = SupervisorActionRequest.from_dict(data)
-                res = supervisor.execute_action(req)
-                self._send_json(200, res.to_dict())
-            elif self.path == "/restart":
-                res = supervisor.restart_worker()
-                self._send_json(200, res.to_dict())
-            elif self.path == "/stop":
-                req = SupervisorActionRequest(action="stop")
-                res = supervisor.execute_action(req)
-                self._send_json(200, res.to_dict())
-                # Schedule daemon shutdown in background thread
-                threading.Thread(target=self.server.shutdown, daemon=True).start()
-            else:
-                self._send_json(404, {"error": "Not Found"})
-
-    return SupervisorHTTPHandler
-
 
 def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] = None):
     """Starts the Master Supervisor HTTP service."""
@@ -357,10 +253,14 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] 
     supervisor = None
     bound_successfully = False
     try:
-        eff_token = token or os.environ.get("WEBPILOT_SUPERVISOR_TOKEN") or load_supervisor_token() or generate_supervisor_token()
+        eff_token = (
+            token
+            or os.environ.get("WEBPILOT_SUPERVISOR_TOKEN")
+            or load_supervisor_token()
+            or generate_supervisor_token()
+        )
         supervisor = MasterSupervisor(port=port, token=eff_token, auto_save_token=False)
         handler_class = create_supervisor_handler(supervisor)
-        # Bind socket first: if port is in use, will raise OSError without touching token file
         server = ThreadingHTTPServer((DEFAULT_SUPERVISOR_HOST, port), handler_class)
         bound_successfully = True
         save_supervisor_token(supervisor.token)
@@ -376,18 +276,16 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] 
                 supervisor.terminate_worker()
             except Exception:
                 pass
-        # WP-016: Only remove token file if THIS process was the one that successfully bound and owned the port
         if bound_successfully:
             remove_supervisor_token()
-        log_daemon("Master Supervisor stopped.")
-        print("[*] Master Supervisor stopped.")
 
 
-if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else DEFAULT_SUPERVISOR_PORT
-    # WP-001: Resolve token from environment or token file to avoid leaking credentials in sys.argv
-    token = os.environ.get("WEBPILOT_SUPERVISOR_TOKEN") or load_supervisor_token()
-    if not token and len(sys.argv) > 2:
-        token = sys.argv[2]
-    run_master_daemon(port=port, token=token)
-
+__all__ = [
+    "DEFAULT_SUPERVISOR_HOST",
+    "DEFAULT_SUPERVISOR_PORT",
+    "DEFAULT_INACTIVITY_TIMEOUT_SECONDS",
+    "MasterSupervisor",
+    "create_supervisor_handler",
+    "run_master_daemon",
+    "log_daemon",
+]

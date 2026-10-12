@@ -8,5 +8,7 @@
   "cookies_path": null,
   "data_path": null,
   "proxy": null,
-  "geolocation": null
+  "geolocation": null,
+  "sanitize_pua_icons": true,
+  "pua_mode": "escape"
 }

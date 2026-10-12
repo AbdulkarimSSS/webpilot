@@ -146,6 +146,8 @@ class Settings:
     geolocation_latitude: Optional[float] = None
     geolocation_longitude: Optional[float] = None
     geolocation_accuracy: Optional[float] = None
+    sanitize_pua_icons: bool = True
+    pua_mode: str = "escape"
 
 
 _SETTINGS_CACHE: Optional[Settings] = None
@@ -231,6 +233,8 @@ def get_settings(
         geolocation_latitude=float(geo_lat) if geo_lat is not None else None,
         geolocation_longitude=float(geo_lon) if geo_lon is not None else None,
         geolocation_accuracy=float(geo_acc) if geo_acc is not None else None,
+        sanitize_pua_icons=resolver.resolve("sanitize_pua_icons", "APP_SANITIZE_PUA_ICONS", default=True, cast_type=bool),
+        pua_mode=resolver.resolve("pua_mode", "APP_PUA_MODE", default="escape", cast_type=str),
     )
 
     _SETTINGS_CACHE = settings

@@ -105,16 +105,47 @@ def parse_and_resolve_fill_args(fill_args: Optional[List[str]]) -> List[Tuple[st
                         results.append((k.strip(), resolved_v))
             continue
 
-        if "=" not in trimmed:
+        # Check for inline JSON payload (dict or list of typed objects)
+        if (trimmed.startswith("{") and trimmed.endswith("}")) or (trimmed.startswith("[") and trimmed.endswith("]")):
+            import json
+            try:
+                parsed_json = json.loads(trimmed)
+                from builder import FormPayloadBuilder
+                from common.text import decode_unicode_escapes
+                pairs = FormPayloadBuilder.normalize_payload(parsed_json)
+                for k, v in pairs:
+                    k_clean = decode_unicode_escapes(str(k).strip())
+                    v_res = resolve_secret_value(v, prompt_label=k_clean)
+                    if isinstance(v_res, str):
+                        v_res = decode_unicode_escapes(v_res)
+                    results.append((k_clean, v_res))
+                continue
+            except Exception:
+                pass
+
+        if "=" in trimmed:
+            k, v = trimmed.split("=", 1)
+            key = k.strip()
+            raw_val = v.strip()
+        elif " > " in trimmed:
+            k, v = trimmed.split(" > ", 1)
+            key = k.strip() if ":" in k else f"picklist:{k.strip()}"
+            raw_val = v.strip()
+        elif ">" in trimmed:
+            k, v = trimmed.split(">", 1)
+            key = k.strip() if ":" in k else f"picklist:{k.strip()}"
+            raw_val = v.strip()
+        else:
             raise ValidationError(
                 f"Invalid --fill argument format: '{item}'. "
-                "Expected 'key=value', e.g. --fill 'username=john' or --fill 'password=@env:MY_PASS'"
+                "Expected 'key=value', 'scope:Section:Field=val', or JSON object."
             )
 
-        k, v = trimmed.split("=", 1)
-        key = k.strip()
-        raw_val = v.strip()
+        from common.text import decode_unicode_escapes
         resolved_val = resolve_secret_value(raw_val, prompt_label=key)
+        if isinstance(resolved_val, str):
+            resolved_val = decode_unicode_escapes(resolved_val)
+        key = decode_unicode_escapes(key)
         results.append((key, resolved_val))
 
     return results

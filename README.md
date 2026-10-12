@@ -1,15 +1,15 @@
-# 🚀 WebPilot Engine v2.0.13
+# 🚀 WebPilot Engine v2.1.0
 
 ### Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime
 
-[![Version](https://img.shields.io/badge/version-v2.0.13-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-v2.1.0-blue.svg)](pyproject.toml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/playwright-v1.40%2B-green.svg)](https://playwright.dev/)
 [![Architecture](https://img.shields.io/badge/architecture-3--Tier%20Multi--Process-orange.svg)](#-3-tier-multi-process-architecture)
 [![Benchmark](https://img.shields.io/badge/benchmark-50%20Scenarios%20%7C%20100%25%20Solvable%20Pass-brightgreen.svg)](#-empirical-adversarial-benchmark-suite-50-scenarios)
 [![False Success](https://img.shields.io/badge/false%20success-0.0%25%20(Zero)-success.svg)](#-the-truth-barrier-00-false-success-guarantee)
 [![Latency](https://img.shields.io/badge/latency-1.17s%20%2F%20form%20(9x%20Boost)-purple.svg)](#-the-performance-breakthrough-9x-native-speedup)
-[![Unit Tests](https://img.shields.io/badge/tests-58%2F58%20passing%20(100%25)-brightgreen.svg)](#-unit-testing--verification)
+[![Unit Tests](https://img.shields.io/badge/tests-69%2F69%20passing%20(100%25)-brightgreen.svg)](#-unit-testing--verification)
 [![License](https://img.shields.io/badge/license-MIT-informational.svg)](LICENSE)
 
 **WebPilot Engine** is a high-performance, enterprise-grade autonomous browser engine and AI agent web runtime designed to inspect, interact with, populate, and operate complex modern web applications, single-page apps (SPAs), dynamic Shadow DOMs, and enterprise ATS/ERP widgets (Workday, SAP SuccessFactors, Taleo, Oracle Cloud, custom modal flows) with **zero site-specific selectors or hardcoded scripts**.
@@ -95,22 +95,24 @@ WebPilot enforces a strict **Multi-Stage Physical Truth Verification Pipeline**:
 
 ---
 
-## 🧹 Clean Architecture & SOLID Engineering (v2.0.12)
+## 🧹 Clean Architecture & SOLID Engineering (v2.1.0)
 
-Following an extensive architectural refactoring milestone (Commit `b9dd28c`), the codebase adheres to strict enterprise software standards:
+Following an extensive project-wide architectural refactoring milestone, the codebase adheres to strict enterprise software standards:
 
-* **Strict 3-Tier Layering & Separation of Concerns**:
-  - **Presentation Layer**: CLI (`cli.py`), REPL Shell (`supervisor/shell.py`).
-  - **Orchestration & Supervision**: Supervisor Daemons (`master_daemon.py`, `worker_process.py`), Pipeline Orchestration (`flow_orchestrator.py`).
-  - **Domain & DOM Interaction**: Unified domain services (`FieldInteractionService`, `InspectionService`, `ReactiveInteractionService`, `AuthNavigationService`).
-* **DRY Consolidation**:
-  - Eliminated duplicate repeating section search logic from `worker_process.py` and `form_filler_service.py`, centralizing it in `FieldInteractionService.expand_dynamic_section()`.
-  - Consolidated duplicate pre-submit and post-interaction passes into `OperationalWorker._reverify_fields()`.
-* **Decoupled Imports & Single Source of Truth**:
-  - Severed legacy circular imports in `config/settings.py` by importing directly from `core.models` and `core.exceptions`.
-  - Removed deferred inline imports in `builder.py` in compliance with PEP 8.
-* **Defensive Runtime Safety**:
-  - Hardened tuple unpacking and dynamic attribute resolution across mock and dynamic worker environments.
+* **Strict Multi-Tier Layering & Separation of Concerns**:
+  - **Presentation Layer**: CLI (`cli.py`), Modular CLI Parser (`cli_parser.py`), REPL Shell (`supervisor/shell.py`), Telemetry (`common/telemetry.py`).
+  - **Orchestration & Supervision**: Master Daemon (`master_daemon.py`), HTTP Handler (`supervisor/handler.py`), Inactivity Watchdog (`supervisor/watchdog.py`), Worker (`worker_process.py`), Pipeline Orchestration (`flow_orchestrator.py`).
+  - **Domain Services**: Field Interactions (`FieldInteractionService`), Form Application Pipeline (`FormApplicationPipeline`), Target Descriptor Parser (`TargetDescriptorParser`), DOM Data Matcher (`DOMDataMatcher`), Schema Merger (`SchemaMerger`), Inspection (`InspectionService`), Reactive Interactions (`ReactiveInteractionService`), Page Lifecycle (`PageLifecycleService`).
+  - **Infrastructure & Adapters**: Browser Adapter (`BrowserAdapter`), Tab & Window Manager (`TabManager`), Playwright Fallbacks (`PlaywrightLocatorFallback`).
+* **Modular DOM Script Engine (`adapters/dom/`)**:
+  - Decomposed legacy 1,000+ line monolithic scripts into focused, single-responsibility modules: `lifecycle.py`, `navigation.py`, `set_field.py`, `picklist.py`, `verify.py`, `inspection.py`, `probe.py`, `reactive.py`.
+* **Universal Page Lifecycle Paradigm**:
+  - Eliminated bespoke auth hacks; all portals and login pages are managed uniformly through event-driven DOM readiness and accordion expansion in `PageLifecycleService`.
+* **Tab & Multi-Window Isolation**:
+  - Fully abstracted browser context, tab lifecycle, popup tracking, and route interception into `TabManager`.
+* **DRY Consolidation & Single Source of Truth**:
+  - Pipeline phases consolidated in `FormApplicationPipeline` with deterministic 3-stage physical truth verification.
+  - Eliminated circular imports and inline imports in compliance with PEP 8.
 
 ---
 

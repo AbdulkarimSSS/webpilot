@@ -101,40 +101,21 @@ class BrowserAdapter(BrowserAdapterProtocol):
 
     def get_active_tab_index(self) -> int:
         """Returns the index of the currently active page in context.pages."""
-        if not self._context or not self._page:
-            return 0
-        try:
-            return self._context.pages.index(self._page)
-        except ValueError:
-            return 0
+        from adapters.tab_manager import TabManager
+        return TabManager.get_active_tab_index(self._context, self._page)
 
     def list_open_tabs(self) -> List[Dict[str, Any]]:
         """Returns a list of dictionaries describing all open tabs in the active browser."""
-        if not self._context:
-            return []
-
-        tabs_info = []
-        for i, p in enumerate(self._context.pages):
-            is_active = (p == self._page)
-            tabs_info.append({
-                "index": i,
-                "title": p.title() or "Untitled",
-                "url": p.url,
-                "is_active": is_active,
-            })
-        return tabs_info
+        from adapters.tab_manager import TabManager
+        return TabManager.list_open_tabs(self._context, self._page)
 
     def switch_to_tab(self, index: int) -> Page:
         """Switches active page to the specified tab index."""
         assert self._context is not None, "Browser context not initialized."
-        pages = self._context.pages
-        if 0 <= index < len(pages):
-            self._page = pages[index]
-            self._page.bring_to_front()
-            print(f"[*] Switched to Tab #{index}: '{self._page.title()}' ({self._page.url})")
-            return self._page
-        else:
-            raise IndexError(f"Tab index #{index} out of range (Total open tabs: {len(pages)})")
+        from adapters.tab_manager import TabManager
+        self._page = TabManager.switch_to_tab(self._context, index)
+        print(f"[*] Switched to Tab #{index}: '{self._page.title()}' ({self._page.url})")
+        return self._page
 
     def _ensure_browser_binaries(self) -> None:
         """Verifies Chromium is installed; if not, automatically downloads it or shows a clear error."""

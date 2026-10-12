@@ -5,6 +5,46 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-10-12
+
+### Architecture & Modernization (Major Refactor)
+- **DOM Script Modularization (`adapters/dom/`)**: Decomposed monolithic 1,010-line `dom_scripts.py` into focused, single-responsibility ES6 modules:
+  - `lifecycle.py`: DOM loading sentinel and universal accordion expansion.
+  - `navigation.py`: Portal apply button clicker and dropdown menu triggers.
+  - `set_field.py`: Robust field population across text, select, picklist, radio, checkbox, and date inputs.
+  - `picklist.py`: Enterprise auto-scrolling picklist resolver.
+  - `verify.py`: Three-stage physical DOM verification logic.
+  - `inspection.py`: Full-page DOM schema introspection and picklist option probing.
+  - `probe.py`: Dynamic field-level attribute and state probing.
+  - `reactive.py`: Dynamic reactive button clickers.
+  - `auth.py`: Legacy compatibility layer.
+- **Unified Page Lifecycle Architecture (`PageLifecycleService`)**:
+  - Replaced legacy auth-specific hacks with a generalized page readiness and accordion expansion service.
+  - Modernized `AuthNavigationService` as a lightweight compatibility layer inheriting from `PageLifecycleService`, treating authentication portals as standard web forms with zero special-casing.
+- **Separation of Concerns in Services & Pipeline**:
+  - Extracted `FormApplicationPipeline` (`services/form_application_pipeline.py`) from `OperationalWorker`, encapsulating the 5-phase fill lifecycle (preparation, dynamic expansion, execution, pre-submit reverification, and reactive verification).
+  - Extracted `DOMDataMatcher` (`services/dom_verifier.py`) for deterministic DOM value comparison.
+  - Extracted `TargetDescriptorParser` (`services/target_descriptor.py`) for parsing field selectors and values.
+  - Extracted `SchemaMerger` (`services/schema_merger.py`) for schema transformations and deduplication.
+  - Shrunk `field_interaction_service.py` from 608 to 248 lines and `worker_process.py` from 667 to 466 lines.
+- **Tab & Window Isolation Architecture (`TabManager`)**:
+  - Extracted `TabManager` (`adapters/tab_manager.py`) to manage Playwright browser contexts, tab tracking, multi-tab switching, popup handling, and route interception cleanly decoupled from `BrowserAdapter`.
+  - Extracted `PlaywrightLocatorFallback` (`adapters/locator_fallbacks.py`) for locator resolution fallbacks.
+- **Supervisor Decoupling & Watchdog Refactoring**:
+  - Extracted `SupervisorHTTPHandler` (`supervisor/handler.py`) to handle JSON-RPC endpoint routing (`/execute`, `/restart`, `/stop`, `/status`, `/ping`).
+  - Extracted `InactivityWatchdog` (`supervisor/watchdog.py`) for idle timeout management and memory auto-reclaim.
+  - Extracted `CLIParserBuilder` (`cli_parser.py`) and `TelemetryReporter` (`common/telemetry.py`), reducing `cli.py` by over 170 lines.
+
+### Added
+- **Multi-Tab Management & Switching (`wp tab`)**:
+  - Added CLI and JSON-RPC multi-tab awareness to list, inspect, and switch between browser tabs cleanly.
+- **Enhanced Field Inspection Probing (`--probe`)**:
+  - Probes individual or grouped fields for live DOM state, disabled status, picklist options, and reactive triggers without full page overhead.
+- **Targeted Field Search (`wp find`)**:
+  - Direct selector search (`wp find @fld-1 --html`) for inspecting targeted elements and extracting raw HTML snippets.
+
+---
+
 ## [2.0.14] - 2026-10-12
 
 ### Added

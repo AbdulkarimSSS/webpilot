@@ -64,13 +64,28 @@ class FormPayloadBuilder:
 
         if isinstance(raw_data, dict):
             for k, v in raw_data.items():
-                fields.append((str(k), resolve_secret_value(v, prompt_label=str(k))))
+                if isinstance(v, dict):
+                    # Nested section dictionary: {"Education": {"Degree": "Bachelor", "GPA": "4.5"}}
+                    for sub_k, sub_v in v.items():
+                        scoped_key = f"scope:{k}:{sub_k}"
+                        fields.append((scoped_key, resolve_secret_value(sub_v, prompt_label=scoped_key)))
+                elif isinstance(v, list) and all(isinstance(row, dict) for row in v):
+                    # List of repeating rows in a section: {"Education": [{"Degree": "BSc"}, {"Degree": "MSc"}]}
+                    for row_idx, row in enumerate(v, 1):
+                        for sub_k, sub_v in row.items():
+                            scoped_key = f"scope:{k}:{sub_k}"
+                            fields.append((scoped_key, resolve_secret_value(sub_v, prompt_label=scoped_key)))
+                else:
+                    fields.append((str(k), resolve_secret_value(v, prompt_label=str(k))))
         elif isinstance(raw_data, list):
             for item in raw_data:
                 if isinstance(item, (list, tuple)) and len(item) == 2:
                     fields.append((str(item[0]), resolve_secret_value(item[1], prompt_label=str(item[0]))))
-                elif isinstance(item, dict) and "key" in item and "value" in item:
-                    k = str(item["key"])
+                elif isinstance(item, dict) and ("key" in item or "target" in item or "field" in item or "name" in item) and "value" in item:
+                    k = str(item.get("target") or item.get("key") or item.get("field") or item.get("name"))
+                    scope = item.get("scope") or item.get("section")
+                    if scope:
+                        k = f"scope:{scope}:{k}"
                     fields.append((k, resolve_secret_value(item["value"], prompt_label=k)))
                 else:
                     raise ValidationError(f"Unrecognized payload entry structure: {item}")
