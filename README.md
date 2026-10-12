@@ -1,8 +1,8 @@
-# 🚀 WebPilot Engine v2.1.0
+# 🚀 WebPilot Engine v2.1.1
 
 ### Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime
 
-[![Version](https://img.shields.io/badge/version-v2.1.0-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-v2.1.1-blue.svg)](pyproject.toml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/playwright-v1.40%2B-green.svg)](https://playwright.dev/)
 [![Architecture](https://img.shields.io/badge/architecture-3--Tier%20Multi--Process-orange.svg)](#-3-tier-multi-process-architecture)
@@ -95,7 +95,7 @@ WebPilot enforces a strict **Multi-Stage Physical Truth Verification Pipeline**:
 
 ---
 
-## 🧹 Clean Architecture & SOLID Engineering (v2.1.0)
+## 🧹 Clean Architecture & SOLID Engineering (v2.1.1)
 
 Following an extensive project-wide architectural refactoring milestone, the codebase adheres to strict enterprise software standards:
 

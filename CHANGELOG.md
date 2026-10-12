@@ -5,6 +5,16 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-10-12
+
+### Architecture & Modularization
+- **CLI Decomposition (`cli_commands/`)**: Modularized `cli.py` (down from 419 to 69 lines), isolating subcommand handlers into dedicated, single-responsibility modules (`inspect_cmd.py`, `apply_cmd.py`, `find_cmd.py`, `service_cmd.py`, `common.py`).
+- **Worker Execution Handlers (`supervisor/worker_handlers.py`)**: Shrunk `worker_process.py` (from 538 to 250 lines) by extracting inspection, element probing, and multi-phase form filling into `worker_handlers.py`.
+- **MCP Tool Decomposition (`mcp_tools.py`)**: Shrunk `mcp_server.py` (from 293 to 142 lines) by decoupling tool execution logic into `mcp_tools.py`.
+- **Legacy Auth Elimination**: Completely removed `auth_navigation_service.py` and `adapters/dom/auth.py`, establishing `PageLifecycleService` as the unified page readiness standard.
+- **Exhaustive AI Agent Skill Specification**: Upgraded `skills/webpilot-automation/SKILL.md` into a 100% comprehensive operational manual covering all commands, architecture layers, parameters, and error codes.
+- **Verification & Integrity**: Full test suite passing 69/69 (100%) and live E2E inspection, probing, and submission verified.
+
 ## [2.1.0] - 2026-10-12
 
 ### Architecture & Modernization (Major Refactor)
