@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Extracted `SupervisorHTTPHandler` (`supervisor/handler.py`) to handle JSON-RPC endpoint routing (`/execute`, `/restart`, `/stop`, `/status`, `/ping`).
   - Extracted `InactivityWatchdog` (`supervisor/watchdog.py`) for idle timeout management and memory auto-reclaim.
   - Extracted `CLIParserBuilder` (`cli_parser.py`) and `TelemetryReporter` (`common/telemetry.py`), reducing `cli.py` by over 170 lines.
+- **Deep Modularization & Single-Responsibility Decomposition**:
+  - **Modular CLI Layer (`cli_commands/`)**: Shrunk `cli.py` from 419 down to 69 lines by extracting dedicated command handlers into `cli_commands/` (`inspect_cmd`, `apply_cmd`, `find_cmd`, `service_cmd`, `common`).
+  - **Worker Execution Handlers (`supervisor/worker_handlers.py`)**: Shrunk `worker_process.py` from 538 down to 250 lines by extracting IPC command execution into `worker_handlers.py` (`handle_worker_inspect`, `handle_worker_probe`, `handle_worker_apply`), isolating the IPC loop from DOM pipeline execution.
+  - **MCP Declarative Layer (`mcp_tools.py`)**: Shrunk `mcp_server.py` from 293 down to 142 lines by decoupling MCP tool handlers into `mcp_tools.py`.
+  - Preserved 100% test compatibility (69/69 test suite passing with zero regressions).
 
 ### Added
 - **Multi-Tab Management & Switching (`wp tab`)**:

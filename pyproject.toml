@@ -72,11 +72,11 @@ universal-applier = "cli:main"
 uapply = "cli:main"
 
 [tool.setuptools]
-py-modules = ["cli", "cli_parser", "mcp_server", "engine", "builder", "models", "exceptions"]
+py-modules = ["cli", "cli_parser", "mcp_server", "mcp_tools", "engine", "builder", "models", "exceptions"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["adapters*", "common*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*", "skills*"]
+include = ["adapters*", "cli_commands*", "common*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*", "skills*"]
 
 [tool.setuptools.package-data]
 config = ["*.json"]

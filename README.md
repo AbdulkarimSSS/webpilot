@@ -100,8 +100,8 @@ WebPilot enforces a strict **Multi-Stage Physical Truth Verification Pipeline**:
 Following an extensive project-wide architectural refactoring milestone, the codebase adheres to strict enterprise software standards:
 
 * **Strict Multi-Tier Layering & Separation of Concerns**:
-  - **Presentation Layer**: CLI (`cli.py`), Modular CLI Parser (`cli_parser.py`), REPL Shell (`supervisor/shell.py`), Telemetry (`common/telemetry.py`).
-  - **Orchestration & Supervision**: Master Daemon (`master_daemon.py`), HTTP Handler (`supervisor/handler.py`), Inactivity Watchdog (`supervisor/watchdog.py`), Worker (`worker_process.py`), Pipeline Orchestration (`flow_orchestrator.py`).
+  - **Presentation Layer**: CLI Dispatcher (`cli.py`), Modular Subcommands (`cli_commands/`), Modular CLI Parser (`cli_parser.py`), MCP Server (`mcp_server.py`), MCP Tool Dispatchers (`mcp_tools.py`), REPL Shell (`supervisor/shell.py`), Telemetry (`common/telemetry.py`).
+  - **Orchestration & Supervision**: Master Daemon (`master_daemon.py`), HTTP Handler (`supervisor/handler.py`), Inactivity Watchdog (`supervisor/watchdog.py`), Worker Daemon (`supervisor/worker_process.py`), Worker Execution Handlers (`supervisor/worker_handlers.py`), Pipeline Orchestration (`flow_orchestrator.py`).
   - **Domain Services**: Field Interactions (`FieldInteractionService`), Form Application Pipeline (`FormApplicationPipeline`), Target Descriptor Parser (`TargetDescriptorParser`), DOM Data Matcher (`DOMDataMatcher`), Schema Merger (`SchemaMerger`), Inspection (`InspectionService`), Reactive Interactions (`ReactiveInteractionService`), Page Lifecycle (`PageLifecycleService`).
   - **Infrastructure & Adapters**: Browser Adapter (`BrowserAdapter`), Tab & Window Manager (`TabManager`), Playwright Fallbacks (`PlaywrightLocatorFallback`).
 * **Modular DOM Script Engine (`adapters/dom/`)**:

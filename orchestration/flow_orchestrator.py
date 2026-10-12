@@ -214,10 +214,10 @@ class FlowOrchestrator:
             print("[*] Current active URL:", page.url)
 
             # 2. Wait for form readiness & expand accordions
-            auth_svc.wait_for_form_ready(settings.form_ready_timeout_ms)
+            lifecycle_svc.wait_for_form_ready(settings.form_ready_timeout_ms)
             print("[*] Ensuring all form sections are expanded...")
             try:
-                auth_svc.expand_all_sections(settings.expand_section_wait_ms)
+                lifecycle_svc.expand_all_sections(settings.expand_section_wait_ms)
             except Exception:
                 pass
 
