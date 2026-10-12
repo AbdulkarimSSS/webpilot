@@ -1,12 +1,12 @@
 ---
 name: webpilot-automation
-description: "WebPilot Engine (v2.1.1): Primary and default autonomous browser runtime, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
+description: "WebPilot Engine (v2.2.0): Primary and default autonomous browser runtime, programmatic Python SDK, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
 ---
 
-# WebPilot Engine (v2.1.1) — Master Technical Specification & Operational Manual
+# WebPilot Engine (v2.2.0) — Master Technical Specification & Operational Manual
 
 ## 1. Executive Overview & Primary Default Status
-`WebPilot` (`wp` / `webpilot`, PyPI package: `webpilot-engine v2.1.1`) is Antigravity's **primary, default, and approved browser engine** for all autonomous web browsing, DOM introspection, complex form filling, and resilient multi-step web workflows.
+`WebPilot` (`wp` / `webpilot`, PyPI package: `webpilot-engine v2.2.0`, Python import: `import webpilot`) is Antigravity's **primary, default, and approved browser engine** for all autonomous web browsing, DOM introspection, complex form filling, and resilient multi-step web workflows.
 
 ### 🏛️ The Five Architectural Pillars:
 1. **The Truth Barrier (Strict 0.0% False Success Guarantee)**:
@@ -31,6 +31,44 @@ description: "WebPilot Engine (v2.1.1): Primary and default autonomous browser r
 5. **Intelligent Second-Chance Retry Loop & Diagnostics**:
    - When initial field interactions complete, WebPilot automatically re-attempts any failed fields in a second pass. Fields unlocked or rendered actionable by earlier entries succeed without manual intervention.
    - Diagnostics report explicit failure causes: `disabled`, `readonly`, `obscured`, `not_found`, or `value_mismatch`.
+
+---
+
+## 1.5 Programmatic Python SDK for AI Agents (`import webpilot`)
+
+AI Agents and Python automation scripts can directly import and operate WebPilot programmatically with high performance and persistent supervisor sessions:
+
+```python
+from webpilot import WebPilot
+
+# 1. Initialize client (auto-connects or auto-spawns background supervisor daemon)
+wp = WebPilot()
+
+# 2. Inspect a page schema
+schema = wp.inspect("https://example.com/apply")
+
+# 3. Fill fields with 0.0% false success physical verification
+result = wp.apply(
+    url="https://example.com/apply",
+    fields={
+        "first_name": "Alice",
+        "last_name": "Nakamura",
+        "email": "alice@example.com",
+        "authorized": "Yes"
+    },
+    press="Submit Application"
+)
+# result.success is True only when all fields physically match in the DOM
+print(f"Confirmed fields: {result.confirmed_fields}")
+
+# 4. Probe element options or attributes
+probe = wp.find("country", options=True)
+print("Options:", probe.output_lines)
+
+# 5. Multi-Tab Control
+tabs = wp.list_tabs()
+wp.switch_tab(0)
+```
 
 ---
 

@@ -1,15 +1,15 @@
-# 🚀 WebPilot Engine v2.1.1
+# 🚀 WebPilot Engine v2.2.0
 
 ### Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime
 
-[![Version](https://img.shields.io/badge/version-v2.1.1-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-v2.2.0-blue.svg)](pyproject.toml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/playwright-v1.40%2B-green.svg)](https://playwright.dev/)
 [![Architecture](https://img.shields.io/badge/architecture-3--Tier%20Multi--Process-orange.svg)](#-3-tier-multi-process-architecture)
 [![Benchmark](https://img.shields.io/badge/benchmark-50%20Scenarios%20%7C%20100%25%20Solvable%20Pass-brightgreen.svg)](#-empirical-adversarial-benchmark-suite-50-scenarios)
 [![False Success](https://img.shields.io/badge/false%20success-0.0%25%20(Zero)-success.svg)](#-the-truth-barrier-00-false-success-guarantee)
 [![Latency](https://img.shields.io/badge/latency-1.17s%20%2F%20form%20(9x%20Boost)-purple.svg)](#-the-performance-breakthrough-9x-native-speedup)
-[![Unit Tests](https://img.shields.io/badge/tests-69%2F69%20passing%20(100%25)-brightgreen.svg)](#-unit-testing--verification)
+[![Unit Tests](https://img.shields.io/badge/tests-77%2F77%20passing%20(100%25)-brightgreen.svg)](#-unit-testing--verification)
 [![License](https://img.shields.io/badge/license-MIT-informational.svg)](LICENSE)
 
 **WebPilot Engine** is a high-performance, enterprise-grade autonomous browser engine and AI agent web runtime designed to inspect, interact with, populate, and operate complex modern web applications, single-page apps (SPAs), dynamic Shadow DOMs, and enterprise ATS/ERP widgets (Workday, SAP SuccessFactors, Taleo, Oracle Cloud, custom modal flows) with **zero site-specific selectors or hardcoded scripts**.
@@ -56,6 +56,47 @@ To overcome the fundamental operating system limitation where terminal runners a
 2. **Zero Administrative Elevation (Standard User)**: Operates 100% in unprivileged standard user space. **Zero Administrator / UAC escalation required**.
 3. **Deterministic Cascading Termination & Auto-Healing**: Terminating Layer 2 instantly tears down the entire Chromium process tree with zero zombie process leaks. Layer 1 automatically auto-spawns a fresh Layer 2 worker in **~300ms**.
 4. **Memory Watchdog Sentinel**: Automatically reclaims all browser resources and cleanly exits after 30 minutes of idle inactivity.
+
+---
+
+## 🐍 Python SDK: Programmatic AI Agent Usage
+
+WebPilot provides a first-class, ergonomic Python SDK for AI agents, automation pipelines, and Python applications via `import webpilot`:
+
+```python
+from webpilot import WebPilot
+
+# Connects to background supervisor automatically (or auto-spawns detached host)
+with WebPilot() as wp:
+    # 1. Inspect Form Schema (returns JSON dictionary of inputs, dropdowns, buttons)
+    schema = wp.inspect("https://careers.example.com/apply")
+
+    # 2. Fill Fields with 0.0% False Success Physical Truth Verification
+    result = wp.apply(
+        url="https://careers.example.com/apply",
+        fields={
+            "First Name": "Alice",
+            "Last Name": "Nakamura",
+            "Email": "alice@example.com",
+            "Degree": "Master's",
+            "Authorized to work": "Yes"
+        },
+        press="Submit Application"
+    )
+
+    if result.success:
+        print(f"Application confirmed! Confirmed fields: {len(result.confirmed_fields)}")
+    else:
+        print(f"Application failed verification: {result.unconfirmed_fields}")
+
+    # 3. Probe Specific Element or Dropdown Options
+    probe = wp.find("Country", options=True)
+    print("Available options:", probe.output_lines)
+
+    # 4. Multi-Tab Session Management
+    tabs = wp.list_tabs()
+    wp.switch_tab(0)
+```
 
 ---
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webpilot-engine"
-version = "2.1.1"
+version = "2.2.0"
 description = "WebPilot: Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime"
 readme = "README.md"
 authors = [
@@ -76,7 +76,7 @@ py-modules = ["cli", "cli_parser", "mcp_server", "mcp_tools", "engine", "builder
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["adapters*", "cli_commands*", "common*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*", "skills*"]
+include = ["adapters*", "cli_commands*", "common*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*", "skills*", "webpilot*", "webpilot_engine*"]
 
 [tool.setuptools.package-data]
 config = ["*.json"]

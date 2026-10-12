@@ -5,6 +5,17 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-10-12
+
+### Added
+- **First-Class Programmatic Python SDK (`webpilot` & `webpilot_engine`)**:
+  - Published the official `webpilot` package exposing high-level ergonomic client `WebPilot`.
+  - Added seamless methods: `wp.inspect()`, `wp.apply()`, `wp.find()`, `wp.click()`, `wp.list_tabs()`, `wp.switch_tab()`, `wp.service_status()`, `wp.service_restart()`.
+  - Dual-naming support: `import webpilot` and `import webpilot_engine` work identically.
+  - Zero-touch auto-spawn: automatically connects to background supervisor or starts it detached via ProcessManager.
+  - Context manager support (`with WebPilot() as wp:`).
+  - Comprehensive unit test suite in `tests/test_python_sdk.py` (total test suite elevated to 77 passing tests).
+
 ## [2.1.1] - 2026-10-12
 
 ### Architecture & Modularization
