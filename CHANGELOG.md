@@ -5,6 +5,14 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.14] - 2026-10-12
+
+### Added
+- **AI Agent Skill Specification Integration**: Bundled the native `SKILL.md` directly into the distributed Python wheel package under `skills/webpilot-automation/`.
+- **Global `wp skill` Command**: Added dedicated CLI subcommand `wp skill` to output the full machine-actionable AI agent skill specification to standard output, enabling instant agent onboarding and zero-configuration tool discovery.
+
+---
+
 ## [2.0.13] - 2026-10-12
 
 ### Fixed

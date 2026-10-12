@@ -361,6 +361,9 @@ def main():
     p_install = subparsers.add_parser("install", help="Download and configure required Playwright Chromium browser")
     p_install.add_argument("--all", action="store_true", help="Download all browsers (Chromium, Firefox, WebKit)")
 
+    # 6. Skill Specification Subcommand
+    p_skill = subparsers.add_parser("skill", help="Output the AI agent skill specification (SKILL.md) to terminal")
+
     args = parser.parse_args()
     try:
         if args.command == "inspect":
@@ -373,6 +376,8 @@ def main():
             service_cmd(args)
         elif args.command == "install":
             install_cmd(args)
+        elif args.command == "skill":
+            skill_cmd(args)
     except KeyboardInterrupt:
         print("\n[!] Operation cancelled by user.")
         sys.exit(130)
@@ -401,5 +406,24 @@ def install_cmd(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def skill_cmd(args: argparse.Namespace) -> None:
+    """Outputs the AI agent skill specification (SKILL.md) to terminal."""
+    from pathlib import Path
+    base_dir = Path(__file__).resolve().parent
+    candidates = [
+        base_dir / "skills" / "webpilot-automation" / "SKILL.md",
+        base_dir.parent / "skills" / "webpilot-automation" / "SKILL.md",
+        Path.home() / ".gemini" / "config" / "skills" / "webpilot-automation" / "SKILL.md",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            print(candidate.read_text(encoding="utf-8"))
+            return
+
+    print("[!] Error: webpilot-automation/SKILL.md not found in package.", file=sys.stderr)
+    sys.exit(1)
+
+
 if __name__ == "__main__":
     main()
+
