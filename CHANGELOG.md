@@ -5,6 +5,40 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-10-13
+
+### The Truth Barrier & Enterprise Resilience Overhaul (12 Root-Cause Architectural Fixes)
+
+#### 1. Supervisor Background Daemon Boot Fix (`WinError 10061`)
+- **Root-Cause Entrypoint**: Added missing `if __name__ == "__main__": run_master_daemon()` entrypoint to `supervisor/master_daemon.py`, resolving background auto-spawn socket connection failures when invoked via `SupervisorClient.ensure_running()`.
+
+#### 2. Strict Invalidation & Truth Barrier Hardening (`aria-invalid="true"`)
+- **Comprehensive Element Validity Inspection**: Implemented `checkValidity(el)` in `adapters/dom/verify.py` inspecting `aria-invalid`, `data-invalid`, `data-error`, standard HTML5 `el.validity.valid`, and framework error classes (`invalidInput`, `is-invalid`, `ng-invalid-server`, `Mui-error`, `ant-input-status-error`, `v-input--error`, `is-error`, `field-error`, `input-error`) with escaped regex word boundaries (`\\b`).
+- **Deterministic Rejection**: Updated `DOMDataMatcher.match()` in `services/dom_verifier.py` to immediately reject any field with `actual.get("is_invalid") is True`.
+- **Light DOM Scope Confinement**: Restricted sections 1–4 in `verify.py` so exact element matches (`exactEl` via `@fld-N` or `id`) never leak or search across unrelated page elements.
+- **Shadow DOM Bypass Elimination**: Confined Shadow DOM fallback in `services/field_interaction_service.py` to execute exclusively when elements are absent from the Light DOM, completely preventing Shadow DOM value reads from overriding Light DOM invalidation flags.
+- **Event-Driven Blur & Selection Verification**: Enforced `el.blur()` with a 200ms settling delay prior to physical verification in `field_interaction_service.py`, requiring `pick_res.get("success") == True` before confirming picklist values.
+
+#### 3. Complex Enterprise Picklists, Dynamic Pagination & Typeahead
+- **Linked Dropdown Resolution (`aria-owns` / `aria-controls`)**: Extracted and prioritized `owns_id` in `adapters/dom/inspection.py`, `services/inspection_service.py`, `adapters/dom/probe.py`, and `adapters/dom/picklist.py`, targeting linked picklist containers (e.g. `58:_listSelect` for `57:_input` in SAP SuccessFactors JUIC) and preventing random listbox selection.
+- **Server-Paginated Container Scrolling & Debounce**: Configured `scrollParent` and `searchRoot` in `picklist.py` and `probe.py` to target the scrollable container (`.globalMenu, .sf-combo-listselect, [onscroll]`), adding an async debounce delay (up to 900ms) at bottom scroll to allow AJAX pagination batches (`92:0`, `92:1`, etc.) to load.
+- **Server Live Filter Triggering**: Replaced instant value fills with sequential typing (`press_sequentially(..., delay=25)`) in `field_interaction_service.py` to reliably fire `onkeyup` events that activate server-side filtering (`setFilter("contains", value)`).
+- **Clean Single-Click Selection**: Replaced duplicate synthetic click dispatches with targeted `data-wp-pick-target="1"` selection in `picklist.py`.
+
+#### 4. Scoped Interactions & Dynamic Repeaters
+- **Guarded Dynamic Section Expansion**: Prevented speculative `+ Add` button clicks and empty required row generation in `services/field_interaction_service.py` and `services/form_application_pipeline.py` when target fields already exist in the DOM or local IDs (`@fld-N`, `@drop-N`) are provided.
+- **Two-Stage Exact Button Matching**: Separated button resolution in `services/reactive_interaction_service.py` and `adapters/dom/reactive.py` into Strategy B1 (exact text match via `button:text-is`) and Strategy B2 (partial match fallback), eliminating collisions like `Save` vs `Saved Applications (1)`.
+- **Scoped Button Dispatch & Icon Stripping**: Added support for hierarchical scoped button clicking (`--press "Section >> Button"`), local button IDs (`@btn-N`), and automatic PUA Unicode icon stripping (`[\uE000-\uF8FF]`).
+
+#### 5. Schema Deduplication, Error Detection & Server State Reload
+- **AJAX Re-render Deduplication**: Implemented `(local_id, label)` tracking in `services/schema_merger.py` to prune stale pre-render entries when SAP/SPAs regenerate field IDs on save.
+- **Visible Error Filtering**: Enhanced `validators/form_validator.py` with physical visibility checks (`isVis`) and semantic error text filtering, ignoring hidden notices, loading spinners, and upload success banners.
+- **Post-Action Accordion Expansion**: Added automatic section re-expansion (`expand_all_sections()`) in `supervisor/worker_handlers.py` following button presses and submissions.
+- **Full Server State Reload (`wp reload` / `--reload`)**: Introduced dedicated `wp reload` subcommand and `--reload` flag across CLI, contracts, context, and worker handlers with `wait_until="load"` and field readiness loops.
+
+#### 6. Test Suite Expansion & Validation
+- Added automated test cases for invalidity rejection, schema deduplication, and reload contracts in `tests/test_verification_settle.py` and `tests/test_find_and_unicode.py`, elevating the certified test suite to **79 passing tests (100%)**.
+
 ## [2.2.0] - 2026-10-12
 
 ### Added

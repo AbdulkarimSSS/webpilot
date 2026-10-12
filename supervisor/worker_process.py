@@ -96,14 +96,24 @@ class OperationalWorker:
             elif action == "switch_tab":
                 return self._handle_switch_tab(req)
 
-            elif action == "inspect":
+            elif action in ("inspect", "reload", "refresh"):
+                if action in ("reload", "refresh"):
+                    req.reload = True
                 return self._handle_inspect(req)
 
-            elif action == "apply":
+            elif action in ("apply", "apply_reload"):
+                if action == "apply_reload":
+                    req.reload = True
                 return self._handle_apply(req)
 
             elif action in ("probe", "find"):
                 return self._handle_probe(req)
+
+            elif action == "eval":
+                return self._handle_eval(req)
+
+            elif action == "eval_py":
+                return self._handle_eval_py(req)
 
             elif action in ("stop", "shutdown"):
                 self.shutdown()
@@ -196,6 +206,54 @@ class OperationalWorker:
 
     def _handle_apply(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         return handle_worker_apply(self, req)
+
+    def _handle_eval(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        assert coord.page is not None
+        try:
+            res = coord.page.evaluate(req.script or "", req.script_args)
+            return SupervisorActionResponse(
+                success=True,
+                action="eval",
+                message="Evaluated successfully",
+                reactive_event={"result": res},
+                active_url=coord.page.url,
+                active_title=coord.page.title(),
+            )
+        except Exception as exc:
+            return SupervisorActionResponse(
+                success=False,
+                action="eval",
+                message=str(exc),
+                active_url=coord.page.url if coord.page else "",
+                active_title=coord.page.title() if coord.page else "",
+            )
+
+    def _handle_eval_py(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        assert coord.page is not None
+        local_vars = {"page": coord.page, "context": coord.context, "coord": coord, "worker": self}
+        try:
+            exec(req.script or "", {}, local_vars)
+            res = local_vars.get("result")
+            return SupervisorActionResponse(
+                success=True,
+                action="eval_py",
+                message="Python executed successfully",
+                reactive_event={"result": res},
+                active_url=coord.page.url,
+                active_title=coord.page.title(),
+            )
+        except Exception as exc:
+            import traceback
+            tb = traceback.format_exc()
+            return SupervisorActionResponse(
+                success=False,
+                action="eval_py",
+                message=f"Error: {exc}\n{tb}",
+                active_url=coord.page.url if coord.page else "",
+                active_title=coord.page.title() if coord.page else "",
+            )
 
     def shutdown(self) -> None:
         """Terminates Playwright coordinator and all child browser tabs."""

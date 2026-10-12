@@ -20,6 +20,7 @@ class SchemaMerger:
             existing_by_id = {item.get("id"): item for item in old_items if item.get("id")}
             combined = []
             seen_ids = set()
+            seen_local_labels = set()
 
             for n in new_items:
                 nid = n.get("id")
@@ -29,10 +30,13 @@ class SchemaMerger:
                 combined.append(n)
                 if nid:
                     seen_ids.add(nid)
+                if n.get("local_id") and n.get("label") is not None:
+                    seen_local_labels.add((n.get("local_id"), n.get("label")))
 
             for o in old_items:
                 oid = o.get("id")
-                if oid and oid not in seen_ids:
+                o_pair = (o.get("local_id"), o.get("label")) if o.get("local_id") and o.get("label") is not None else None
+                if oid and oid not in seen_ids and (o_pair is None or o_pair not in seen_local_labels):
                     combined.append(o)
                     seen_ids.add(oid)
 

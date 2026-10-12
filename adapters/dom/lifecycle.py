@@ -2,9 +2,13 @@
 
 from typing import Final
 
-CHECK_FORM_LOADING_SCRIPT: Final[str] = (
-    "() => document.body.innerText.trim() === 'Loading...' || document.body.innerText.trim() === ''"
-)
+CHECK_FORM_LOADING_SCRIPT: Final[str] = """() => {
+    const text = (document.body && document.body.innerText) ? document.body.innerText.trim() : '';
+    if (!text || text === 'Loading...') return true;
+    const hasFormElements = document.querySelectorAll('input:not([type="hidden"]), select, textarea, .rcmFormSection, [role="combobox"], button[id*="expandAll" i]').length > 0;
+    if (!hasFormElements && (text.includes('Loading...') || document.querySelector('.loading, .spinner, [aria-busy="true"]'))) return true;
+    return false;
+}"""
 
 EXPAND_ALL_SECTIONS_SCRIPT: Final[str] = """() => {
     let count = 0;

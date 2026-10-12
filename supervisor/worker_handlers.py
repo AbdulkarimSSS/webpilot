@@ -41,9 +41,18 @@ def handle_worker_inspect(
     page = coord.page
     assert page is not None
 
+    lines: List[str] = []
     if req.url:
         coord.adapter.navigate(req.url)
         page = coord.page
+    elif getattr(req, "reload", False):
+        lines.append(f"[*] Hard-reloading active page from server: {page.url}")
+        page.reload(wait_until="load")
+        for _ in range(10):
+            if page.locator("input:not([type='hidden']), select, textarea, .rcmFormSection, [id*='expandAllSections']").count() > 0:
+                break
+            page.wait_for_timeout(250)
+        worker.cached_schema = None
 
     # Landing portal transition if needed
     lifecycle_cls = _resolve("PageLifecycleService", PageLifecycleService)
@@ -72,7 +81,7 @@ def handle_worker_inspect(
     inspection_cls = _resolve("InspectionService", InspectionService)
     inspection_svc = inspection_cls(page)
     schema = inspection_svc.inspect(unpack_options=req.unpack_options)
-    if worker.cached_schema and worker.cached_url == page.url:
+    if worker.cached_schema and worker.cached_url == page.url and not getattr(req, "reload", False):
         schema = worker._merge_schemas(worker.cached_schema, schema)
     worker.cached_schema = schema
     worker.cached_url = page.url
@@ -91,6 +100,7 @@ def handle_worker_inspect(
         active_title=page.title(),
         total_tabs=len(coord.context.pages) if coord.context else 0,
         schema=schema,
+        output_lines=lines,
     )
 
 
@@ -324,12 +334,33 @@ def handle_worker_apply(
     else:
         lines.append("[✓] Zero validation errors detected!")
 
+    if getattr(req, "reload", False):
+        try:
+            lines.append(f"[*] Hard-reloading active page from server: {page.url}")
+            page.reload(wait_until="load")
+            for _ in range(10):
+                if page.locator("input:not([type='hidden']), select, textarea, .rcmFormSection, [id*='expandAllSections']").count() > 0:
+                    break
+                page.wait_for_timeout(250)
+            worker.cached_schema = None
+            lifecycle_svc.wait_for_form_ready(worker.settings.form_ready_timeout_ms)
+            lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
+        except Exception as exc:
+            lines.append(f"[!] Warning during page reload: {exc}")
+
     schema = None
     if req.auto_inspect:
         try:
+            if (has_navigated or req.press_buttons or req.submit) and not getattr(req, "reload", False):
+                lifecycle_svc.wait_for_form_ready(worker.settings.form_ready_timeout_ms)
+                lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
             schema = inspection_svc.inspect(unpack_options=False)
+            if schema:
+                worker.cached_schema = schema
+                worker.cached_url = page.url
         except Exception:
             schema = None
+
 
     # Honesty contract: success requires zero failed fields, zero unconfirmed fields, and all requested button presses succeeding
     overall_success = (len(failed) == 0 and len(unconfirmed) == 0 and not press_failed and not submit_failed)

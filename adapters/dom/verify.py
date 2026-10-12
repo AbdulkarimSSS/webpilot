@@ -40,9 +40,29 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
 
     const junk = new Set(['login/ view profile', 'no selection', 'select', 'choose', '-- select --', '']);
 
+    function checkValidity(el) {
+        if (!el) return true;
+        if (el.getAttribute && (el.getAttribute('aria-invalid') === 'true' || el.getAttribute('data-invalid') === 'true' || el.getAttribute('data-error') === 'true')) return false;
+        try {
+            if (el.validity && el.validity.valid === false) return false;
+        } catch (e) {}
+        const errClsRe = /\\b(invalidInput|is-invalid|ng-invalid-server|Mui-error|ant-input-status-error|v-input--error|is-error|field-error|input-error)\\b/;
+        if (el.className && typeof el.className === 'string' && errClsRe.test(el.className)) return false;
+        const errMsgId = el.getAttribute ? (el.getAttribute('aria-errormessage') || '') : '';
+        if (errMsgId) {
+            const errEl = document.getElementById(errMsgId);
+            if (errEl && (errEl.innerText || errEl.textContent || '').trim().length > 0 && errEl.offsetWidth > 0) return false;
+        }
+        const container = el.closest ? el.closest('.has-error, .is-invalid, .invalid-feedback, .Mui-error, .ant-form-item-has-error, .v-input--error, .is-error, [aria-invalid="true"], [data-invalid="true"]') : null;
+        if (container && container !== el) {
+            return false;
+        }
+        return true;
+    }
+
     // 1. SELECT elements
     const selects = Array.from(document.querySelectorAll('select'));
-    const targetSelect = (exactEl && exactEl.tagName === 'SELECT') ? exactEl : selects.find(matchEl);
+    const targetSelect = exactEl ? (exactEl.tagName === 'SELECT' ? exactEl : null) : selects.find(matchEl);
     if (targetSelect) {
         if (targetSelect.multiple) {
             const selOpts = Array.from(targetSelect.selectedOptions);
@@ -53,7 +73,8 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
                 type: 'select',
                 multiple: true,
                 value: vals.join(','),
-                text: texts.join(',')
+                text: texts.join(','),
+                is_invalid: !checkValidity(targetSelect)
             };
         }
         const val = (targetSelect.value || '').trim();
@@ -63,17 +84,18 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
             found: true,
             type: 'select',
             value: val,
-            text: text
+            text: text,
+            is_invalid: !checkValidity(targetSelect)
         };
     }
 
     // 2. Combobox / Picklist / ARIA listbox
-    const picklistInputs = Array.from(document.querySelectorAll('input[role="combobox"], input[id$=":_input"], [role="combobox"]'));
-    const targetPick = (exactEl && picklistInputs.includes(exactEl)) ? exactEl : picklistInputs.find(matchEl);
+    const picklistInputs = Array.from(document.querySelectorAll('input[role="combobox"], input[id$=":_input"], [role="combobox"], .rcmpaginatedselectinput'));
+    const targetPick = exactEl ? (picklistInputs.includes(exactEl) ? exactEl : null) : picklistInputs.find(matchEl);
     if (targetPick) {
         const v = (targetPick.value || targetPick.innerText || targetPick.getAttribute('aria-valuenow') || '').trim();
         let listText = '';
-        const owns = targetPick.getAttribute('aria-owns');
+        const owns = targetPick.getAttribute('aria-owns') || targetPick.getAttribute('aria-controls');
         if (owns) {
             const list = document.getElementById(owns);
             if (list) {
@@ -85,23 +107,28 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
             found: true,
             type: 'picklist',
             value: v,
-            selected_text: listText
+            selected_text: listText,
+            is_invalid: !checkValidity(targetPick)
         };
     }
 
     // 3. Checkboxes & Switches
     const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"], [role="checkbox"], [role="switch"]'));
-    const targetCheckboxes = checkboxes.filter(c => matchEl(c) || (c.name && c.name.toLowerCase().includes(lower)));
-    if (targetCheckboxes.length > 1) {
-        const checkedVals = targetCheckboxes.filter(c => c.checked).map(c => (c.value || c.getAttribute('aria-label') || '').trim());
-        return {
-            found: true,
-            type: 'checkbox_group',
-            value: checkedVals.join(','),
-            count: checkedVals.length
-        };
+    if (!exactEl) {
+        const targetCheckboxes = checkboxes.filter(c => matchEl(c) || (c.name && c.name.toLowerCase().includes(lower)));
+        if (targetCheckboxes.length > 1) {
+            const checkedVals = targetCheckboxes.filter(c => c.checked).map(c => (c.value || c.getAttribute('aria-label') || '').trim());
+            return {
+                found: true,
+                type: 'checkbox_group',
+                value: checkedVals.join(','),
+                count: checkedVals.length
+            };
+        }
     }
-    const targetCheckbox = (exactEl && (exactEl.type === 'checkbox' || (exactEl.getAttribute && exactEl.getAttribute('role') === 'checkbox'))) ? exactEl : checkboxes.find(matchEl);
+    const targetCheckbox = exactEl
+        ? ((exactEl.type === 'checkbox' || (exactEl.getAttribute && ['checkbox', 'switch'].includes(exactEl.getAttribute('role')))) ? exactEl : null)
+        : checkboxes.find(matchEl);
     if (targetCheckbox) {
         const isChecked = targetCheckbox.checked === true ||
                           targetCheckbox.getAttribute('aria-checked') === 'true' ||
@@ -112,38 +139,47 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
             found: true,
             type: 'checkbox',
             checked: isChecked,
-            value: (targetCheckbox.value || '').trim()
+            value: (targetCheckbox.value || '').trim(),
+            is_invalid: !checkValidity(targetCheckbox)
         };
     }
 
     // 4. Radios & Radio Groups
     const radios = Array.from(document.querySelectorAll('input[type="radio"], [role="radio"]'));
-    const matchingRadios = radios.filter(r => matchEl(r) || (r.name && r.name.toLowerCase() === lower));
-    const targetRadio = (exactEl && (exactEl.type === 'radio' || (exactEl.getAttribute && exactEl.getAttribute('role') === 'radio'))) ? exactEl : (matchingRadios.find(r => r.checked) || matchingRadios[0]);
+    const matchingRadios = exactEl ? [] : radios.filter(r => matchEl(r) || (r.name && r.name.toLowerCase() === lower));
+    const targetRadio = exactEl
+        ? ((exactEl.type === 'radio' || (exactEl.getAttribute && exactEl.getAttribute('role') === 'radio')) ? exactEl : null)
+        : (matchingRadios.find(r => r.checked) || matchingRadios[0]);
     if (targetRadio) {
         const isChecked = targetRadio.checked === true || targetRadio.getAttribute('aria-checked') === 'true';
         return {
             found: true,
             type: 'radio',
             checked: isChecked,
-            value: (targetRadio.value || '').trim()
+            value: (targetRadio.value || '').trim(),
+            is_invalid: !checkValidity(targetRadio)
         };
     }
 
-    const groups = Array.from(document.querySelectorAll('[role="radiogroup"], .radioGroup, fieldset, .rcmFormQuestionElement'));
-    const grp = groups.find(matchEl);
-    if (grp) {
-        const checked = grp.querySelector('input[type="radio"]:checked, [role="radio"][aria-checked="true"], .radioCheck.checked, .globalRadio.selected');
-        if (checked) {
-            const val = checked.getAttribute('aria-label') || checked.value || (checked.parentElement ? checked.parentElement.innerText : '') || checked.innerText || 'checked';
-            return {
-                found: true,
-                type: 'radio_group',
-                value: val.trim()
-            };
+    if (!exactEl) {
+        const groups = Array.from(document.querySelectorAll('[role="radiogroup"], .radioGroup, fieldset, .rcmFormQuestionElement'))
+                            .filter(g => g.querySelector('input[type="radio"], [role="radio"], .radioCheck, .globalRadio'));
+        const grp = groups.find(matchEl);
+        if (grp) {
+            const checked = grp.querySelector('input[type="radio"]:checked, [role="radio"][aria-checked="true"], .radioCheck.checked, .globalRadio.selected');
+            if (checked) {
+                const val = checked.getAttribute('aria-label') || checked.value || (checked.parentElement ? checked.parentElement.innerText : '') || checked.innerText || 'checked';
+                return {
+                    found: true,
+                    type: 'radio_group',
+                    value: val.trim(),
+                    is_invalid: !checkValidity(grp)
+                };
+            }
+            return { found: true, type: 'radio_group', value: '', is_invalid: !checkValidity(grp) };
         }
-        return { found: true, type: 'radio_group', value: '' };
     }
+
 
     // 5. Standard Inputs & Textareas
     const textInputs = Array.from(document.querySelectorAll('input, textarea')).filter(i => {
@@ -170,7 +206,8 @@ VERIFY_FIELD_DOM_SCRIPT: Final[str] = """([target, expected]) => {
         return {
             found: true,
             type: targetText.tagName.toLowerCase(),
-            value: v
+            value: v,
+            is_invalid: !checkValidity(targetText)
         };
     }
 

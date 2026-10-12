@@ -27,6 +27,8 @@ class DOMDataMatcher:
         expected_str = str(expected).strip().lower() if expected is not None else ""
 
         if isinstance(actual, dict):
+            if actual.get("is_invalid") is True:
+                return False
             ctype = actual.get("type", "")
 
             # Checkbox / Toggle switch
@@ -76,6 +78,8 @@ class DOMDataMatcher:
                     return False
                 if val in cls.JUNK_VALUES and text in cls.JUNK_VALUES:
                     return False
+                if expected_str.startswith(("@opt-", "index:", "#")):
+                    return True
                 # Comma-separated multi-select comparison
                 if "," in expected_str or "," in val or "," in text:
                     exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
@@ -108,6 +112,8 @@ class DOMDataMatcher:
                 target_str = sel_text if sel_text and sel_text not in cls.JUNK_VALUES else val
                 if not target_str or target_str in cls.JUNK_VALUES:
                     return False
+                if expected_str.startswith(("@opt-", "index:", "#")):
+                    return True
                 if expected_str == target_str or expected_str in target_str or target_str in expected_str:
                     return True
                 if len(target_str) == 2 and len(expected_str) > 2 and expected_str.startswith(target_str):

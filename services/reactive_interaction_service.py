@@ -41,18 +41,55 @@ class ReactiveInteractionService:
 
         clicked = False
 
-        # Strategy A: Native ID
-        clean_id = target.lstrip("#")
-        try:
-            loc = self.page.locator(f"#{clean_id}")
-            if loc.count() > 0 and loc.first.is_visible(timeout=400):
-                loc.first.click(timeout=1000)
-                clicked = True
-        except Exception:
-            pass
+        is_scoped = ">>" in target
 
-        # Strategy B: Native Text / Role
-        if not clicked:
+        # Strategy A: LocalID (@btn-N) or Native ID ([id="..."])
+        if not is_scoped and target.startswith("@"):
+            try:
+                loc = self.page.locator(f'[data-wp-id="{target}"]')
+                if loc.count() > 0 and loc.first.is_visible(timeout=400):
+                    loc.first.scroll_into_view_if_needed()
+                    loc.first.click(timeout=1500)
+                    clicked = True
+            except Exception:
+                pass
+
+        if not is_scoped and not clicked:
+            clean_id = target.lstrip("#")
+            try:
+                for id_sel in (f'[id="{clean_id}"]', f"#{clean_id}"):
+                    loc = self.page.locator(id_sel)
+                    if loc.count() > 0 and loc.first.is_visible(timeout=400):
+                        loc.first.scroll_into_view_if_needed()
+                        loc.first.click(timeout=1500)
+                        clicked = True
+                        break
+            except Exception:
+                pass
+
+        # Strategy B1: Exact Native Text / Role match first (prevents 'Save' matching 'Saved Applications')
+        if not is_scoped and not clicked:
+            try:
+                for selector in [
+                    f"button:text-is('{target}')",
+                    f"a:text-is('{target}')",
+                    f"[role='button']:text-is('{target}')",
+                    f"button span:text-is('{target}')",
+                    f"a span:text-is('{target}')",
+                    f"input[type='submit'][value='{target}']",
+                    f"input[type='button'][value='{target}']",
+                ]:
+                    cand = self.page.locator(selector)
+                    if cand.count() > 0 and cand.first.is_visible(timeout=400):
+                        cand.first.scroll_into_view_if_needed()
+                        cand.first.click(timeout=1500)
+                        clicked = True
+                        break
+            except Exception:
+                pass
+
+        # Strategy B2: Substring Native Text / Role fallback
+        if not is_scoped and not clicked:
             try:
                 for selector in [
                     f"button:has-text('{target}')",
@@ -66,11 +103,13 @@ class ReactiveInteractionService:
                 ]:
                     cand = self.page.locator(selector)
                     if cand.count() > 0 and cand.first.is_visible(timeout=400):
-                        cand.first.click(timeout=1000)
+                        cand.first.scroll_into_view_if_needed()
+                        cand.first.click(timeout=1500)
                         clicked = True
                         break
             except Exception:
                 pass
+
 
         # Strategy C: JavaScript fallback
         if not clicked:

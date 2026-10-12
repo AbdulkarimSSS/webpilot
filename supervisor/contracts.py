@@ -28,6 +28,9 @@ class SupervisorActionRequest:
     include_options: bool = True
     include_html: bool = False
     query: Optional[str] = None
+    reload: bool = False
+    script: Optional[str] = None
+    script_args: Optional[Any] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

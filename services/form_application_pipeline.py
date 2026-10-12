@@ -111,15 +111,19 @@ class FormApplicationPipeline:
                         success = field_svc.set_field(key, val)
 
                 if not success:
-                    try:
-                        el_exists = page.evaluate(
-                            "([k]) => !!(document.getElementById(k) || document.querySelector('[id=\"' + k + '\"]') || document.querySelector('label[for=\"' + k + '\"]'))",
-                            [key],
-                        )
-                    except Exception:
-                        el_exists = False
+                    failure_reason = str(getattr(field_svc, "last_failure_reason", "") or "")
+                    is_missing_element = failure_reason in ("", "No matching element found") and not key.startswith("@")
+                    el_exists = True
+                    if is_missing_element:
+                        try:
+                            el_exists = page.evaluate(
+                                "([k]) => !!(document.getElementById(k) || document.querySelector('[data-wp-id=\"' + k + '\"]') || document.querySelector('[id=\"' + k + '\"]') || document.querySelector('label[for=\"' + k + '\"]'))",
+                                [key],
+                            )
+                        except Exception:
+                            el_exists = False
 
-                    dyn_res = getattr(field_svc, "expand_dynamic_section", None) if not el_exists else None
+                    dyn_res = getattr(field_svc, "expand_dynamic_section", None) if (is_missing_element and not el_exists) else None
                     if callable(dyn_res):
                         res = dyn_res(key, val)
                         if isinstance(res, tuple) and len(res) == 2:
@@ -128,6 +132,7 @@ class FormApplicationPipeline:
                             success, btn_label = bool(res), None
                         if success and btn_label:
                             lines.append(f"  [+] Dynamically expanded section via '{btn_label}'")
+
 
                 if success:
                     clean_key = getattr(field_svc, "parse_target_descriptor", lambda k: (None, k, None))(key)[1]

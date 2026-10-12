@@ -38,6 +38,7 @@ class InspectionRequestContext:
     list_tabs: bool = False
     tab_index: Optional[int] = None
     timeout_minutes: Optional[int] = 30
+    reload: bool = False
 
 
 @dataclass
@@ -61,6 +62,7 @@ class ApplyRequestContext:
     tab_index: Optional[int] = None
     timeout_minutes: Optional[int] = 30
     auto_inspect: bool = True
+    reload: bool = False
 
 
 __all__ = [

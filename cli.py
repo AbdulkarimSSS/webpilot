@@ -59,6 +59,8 @@ except ImportError:
 
 DISPATCH_TABLE = {
     "inspect": inspect_cmd,
+    "reload": inspect_cmd,
+    "refresh": inspect_cmd,
     "apply": apply_cmd,
     "find": find_cmd,
     "probe": find_cmd,

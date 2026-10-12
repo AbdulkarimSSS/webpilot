@@ -148,6 +148,7 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
             local_id: localId,
             id: pi.id,
             trigger_id: btn ? btn.id : '',
+            owns_id: pi.getAttribute('aria-owns') || pi.getAttribute('aria-controls') || '',
             label: lbl,
             type: 'picklist',
             required: isRequired(pi, lbl),
@@ -283,8 +284,9 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
 
 PROBE_PICKLIST_OPTIONS_SCRIPT: Final[str] = """(ownsId) => {
     let container = ownsId ? document.getElementById(ownsId) : null;
-    if (!container) container = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist');
-    const scope = container || document;
-    const items = Array.from(scope.querySelectorAll('.globalMenuItem, li, [role="option"]'));
-    return items.map(i => (i.innerText || '').trim()).filter(t => t.length > 0 && !t.includes('Loading') && !t.includes('Press Up'));
+    if (!container && !ownsId) container = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"])');
+    if (!container) return [];
+    const rawItems = Array.from(container.querySelectorAll('.globalMenuItem, a, li, [role="option"], [class*="selectItem"]'));
+    const items = rawItems.filter(el => !rawItems.some(other => other !== el && el.contains(other)));
+    return items.map(i => (i.getAttribute('title') || i.innerText || i.textContent || '').trim()).filter(t => t.length > 0 && !t.includes('Loading') && !t.includes('Press Up'));
 }"""

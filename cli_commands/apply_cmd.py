@@ -56,6 +56,7 @@ def apply_cmd(args: argparse.Namespace) -> None:
             tab_index=args.tab,
             timeout_minutes=args.timeout_minutes,
             auto_inspect=auto_inspect,
+            reload=bool(getattr(args, "reload", False)),
         )
         FlowOrchestrator.execute_apply_flow(req)
         return
@@ -81,8 +82,9 @@ def apply_cmd(args: argparse.Namespace) -> None:
         print("═" * 70 + "\n")
         return
 
+    do_reload = bool(getattr(args, "reload", False))
     req = SupervisorActionRequest(
-        action="apply",
+        action="apply_reload" if do_reload else "apply",
         url=args.url,
         data_path=effective_data_path,
         fill_arguments=effective_fill_args,
@@ -95,6 +97,7 @@ def apply_cmd(args: argparse.Namespace) -> None:
         auto_inspect=auto_inspect,
         tab_index=args.tab,
         timeout_minutes=args.timeout_minutes,
+        reload=do_reload,
     )
     resp = client.execute(req)
     print_telemetry_banner(resp)

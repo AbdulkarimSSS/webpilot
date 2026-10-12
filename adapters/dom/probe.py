@@ -77,22 +77,38 @@ PROBE_FIELD_DOM_SCRIPT: Final[str] = """([target, includeOptions = false, queryF
             }));
         } else if (widgetType === 'picklist') {
             const baseId = el.id ? el.id.replace(':_input', '') : '';
-            const listId = baseId ? baseId + ':_listSelect' : '';
-            let list = listId ? document.getElementById(listId) : null;
-            if (!list) list = document.querySelector('[role="listbox"], .rcmpaginatedselectlist, .globalMenu');
+            const owns = el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '';
+            let list = owns ? document.getElementById(owns) : null;
+            if (!list && baseId) list = document.getElementById(baseId + ':_listSelect');
+            if (!list && !owns) list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"])');
             if (list) {
-                const items = Array.from(list.querySelectorAll('a, li, [role="option"], .globalMenuItem, .picklistOption'));
+                const searchRoot = list.closest('.globalMenu, .sf-combo-listselect') || list;
+                const rawItems = Array.from(searchRoot.querySelectorAll('a, li, [role="option"], [role="menuitem"], .globalMenuItem, .picklistOption, .rcmpaginatedselectitem, [class*="selectItem"]'));
+                // Deduplicate wrapper elements (e.g. keep inner <a> if wrapped by <li>)
+                const items = rawItems.filter(item => !rawItems.some(other => other !== item && item.contains(other)));
                 optionsList = items.map((i, idx) => ({
                     local_id: '@opt-' + (idx + 1),
-                    text: (i.getAttribute('title') || i.innerText || '').trim(),
+                    text: (i.getAttribute('title') || i.innerText || i.textContent || '').trim(),
                     value: (i.getAttribute('data-value') || i.value || '').trim(),
                     id: i.id || ''
-                })).filter(x => x.text.length > 0 && !x.text.includes('Loading'));
+                })).filter(x => x.text.length > 0 && !x.text.includes('Loading') && !x.text.includes('Press Up'));
             }
         }
         if (queryFilter) {
             const q = queryFilter.toLowerCase();
             optionsList = optionsList.filter(o => o.text.toLowerCase().includes(q) || (o.value && o.value.toLowerCase().includes(q)) || (o.local_id && o.local_id.toLowerCase().includes(q)));
+        }
+    }
+
+    const trigBtn = el.id && el.id.endsWith(':_input') ? document.getElementById(el.id.replace(':_input', ':_selectButton')) : null;
+
+    let htmlOut = undefined;
+    if (includeHtml) {
+        htmlOut = el.outerHTML || '';
+        const ownsId = el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '';
+        const listEl = ownsId ? document.getElementById(ownsId) : null;
+        if (listEl && listEl.outerHTML) {
+            htmlOut += '\\n<!-- LIST_HTML -->\\n' + listEl.outerHTML.slice(0, 1200);
         }
     }
 
@@ -109,10 +125,13 @@ PROBE_FIELD_DOM_SCRIPT: Final[str] = """([target, includeOptions = false, queryF
         required: el.required || el.getAttribute('aria-required') === 'true',
         disabled: el.disabled || el.getAttribute('aria-disabled') === 'true',
         visible: el.offsetParent !== null,
+        trigger_button: trigBtn ? trigBtn.id : null,
+        owns_id: el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '',
         options_count: optionsList.length,
         options: optionsList,
-        outerHTML: includeHtml ? (el.outerHTML || '') : undefined,
-        html: includeHtml ? (el.outerHTML || '') : undefined
+        outerHTML: htmlOut,
+        html: htmlOut
     };
 }"""
+
 

@@ -17,12 +17,29 @@ class FormValidator:
 
         def _do_eval():
             return self.page.evaluate("""(selector) => {
-                const errorNodes = Array.from(document.querySelectorAll(selector));
-                const texts = errorNodes.map(e => e.innerText.trim()).filter(t => t.length > 0);
+                const isVis = (el) => {
+                    let cur = el;
+                    while (cur && cur !== document.body) {
+                        if (cur.hasAttribute && (cur.hasAttribute('hidden') || cur.getAttribute('aria-hidden') === 'true')) return false;
+                        const st = window.getComputedStyle(cur);
+                        if (st && (st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0')) return false;
+                        cur = cur.parentElement;
+                    }
+                    return true;
+                };
+                const isRealErrorText = (t) => {
+                    const clean = t.replace(/[\\uE000-\\uF8FF]/g, '').trim();
+                    if (!clean) return false;
+                    const low = clean.toLowerCase();
+                    if (low === 'loading...' || low === 'uploading...' || low.includes('successfully')) return false;
+                    return true;
+                };
+                const errorNodes = Array.from(document.querySelectorAll(selector)).filter(isVis);
+                const texts = errorNodes.map(e => (e.innerText || e.textContent || '').trim()).filter(isRealErrorText);
 
-                // Also inspect lines starting with error glyphs
-                const bodyLines = document.body.innerText.split('\\n').map(l => l.trim());
-                const errLines = bodyLines.filter(l => l.includes('is required') || l.includes('Please correct the errors'));
+                // Also inspect visible lines starting with error keywords
+                const bodyLines = (document.body.innerText || '').split('\\n').map(l => l.trim());
+                const errLines = bodyLines.filter(l => (l.includes('is required') || l.includes('Please correct the errors')) && isRealErrorText(l));
                 return Array.from(new Set([...texts, ...errLines]));
             }""", SELECTOR_VALIDATION_ERRORS)
 

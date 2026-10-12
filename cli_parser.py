@@ -68,6 +68,12 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="Inactivity timeout in minutes (default: 30, 0 = disable)",
     )
     p_inspect.add_argument(
+        "--reload",
+        "--refresh",
+        action="store_true",
+        help="Hard-reload active page from server before inspecting",
+    )
+    p_inspect.add_argument(
         "--standalone",
         action="store_true",
         help="Run in-process via FlowOrchestrator instead of Master Supervisor",
@@ -108,6 +114,12 @@ def build_cli_parser() -> argparse.ArgumentParser:
     )
     p_apply.add_argument("--cookies", help="Path to cookies JSON file")
     p_apply.add_argument("--submit", action="store_true", help="Click Apply/Submit after filling")
+    p_apply.add_argument(
+        "--reload",
+        "--refresh",
+        action="store_true",
+        help="Hard-reload active page from server (after actions if any, or immediately)",
+    )
     p_apply.add_argument("--screenshot", help="Path to save screenshot")
     p_apply.add_argument("--headed", action="store_true", help="Run headed browser")
     p_apply.add_argument(
@@ -229,5 +241,31 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_find.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_find.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_find.add_argument("--token", help="Explicit Master Supervisor authentication token")
+
+    # 8. Reload Subcommand
+    p_reload = subparsers.add_parser(
+        "reload",
+        aliases=["refresh"],
+        help="Hard-reload the active page from the server and inspect updated form state",
+    )
+    p_reload.add_argument("--url", nargs="?", default=None, help="Optional target URL")
+    p_reload.add_argument("--cookies", help="Path to cookies JSON file")
+    p_reload.add_argument("--output", help="Path to save full inspection JSON schema")
+    p_reload.add_argument("--screenshot", help="Path to save visual screenshot")
+    p_reload.add_argument("--unpack-options", action="store_true", help="Probe dropdowns to sample options")
+    p_reload.add_argument("--headed", action="store_true", help="Run headed browser")
+    p_reload.add_argument("--keep-alive", action="store_true", help="Keep browser open")
+    p_reload.add_argument("--close-session", action="store_true", help="Terminate active session")
+    p_reload.add_argument("--list-tabs", action="store_true", help="List open tabs")
+    p_reload.add_argument("--tab", type=int, default=None, help="Target specific tab by index (0-based)")
+    p_reload.add_argument("--timeout-minutes", type=int, default=30, help="Inactivity timeout in minutes")
+    p_reload.add_argument("--standalone", action="store_true", help="Run in-process")
+    p_reload.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_reload.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_reload.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    p_reload.add_argument("--config", help="Path to custom settings.json configuration file")
+    p_reload.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
+    p_reload.add_argument("--env-file", help="Path to custom .env file")
+    p_reload.set_defaults(reload=True)
 
     return parser

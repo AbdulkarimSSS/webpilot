@@ -26,6 +26,7 @@ class FieldInteractionService:
 
     def expand_dynamic_section(self, target_identifier: str, value: Any) -> Tuple[bool, Optional[str]]:
         """Handles dynamic repeating sections by finding and clicking 'Add' buttons to spawn missing inputs."""
+        _, clean_target, scoped_parent = self.parse_target_descriptor(target_identifier)
         add_selectors = [
             '[id$="_addRowBtn"]',
             '[class*="addRowBtn" i]',
@@ -52,6 +53,21 @@ class FieldInteractionService:
                     btn_id = (btn.get_attribute("id") or "").lower()
                     if "address" in btn_id or "address" in btn_text.lower():
                         continue
+                    # Only click Add if the enclosing section has 0 visible inputs or matches scoped_parent
+                    should_click = btn.evaluate(
+                        """(el, scope) => {
+                            const sec = el.closest('.rcmFormSection, [class*="rcmFormSection"], fieldset, section, .form-section');
+                            if (!sec) return true;
+                            if (scope) {
+                                return (sec.innerText || '').toLowerCase().includes(scope.toLowerCase());
+                            }
+                            const existingInputs = sec.querySelectorAll('input:not([type="hidden"]):not([type="button"]), select, textarea');
+                            return existingInputs.length === 0;
+                        }""",
+                        scoped_parent or "",
+                    )
+                    if not should_click:
+                        continue
                     btn.click(timeout=1000)
                     self.page.wait_for_timeout(300)
                     if self.page.url != orig_url:
@@ -61,6 +77,7 @@ class FieldInteractionService:
                 except Exception:
                     pass
         return False, None
+
 
     @staticmethod
     def parse_target_descriptor(target: str) -> Tuple[Optional[str], str, Optional[str]]:
@@ -142,14 +159,39 @@ class FieldInteractionService:
                     if is_vis:
                         btn_loc.scroll_into_view_if_needed()
                         btn_loc.click(force=True)
-                        self.page.wait_for_timeout(350)
 
-                        pick_res = self.page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, [inp_id, value])
+                        pick_res = None
+                        for poll_idx in range(16):
+                            self.page.wait_for_timeout(150)
+                            pick_res = self.page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, [inp_id, value])
+                            if pick_res.get("success"):
+                                break
+                            if pick_res.get("reason") not in ("list_not_ready",):
+                                break
+
                         if debug_lines is not None:
                             debug_lines.append(f"    [debug] pick_res={pick_res}")
-                        if pick_res.get("success"):
+
+                        if pick_res and pick_res.get("success"):
+                            try:
+                                tagged_opt = self.page.locator('[data-wp-pick-target="1"]')
+                                if tagged_opt.count() > 0 and tagged_opt.first.is_visible(timeout=200):
+                                    tagged_opt.first.click(force=True)
+                                    if debug_lines is not None:
+                                        debug_lines.append("    [debug] Dispatched native Playwright click on [data-wp-pick-target='1']")
+                            except Exception:
+                                pass
+                            self.page.evaluate(
+                                "([id]) => { const el = document.getElementById(id); if (el) { el.blur(); el.dispatchEvent(new Event('blur', { bubbles: true })); } }",
+                                [inp_id],
+                            )
                             self.page.wait_for_timeout(200)
-                            return True
+                            selected_text = pick_res.get("text")
+                            check_val = selected_text if selected_text and not str(value).startswith("@opt-") else (selected_text or value)
+                            if self.verify_field_value(inp_id, check_val, settle_delay_ms=100):
+                                return True
+                            if self.verify_field_value(inp_id, value, settle_delay_ms=100):
+                                return True
                         else:
                             self.page.keyboard.press("Escape")
                             self.page.wait_for_timeout(PAUSE_PICKLIST_CLOSE_MS)
@@ -158,7 +200,7 @@ class FieldInteractionService:
                         debug_lines.append(f"    [debug] Picklist click error: {exc}")
 
             # 2. Second attempt: type directly into input to trigger autocomplete filter
-            if inp_id:
+            if inp_id and not str(value).startswith(("@opt-", "index:", "#")):
                 try:
                     inp_loc = self.page.locator(f'[id="{inp_id}"]').first
                     inp_vis = inp_loc.is_visible(timeout=1500)
@@ -167,45 +209,50 @@ class FieldInteractionService:
                     if inp_vis:
                         inp_loc.scroll_into_view_if_needed()
                         inp_loc.click(force=True)
-                        inp_loc.fill(str(value))
-                        self.page.wait_for_timeout(200)
-                        self.page.keyboard.press("Enter")
-                        self.page.wait_for_timeout(200)
+                        inp_loc.fill("")
+                        inp_loc.press_sequentially(str(value), delay=25)
 
-                        if self.verify_field_value(inp_id, value, settle_delay_ms=20):
-                            if debug_lines is not None:
-                                debug_lines.append(f"    [debug] Verified '{inp_id}' directly after fill & Enter")
-                            return True
+                        pick_res = None
+                        for _ in range(14):
+                            self.page.wait_for_timeout(150)
+                            pick_res = self.page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, [inp_id, value])
+                            if pick_res.get("success"):
+                                break
+                            if pick_res.get("reason") not in ("list_not_ready",):
+                                break
 
-                        # Check if any matching option appeared in DOM
-                        safe_val = self._escape_css_attr(str(value))
-                        for opt_sel in [
-                            f'[role="option"]:has-text("{safe_val}")',
-                            f'[role="menuitem"]:has-text("{safe_val}")',
-                            f'.globalMenuItem:has-text("{safe_val}")',
-                            f'.picklistOption:has-text("{safe_val}")',
-                            f'[class*="selectListOption"]:has-text("{safe_val}")',
-                        ]:
+                        if debug_lines is not None:
+                            debug_lines.append(f"    [debug] inp pick_res={pick_res}")
+
+                        if pick_res and pick_res.get("success"):
                             try:
-                                opt = self.page.locator(opt_sel)
-                                if opt.count() > 0 and opt.first.is_visible(timeout=500):
-                                    opt.first.click(force=True)
-                                    self.page.wait_for_timeout(200)
+                                tagged_opt = self.page.locator('[data-wp-pick-target="1"]')
+                                if tagged_opt.count() > 0 and tagged_opt.first.is_visible(timeout=200):
+                                    tagged_opt.first.click(force=True)
                                     if debug_lines is not None:
-                                        debug_lines.append(f"    [debug] Clicked matching option via selector: {opt_sel}")
-                                    return True
+                                        debug_lines.append("    [debug] Clicked filtered option via [data-wp-pick-target='1']")
                             except Exception:
                                 pass
 
-                        pick_res = self.page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, [inp_id, value])
-                        if debug_lines is not None:
-                            debug_lines.append(f"    [debug] inp pick_res={pick_res}")
-                        if pick_res.get("success"):
+                            self.page.evaluate(
+                                "([id]) => { const el = document.getElementById(id); if (el) { el.blur(); el.dispatchEvent(new Event('blur', { bubbles: true })); } }",
+                                [inp_id],
+                            )
                             self.page.wait_for_timeout(200)
-                            return True
 
-                        if self.verify_field_value(inp_id, value, settle_delay_ms=20):
-                            return True
+                            selected_text = pick_res.get("text")
+                            check_val = selected_text or value
+                            if self.verify_field_value(inp_id, check_val, settle_delay_ms=100) or self.verify_field_value(inp_id, value, settle_delay_ms=100):
+                                if debug_lines is not None:
+                                    debug_lines.append(f"    [debug] Verified '{inp_id}' directly after fill & option click")
+                                return True
+                        else:
+                            self.page.keyboard.press("Escape")
+                            self.page.evaluate(
+                                "([id]) => { const el = document.getElementById(id); if (el) { el.blur(); el.dispatchEvent(new Event('blur', { bubbles: true })); } }",
+                                [inp_id],
+                            )
+                            self.page.wait_for_timeout(PAUSE_PICKLIST_CLOSE_MS)
                 except Exception as exc:
                     if debug_lines is not None:
                         debug_lines.append(f"    [debug] Picklist input type error: {exc}")
@@ -238,18 +285,18 @@ class FieldInteractionService:
             if actual and actual.get("found"):
                 if self._match_actual_dom_data(actual, expected):
                     return True
-
-            # Shadow DOM fallback: check Playwright locator which pierces open Shadow DOM
-            try:
-                safe_t = self._escape_css_attr(target)
-                for shadow_sel in [f'#{safe_t}', f'input[name="{safe_t}"]', f'textarea[name="{safe_t}"]']:
-                    loc = self.page.locator(shadow_sel)
-                    if loc.count() > 0:
-                        v = loc.first.input_value()
-                        if self._match_actual_dom_data(v, expected):
-                            return True
-            except Exception:
-                pass
+            else:
+                # Shadow DOM fallback: only when element was NOT found in light DOM
+                try:
+                    safe_t = self._escape_css_attr(target)
+                    for shadow_sel in [f'#{safe_t}', f'input[name="{safe_t}"]', f'textarea[name="{safe_t}"]']:
+                        loc = self.page.locator(shadow_sel)
+                        if loc.count() > 0:
+                            v = loc.first.input_value()
+                            if self._match_actual_dom_data(v, expected):
+                                return True
+                except Exception:
+                    pass
 
             # If first read was negative, allow a brief settle pause for async frameworks (React/Vue/Angular)
             if settle_delay_ms > 0:
@@ -270,9 +317,58 @@ class FieldInteractionService:
     ) -> Optional[Dict[str, Any]]:
         """Probes a specific form field or picklist and retrieves deep diagnostic metadata."""
         try:
-            return self.page.evaluate(
+            details = self.page.evaluate(
                 PROBE_FIELD_DOM_SCRIPT,
                 [target, include_options, query or "", include_html],
             )
+            if details and details.get("found"):
+                # If picklist options were requested but list is not loaded yet in DOM
+                if include_options and details.get("type") == "picklist" and not details.get("options"):
+                    trig_id = details.get("trigger_button")
+                    inp_id = details.get("id")
+                    orig_val = details.get("value") or ""
+                    if trig_id and self.page.locator(f'[id="{trig_id}"]').count() > 0:
+                        btn = self.page.locator(f'[id="{trig_id}"]').first
+                        if btn.is_visible(timeout=500):
+                            btn.scroll_into_view_if_needed()
+                            btn.click(force=True)
+                            for _ in range(10):
+                                self.page.wait_for_timeout(150)
+                                retry_details = self.page.evaluate(
+                                    PROBE_FIELD_DOM_SCRIPT,
+                                    [target, include_options, query or "", include_html],
+                                )
+                                if retry_details and retry_details.get("options"):
+                                    details = retry_details
+                                    break
+                            self.page.keyboard.press("Escape")
+                            self.page.wait_for_timeout(100)
+                    # If query filter is active and option is on a later server-paginated page, type query to filter
+                    if query and not details.get("options") and inp_id and self.page.locator(f'[id="{inp_id}"]').count() > 0:
+                        inp_loc = self.page.locator(f'[id="{inp_id}"]').first
+                        if inp_loc.is_visible(timeout=500):
+                            inp_loc.scroll_into_view_if_needed()
+                            inp_loc.click(force=True)
+                            inp_loc.fill("")
+                            inp_loc.press_sequentially(str(query), delay=25)
+                            for _ in range(12):
+                                self.page.wait_for_timeout(150)
+                                retry_details = self.page.evaluate(
+                                    PROBE_FIELD_DOM_SCRIPT,
+                                    [target, include_options, query or "", include_html],
+                                )
+                                if retry_details and retry_details.get("options"):
+                                    details = retry_details
+                                    details["value"] = orig_val
+                                    break
+                            self.page.keyboard.press("Escape")
+                            inp_loc.fill(orig_val)
+                            self.page.evaluate(
+                                "([id]) => { const el = document.getElementById(id); if (el) { el.blur(); el.dispatchEvent(new Event('blur', { bubbles: true })); } }",
+                                [inp_id],
+                            )
+                            self.page.wait_for_timeout(100)
+            return details
         except Exception:
             return None
+

@@ -289,3 +289,8 @@ __all__ = [
     "run_master_daemon",
     "log_daemon",
 ]
+
+
+if __name__ == "__main__":
+    run_master_daemon()
+

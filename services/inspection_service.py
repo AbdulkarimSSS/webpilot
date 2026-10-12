@@ -55,7 +55,7 @@ class InspectionService:
                             btn_loc.click(force=True)
                             self.page.wait_for_timeout(300)
                             base_id = dd["id"].replace(":_input", "")
-                            owns_id = f"{base_id}:_listSelect"
+                            owns_id = dd.get("owns_id") or f"{base_id}:_listSelect"
                             opts = self.page.evaluate(PROBE_PICKLIST_OPTIONS_SCRIPT, owns_id)
                             if opts:
                                 dd["options_count"] = len(opts)

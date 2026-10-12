@@ -5,19 +5,23 @@ from typing import Final
 PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
     const input = inpId ? document.getElementById(inpId) : null;
     let list = null;
-    if (input) {
-        const owns = input.getAttribute('aria-owns');
-        if (owns) list = document.getElementById(owns);
-        if (!list && inpId.includes(':_input')) {
-            const listId = inpId.replace(':_input', ':_listSelect');
-            list = document.getElementById(listId);
-        }
+    const owns = input ? (input.getAttribute('aria-owns') || input.getAttribute('aria-controls')) : null;
+    if (owns) {
+        list = document.getElementById(owns);
+    }
+    if (!list && input && inpId.includes(':_input')) {
+        const listId = inpId.replace(':_input', ':_listSelect');
+        list = document.getElementById(listId);
+    }
+    // Only fallback to generic listbox if input did NOT explicitly define aria-owns
+    if (!list && input && !owns) {
+        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"]), [class*="listSelect"]:not([style*="display: none"])');
+    }
+    if (!list && !input) {
+        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"])') || document;
     }
     if (!list) {
-        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"]), [class*="listSelect"]:not([style*="display: none"]), [id$=":_listSelect"]');
-    }
-    if (!list) {
-        list = document;
+        return { success: false, reason: 'list_not_ready' };
     }
 
     let mode = 'smart';
@@ -35,10 +39,26 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
         try { targetRegex = new RegExp(rawTarget, 'i'); } catch(e){}
     }
     const targetIdx = mode === 'index' ? parseInt(rawTarget, 10) : null;
-    const scrollParent = list !== document ? (list.closest('.scroll, .scrolling, div[style*="overflow"], div[style*="auto"]') || list.parentElement) : null;
+    const scrollParent = list !== document
+        ? (list.closest('.globalMenu, .sf-combo-listselect, [onscroll], .scroll, .scrolling, div[style*="overflow"], div[style*="auto"]')
+           || (list.scrollHeight > list.clientHeight ? list : list.parentElement))
+        : null;
+    const searchRoot = (scrollParent && scrollParent.contains(list)) ? scrollParent : list;
+    const isPaginatedMenu = !!(scrollParent && (scrollParent.classList.contains('sf-combo-listselect') || scrollParent.querySelector('.scrolling-page, .fetch-page-in-order')));
 
-    for (let scrollStep = 0; scrollStep < 25; scrollStep++) {
-        const items = Array.from(list.querySelectorAll('a, li, [role="option"], .globalMenuItem, .picklistOption, [class*="selectListOption"], tr.dataRow, td[title]'));
+    for (let scrollStep = 0; scrollStep < 35; scrollStep++) {
+        const rawItems = Array.from(searchRoot.querySelectorAll('a, li, [role="option"], [role="menuitem"], .globalMenuItem, .picklistOption, .rcmpaginatedselectitem, [class*="selectListOption"], [class*="selectItem"], tr.dataRow, td[title]'));
+        // Deduplicate wrapper elements (e.g. keep inner <a> if wrapped by <li>)
+        const items = rawItems.filter(el => !rawItems.some(other => other !== el && el.contains(other)))
+                              .filter(el => {
+                                  const t = (el.innerText || el.textContent || '').trim();
+                                  return t.length > 0 && !t.includes('Loading') && !t.includes('Press Up');
+                              });
+
+        if (items.length === 0) {
+            return { success: false, reason: 'list_not_ready' };
+        }
+
         let match = null;
 
         if (mode === 'index') {
@@ -82,25 +102,50 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
         }
 
         if (match) {
-            try { match.dispatchEvent(new Event('mousedown', { bubbles: true })); } catch (e) {}
+            try {
+                document.querySelectorAll('[data-wp-pick-target]').forEach(el => el.removeAttribute('data-wp-pick-target'));
+                match.setAttribute('data-wp-pick-target', '1');
+                if (match.scrollIntoView) match.scrollIntoView({ block: 'nearest' });
+            } catch (e) {}
+            try { match.focus(); } catch (e) {}
+            try { match.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window })); } catch (e) {}
             match.click();
-            try { match.dispatchEvent(new Event('mouseup', { bubbles: true })); } catch (e) {}
-            return { success: true, text: match.getAttribute('title') || match.innerText || match.textContent };
+            try { match.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window })); } catch (e) {}
+            return { success: true, text: (match.getAttribute('title') || match.innerText || match.textContent || '').trim() };
         }
 
         if (scrollParent && scrollParent.scrollHeight > scrollParent.clientHeight) {
             const prevTop = scrollParent.scrollTop;
-            scrollParent.scrollTop += 350;
-            scrollParent.dispatchEvent(new Event('scroll', { bubbles: true }));
-            if (scrollParent.scrollTop === prevTop) {
-                break;
+            const prevSh = scrollParent.scrollHeight;
+            const prevCount = items.length;
+            if (isPaginatedMenu) {
+                scrollParent.scrollTop = scrollParent.scrollHeight;
+            } else {
+                scrollParent.scrollTop += 350;
             }
-            await new Promise(r => setTimeout(r, 80));
+            scrollParent.dispatchEvent(new Event('scroll', { bubbles: true }));
+            if (scrollParent.scrollTop === prevTop || isPaginatedMenu) {
+                // Wait up to 900ms for AJAX pagination to append new items or increase scrollHeight
+                let loadedMore = false;
+                for (let w = 0; w < 9; w++) {
+                    await new Promise(r => setTimeout(r, 100));
+                    const curCount = searchRoot.querySelectorAll('li, [role="option"], .globalMenuItem, .picklistOption').length;
+                    if (scrollParent.scrollHeight > prevSh || curCount > prevCount) {
+                        loadedMore = true;
+                        break;
+                    }
+                }
+                if (!loadedMore && scrollParent.scrollTop === prevTop) {
+                    break;
+                }
+            } else {
+                await new Promise(r => setTimeout(r, 80));
+            }
         } else {
             break;
         }
     }
 
-    return { success: false, reason: 'not found' };
+    return { success: false, reason: 'not_found' };
 }"""
 

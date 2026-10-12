@@ -41,6 +41,13 @@ def test_field_interaction_service_matching_logic():
     assert svc._match_actual_dom_data({"type": "input", "value": "Alice"}, "AliceNakamura") is False
     assert svc._match_actual_dom_data({"type": "input", "value": "$1,234.56"}, "1234.56") is True
 
+    # 6. Strict Truth Barrier: rejection when element has is_invalid flag
+    assert svc._match_actual_dom_data({"type": "input", "value": "invalid_val", "is_invalid": True}, "invalid_val") is False
+    assert svc._match_actual_dom_data({"type": "select", "value": "CA", "is_invalid": True}, "CA") is False
+    assert svc._match_actual_dom_data({"type": "picklist", "value": "Mr.", "is_invalid": True}, "Mr.") is False
+    assert svc._match_actual_dom_data({"type": "picklist", "value": "Mr.", "selected_text": "Mr."}, "@opt-1") is True
+
+
 
 def test_pre_submit_barrier_catches_delayed_silent_revert(monkeypatch):
     """Verify that a delayed revert (e.g. S44) is caught by pre-submit verification pass."""

@@ -160,3 +160,50 @@ def test_failure_reasons_audit():
     assert res is False
     assert "disabled" in svc.last_failure_reason.lower()
 
+
+def test_worker_schema_merge_ajax_rerender_dedup():
+    """Verify that SchemaMerger replaces stale pre-rerender DOM IDs when (local_id, label) match."""
+    from supervisor.worker_process import OperationalWorker
+
+    worker = OperationalWorker()
+    old_schema = {
+        "dropdowns": [
+            {"id": "57:_input", "local_id": "@drop-1", "label": "Salutation"},
+        ],
+    }
+    new_schema = {
+        "dropdowns": [
+            {"id": "389:_input", "local_id": "@drop-1", "label": "Salutation"},
+        ],
+    }
+    merged = worker._merge_schemas(old_schema, new_schema)
+    assert len(merged["dropdowns"]) == 1
+    assert merged["dropdowns"][0]["id"] == "389:_input"
+
+
+def test_cli_reload_command_and_flag():
+    """Verify that 'wp reload', 'wp inspect --reload', and 'wp apply --reload' parse cleanly."""
+    from cli_parser import build_cli_parser
+    from supervisor.contracts import SupervisorActionRequest
+
+    parser = build_cli_parser()
+
+    args_cmd = parser.parse_args(["reload"])
+    assert args_cmd.command == "reload"
+    assert args_cmd.reload is True
+
+    args_insp = parser.parse_args(["inspect", "--reload"])
+    assert args_insp.command == "inspect"
+    assert args_insp.reload is True
+
+    args_app = parser.parse_args(["apply", "--fill", "@fld-1=Test", "--reload"])
+    assert args_app.command == "apply"
+    assert args_app.reload is True
+
+    req = SupervisorActionRequest(action="reload", reload=True)
+    rt = SupervisorActionRequest.from_dict(req.to_dict())
+    assert rt.action == "reload"
+    assert rt.reload is True
+
+
+
