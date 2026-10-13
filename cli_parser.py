@@ -275,6 +275,49 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="Do not include options",
     )
     p_find.add_argument("--query", "-q", help="Filter options by search substring or regex")
+    p_find.add_argument(
+        "--limit",
+        "--show",
+        "-n",
+        dest="limit",
+        type=int,
+        default=None,
+        help="Maximum number of options to display (e.g. --show 50 or -n 50)",
+    )
+    p_find.add_argument(
+        "--offset",
+        "--from",
+        "--start",
+        "--showfrom",
+        "--show-from",
+        dest="offset",
+        type=int,
+        default=0,
+        help="Starting index offset (0-based) for options list (e.g. --from 30 or --showfrom 30)",
+    )
+    p_find.add_argument(
+        "--all",
+        "--full",
+        dest="all_options",
+        action="store_true",
+        default=False,
+        help="Display all options without truncation (full option dump)",
+    )
+    p_find.add_argument(
+        "--page",
+        dest="page",
+        type=int,
+        default=None,
+        help="Page number (1-based) to display (e.g. --page 2)",
+    )
+    p_find.add_argument(
+        "--page-size",
+        "--pagesize",
+        dest="page_size",
+        type=int,
+        default=20,
+        help="Number of options per page when using --page (default: 20)",
+    )
     p_find.add_argument("--html", action="store_true", help="Include outerHTML in diagnostic output")
     p_find.add_argument(
         "--up",

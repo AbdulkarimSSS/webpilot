@@ -305,4 +305,94 @@ function normalizeUniversalDate(toSet, formatPattern) {
     
     return { value: formatted, isValid };
 }
+
+// 8. Direct Detection of Linked / Dependent Parent Field (Cascading Picklists / Conditional Inputs)
+function detectDependentParentField(el) {
+    if (!el) return null;
+    const isDisabled = Boolean(el.disabled || el.getAttribute('aria-disabled') === 'true' || el.classList.contains('disabled'));
+    const isSelect = (el.tagName || '').toLowerCase() === 'select';
+    
+    // Check explicit HTML5 / framework cascading linkage attributes
+    const explicitParent = el.getAttribute('data-parent') || 
+                           el.getAttribute('data-parent-field') || 
+                           el.getAttribute('data-depends-on') || 
+                           el.getAttribute('data-cascade-from') ||
+                           el.getAttribute('data-master-field');
+    if (explicitParent) {
+        const root = el.getRootNode ? el.getRootNode() : document;
+        const pEl = deepGetElementById(root, explicitParent) || deepQuerySelector(root, explicitParent);
+        if (pEl) {
+            return {
+                is_dependent: true,
+                parent_id: pEl.id || explicitParent,
+                parent_label: getUniversalLabel(pEl, true) || explicitParent,
+                parent_local_id: pEl.getAttribute('data-wp-id') || null,
+                confidence: 'high',
+                mechanism: 'explicit_attribute'
+            };
+        }
+    }
+
+    // Check ARIA controls reversed
+    if (el.id) {
+        const controller = document.querySelector('[aria-controls*="' + el.id + '"], [data-controls*="' + el.id + '"]');
+        if (controller && controller !== el) {
+            return {
+                is_dependent: true,
+                parent_id: controller.id || '',
+                parent_label: getUniversalLabel(controller, true) || 'Parent Field',
+                parent_local_id: controller.getAttribute('data-wp-id') || null,
+                confidence: 'high',
+                mechanism: 'aria_controls'
+            };
+        }
+    }
+
+    // Heuristic Context Linkage for Disabled or Empty Dropdowns / Picklists:
+    const hasZeroOrOneOption = isSelect ? (el.options && el.options.length <= 1) : false;
+    if (isDisabled || hasZeroOrOneOption) {
+        const container = el.closest('tr, .rcmFormField, .form-group, fieldset, .sf-form-row, .row, div[class*="field"], div[class*="Row"]');
+        if (container) {
+            const allInp = Array.from(container.querySelectorAll('input:not([type="hidden"]), select, [role="combobox"]'));
+            const myIdx = allInp.indexOf(el);
+            let candidateParent = null;
+
+            if (myIdx > 0) {
+                candidateParent = allInp[myIdx - 1];
+            } else if (container.previousElementSibling) {
+                const prevInps = Array.from(container.previousElementSibling.querySelectorAll('input:not([type="hidden"]), select, [role="combobox"]'));
+                if (prevInps.length > 0) {
+                    candidateParent = prevInps[prevInps.length - 1];
+                }
+            }
+
+            if (candidateParent && candidateParent !== el) {
+                const pLbl = getUniversalLabel(candidateParent, true);
+                const curLbl = getUniversalLabel(el, true);
+                
+                const curLower = (curLbl || '').toLowerCase();
+                const pLower = (pLbl || '').toLowerCase();
+                const isSemanticPair = (
+                    (pLower.includes('country') && (curLower.includes('state') || curLower.includes('city') || curLower.includes('university') || curLower.includes('region') || curLower.includes('school') || curLower.includes('institution'))) ||
+                    (pLower.includes('category') && curLower.includes('sub')) ||
+                    (pLower.includes('make') && curLower.includes('model')) ||
+                    (pLower.includes('region') && (curLower.includes('city') || curLower.includes('branch')))
+                );
+
+                if (isSemanticPair || isDisabled) {
+                    return {
+                        is_dependent: true,
+                        parent_id: candidateParent.id || candidateParent.name || '',
+                        parent_label: pLbl || 'Preceding Field',
+                        parent_local_id: candidateParent.getAttribute('data-wp-id') || null,
+                        confidence: isSemanticPair ? 'high' : 'medium',
+                        mechanism: 'dom_proximity_and_semantics'
+                    };
+                }
+            }
+        }
+    }
+
+    return null;
+}
 """

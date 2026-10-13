@@ -159,6 +159,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             }
 
             let matched = false;
+            // 1. Exact match on value or text
             for (let opt of targetSelect.options) {
                 const optVal = opt.value.toLowerCase();
                 const optText = (opt.text || opt.innerText || '').toLowerCase();
@@ -174,10 +175,54 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                     targetSelect.value = opt.value;
                     matched = true;
                     break;
-                } else if (valMode === 'smart' && (optVal === strVal || optText.includes(strVal))) {
+                } else if (valMode === 'smart' && (optVal === strVal || optText === strVal || (opt.text || '').trim().toLowerCase() === strVal)) {
                     targetSelect.value = opt.value;
                     matched = true;
                     break;
+                }
+            }
+
+            // 2. Ranked Overlap Scoring for smart mode if exact match didn't find option
+            if (!matched && valMode === 'smart' && strVal.length > 2) {
+                // 2a. Phrase match
+                const phraseMatches = Array.from(targetSelect.options).filter(opt => {
+                    const optText = (opt.text || opt.innerText || '').toLowerCase();
+                    return optText.includes(strVal);
+                });
+                if (phraseMatches.length > 0) {
+                    phraseMatches.sort((a, b) => {
+                        const lenA = (a.text || '').trim().length;
+                        const lenB = (b.text || '').trim().length;
+                        return Math.abs(lenA - strVal.length) - Math.abs(lenB - strVal.length);
+                    });
+                    targetSelect.value = phraseMatches[0].value;
+                    matched = true;
+                }
+
+                // 2b. Strict Token Coverage match
+                if (!matched) {
+                    const targetTokens = strVal.split(/[\s,_\-\/]+/).filter(w => w.length > 1);
+                    if (targetTokens.length > 1) {
+                        let bestScore = 0;
+                        let bestOpt = null;
+                        for (let opt of targetSelect.options) {
+                            const optText = (opt.text || opt.innerText || '').toLowerCase();
+                            const optTokens = optText.split(/[\s,_\-\/]+/).filter(w => w.length > 1);
+                            const matchedTokens = targetTokens.filter(t => optText.includes(t));
+                            const coverage = matchedTokens.length / targetTokens.length;
+                            if (coverage >= 0.8) {
+                                const score = (2 * matchedTokens.length) / (targetTokens.length + optTokens.length);
+                                if (score > bestScore) {
+                                    bestScore = score;
+                                    bestOpt = opt;
+                                }
+                            }
+                        }
+                        if (bestOpt) {
+                            targetSelect.value = bestOpt.value;
+                            matched = true;
+                        }
+                    }
                 }
             }
             if (matched) {

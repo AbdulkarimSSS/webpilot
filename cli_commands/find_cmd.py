@@ -93,6 +93,15 @@ def find_cmd(args: argparse.Namespace) -> None:
     print(f" • Disabled    : {details.get('disabled')}")
     print(f" • Visible     : {details.get('visible')}")
 
+    dep = details.get("dependency")
+    if dep and dep.get("is_dependent"):
+        p_label = dep.get("parent_label", "Unknown")
+        p_id = dep.get("parent_id", "")
+        p_loc = f"[{dep.get('parent_local_id')}] " if dep.get("parent_local_id") else ""
+        print(f" • Linked Parent : {p_loc}'{p_label}' (ID: {p_id})")
+        if details.get("disabled") or details.get("options_count", 1) == 0:
+            print(f" ⚠️ DEPENDENCY ALERT: Field is locked/empty awaiting parent selection '{p_label}'!")
+
     ancestor_d = details.get("ancestor_depth", 0)
     if ancestor_d > 0:
         a_tag = details.get("ancestor_tag", "")
@@ -110,16 +119,48 @@ def find_cmd(args: argparse.Namespace) -> None:
     opts = details.get("options")
     if opts is not None:
         total_cnt = details.get("options_count", len(opts))
-        print(f"\n 📋 Options ({total_cnt} total):")
-        for o in opts[:30]:
+        show_all = getattr(args, "all_options", False)
+        page = getattr(args, "page", None)
+        page_size = getattr(args, "page_size", 20) or 20
+
+        if page is not None and page > 0:
+            offset = (page - 1) * page_size
+            limit = page_size
+        else:
+            offset = getattr(args, "offset", 0) or 0
+            if show_all:
+                limit = None
+            else:
+                limit = getattr(args, "limit", None)
+                if limit is None:
+                    limit = 30
+
+        start_idx = max(0, offset)
+        end_idx = min(len(opts), (start_idx + limit)) if limit is not None else len(opts)
+        sliced_opts = opts[start_idx:end_idx]
+
+        pagination_header = ""
+        if page is not None and page > 0:
+            total_pages = max(1, (len(opts) + page_size - 1) // page_size)
+            pagination_header = f" | Page {page}/{total_pages} (size: {page_size})"
+        elif limit is not None and (start_idx > 0 or end_idx < len(opts)):
+            pagination_header = f" | Showing {start_idx + 1}-{end_idx} of {len(opts)}"
+        elif show_all:
+            pagination_header = " | Full List"
+
+        print(f"\n 📋 Options ({total_cnt} total{pagination_header}):")
+        for o in sliced_opts:
             if isinstance(o, dict):
                 loc = f"[{o.get('local_id')}] " if o.get('local_id') else ""
                 val_part = f" (value: {o.get('value')})" if o.get('value') and o.get('value') != o.get('text') else ""
                 print(f"   • {loc}'{o.get('text')}'{val_part}")
             else:
                 print(f"   • {o}")
-        if len(opts) > 30:
-            print(f"   ... and {len(opts) - 30} more options (use --query to filter).")
+
+        if not show_all and end_idx < len(opts):
+            remaining = len(opts) - end_idx
+            next_page_hint = f"--page {(page or 1) + 1}" if page is not None else f"--from {end_idx}"
+            print(f"   ... and {remaining} more options (use --all, --show <N>, {next_page_hint}, or -q to filter).")
 
     outer_html = details.get("outerHTML") or details.get("html")
     if (args.html or up_val > 0) and outer_html:

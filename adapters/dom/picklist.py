@@ -85,19 +85,62 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
                 return title === targetLower || text === targetLower;
             });
         } else {
-            // 'smart' mode: exact match first, then value/id, then substring
+            // 'smart' mode: multi-tier ranked scoring to eliminate false greedy collisions (e.g. Electrical vs Aeronautical Engineering)
+            // Priority 1: Exact match on title, text, value, or id
             match = items.find(el => {
                 const title = (el.getAttribute('title') || '').trim().toLowerCase();
                 const text = (el.innerText || el.textContent || '').trim().toLowerCase();
                 const val = (el.value || el.getAttribute('data-value') || el.getAttribute('value') || '').trim().toLowerCase();
                 return title === targetLower || text === targetLower || val === targetLower || (el.id && el.id.toLowerCase() === targetLower);
             });
-            if (!match) {
-                match = items.find(el => {
+
+            // Priority 2: Full continuous phrase match (target is unbroken substring)
+            if (!match && targetLower.length > 2) {
+                // Collect candidates where unbroken phrase is contained
+                const phraseCandidates = items.filter(el => {
                     const title = (el.getAttribute('title') || '').trim().toLowerCase();
                     const text = (el.innerText || el.textContent || '').trim().toLowerCase();
-                    return targetLower.length > 2 && (title.includes(targetLower) || text.includes(targetLower));
+                    return title.includes(targetLower) || text.includes(targetLower);
                 });
+                if (phraseCandidates.length > 0) {
+                    // Pick the candidate whose length is closest to targetLower (best compactness)
+                    phraseCandidates.sort((a, b) => {
+                        const lenA = ((a.getAttribute('title') || '') || (a.innerText || '')).trim().length;
+                        const lenB = ((b.getAttribute('title') || '') || (b.innerText || '')).trim().length;
+                        return Math.abs(lenA - targetLower.length) - Math.abs(lenB - targetLower.length);
+                    });
+                    match = phraseCandidates[0];
+                }
+            }
+
+            // Priority 3: Ranked Token-Coverage Scoring (Strict All-Tokens Containment)
+            if (!match && targetLower.length > 2) {
+                const targetTokens = targetLower.split(/[\s,_\-\/]+/).filter(w => w.length > 1);
+                if (targetTokens.length > 1) {
+                    let bestScore = 0;
+                    let bestEl = null;
+
+                    for (const el of items) {
+                        const optText = ((el.getAttribute('title') || '') + ' ' + (el.innerText || el.textContent || '')).toLowerCase();
+                        const optTokens = optText.split(/[\s,_\-\/]+/).filter(w => w.length > 1);
+
+                        // How many target tokens are present in this option?
+                        const matchedTokens = targetTokens.filter(t => optText.includes(t));
+                        const coverage = matchedTokens.length / targetTokens.length;
+
+                        // Reject if coverage < 0.8 (e.g. 'electrical' missing -> coverage 0.5 -> rejected!)
+                        if (coverage >= 0.8) {
+                            const score = (2 * matchedTokens.length) / (targetTokens.length + optTokens.length);
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestEl = el;
+                            }
+                        }
+                    }
+                    if (bestEl) {
+                        match = bestEl;
+                    }
+                }
             }
         }
 

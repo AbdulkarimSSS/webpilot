@@ -5,6 +5,45 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-10-13
+
+### Cascading Dependencies, Ranked Overlap Scoring & Advanced Option Pagination
+
+#### 1. Dynamic Row Addition & Sequential Local ID Preservation
+- **Local ID Preservation (`inspection.py`)**: Implemented `getOrCreateLocalId` to strictly preserve existing `data-wp-id` tags across DOM re-renders, preventing ID mutation when users or scripts click `+ Add` / `Add new row`.
+- **Cumulative High-Water Mark Allocation**: Added pre-scanning of active DOM nodes for highest utilized counters (`maxFld`, `maxDrop`, `maxOpt`, `maxBtn`, `maxUp`), assigning subsequent sequential IDs to newly generated rows (`@fld-16`, `@fld-17`) without shifting earlier indexes.
+- **Delta Capture Telemetry**: Added `result.new_elements_captured` array to inspection payloads, alerting upstream orchestrators to newly materialized DOM fields.
+
+#### 2. Automatic Cascading Dependent Parent Field Detection
+- **Multi-Heuristic Dependency Engine (`universal_core.py`)**: Implemented `detectDependentParentField(el)` resolving locked dependent children (e.g. `University` or `State` awaiting `Country` selection):
+  - **Explicit Attribute Resolution**: Inspects `data-parent`, `data-depends-on`, `data-cascade-from`, and inverted `aria-controls`.
+  - **DOM Row & Fieldset Proximity**: Scans preceding sibling elements within shared container blocks (`.rcmFormField`, `tr`, `fieldset`).
+  - **Semantic Pairing Heuristics**: Recognizes standard hierarchical relationships (`Country` ➔ `University`/`City`/`State`, `Category` ➔ `Subcategory`).
+- **Terminal & Agent Dependency Alerts (`find_cmd.py`, `probe.py`)**: Exposes structured `dependency` metadata and outputs immediate visual warnings (`⚠️ DEPENDENCY ALERT: Field is locked/empty awaiting parent selection`).
+
+#### 3. 3-Tier Ranked Overlap Scoring with 80% Safety Threshold
+- **Elimination of Speculative Partial Matches (`picklist.py`, `set_field.py`)**: Replaced naive linear substring matching with a hierarchical scoring engine:
+  - **Tier 1 (Exact Match)**: 100% case-insensitive match on text, value, or option ID.
+  - **Tier 2 (Continuous Phrase Match)**: Unbroken phrase matching prioritized by minimum length delta.
+  - **Tier 3 (Strict Token Coverage & Jaccard Overlap)**: Splits target into token bags, computing token coverage ratio. Enforces a strict **80% Safety Threshold** (e.g. immediately rejecting `Aeronautical and Astronautical Engineering` at 50% coverage when requesting `Electrical Engineering`).
+
+#### 4. Advanced Picklist Pagination, Slicing & Token Management (`wp find`)
+- **Granular Slice Controls**: Added `--show <N>` / `--limit <N>` to adjust slice limits beyond the default 30 items.
+- **Offset Navigation**: Added `--from <N>` / `--offset <N>` (0-based) to browse subsequent option slices.
+- **Complete Option Dumps**: Added `--all` / `--full` to output all available picklist options without truncation.
+- **Page-Based Pagination**: Added `--page <N>` (1-based) and `--page-size <N>` (default: 20) for page-by-page browsing.
+- **Dynamic Interactive Header**: Displays total options count, active page/slice info, and a responsive footer hint indicating remaining items and suggested flags.
+
+#### 5. Full In-Browser Regex Query Filtering (`-q / --query`)
+- **Advanced Pattern Matching**: Upgraded browser-side option probing to support full ECMAScript Regular Expressions:
+  - Anchors: `^B`, `Services$`
+  - Alternation: `Banking|Healthcare`
+  - Inline Flags: `/(oil|gas|chemical)/i`
+- **Safe Substring Fallback**: Automatically falls back to standard substring matching if regex compilation fails or for plain strings.
+
+#### 6. Certified Test Suite Expansion
+- Added comprehensive unit and integration tests in `tests/test_find_and_unicode.py`, elevating the certified test suite to **91 passed tests (100%)** in 49.95 seconds.
+
 ## [2.4.0] - 2026-10-13
 
 ### Enterprise DatePickers, Shadow DOM Core & Full Agent Toolkit Overhaul

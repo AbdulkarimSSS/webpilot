@@ -1,15 +1,15 @@
-# 🚀 WebPilot Engine v2.4.0
+# 🚀 WebPilot Engine v2.5.0
 
 ### Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime
 
-[![Version](https://img.shields.io/badge/version-v2.4.0-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-v2.5.0-blue.svg)](pyproject.toml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Playwright](https://img.shields.io/badge/playwright-v1.40%2B-green.svg)](https://playwright.dev/)
 [![Architecture](https://img.shields.io/badge/architecture-3--Tier%20Multi--Process-orange.svg)](#-3-tier-multi-process-architecture)
 [![Benchmark](https://img.shields.io/badge/benchmark-50%20Scenarios%20%7C%20100%25%20Solvable%20Pass-brightgreen.svg)](#-empirical-adversarial-benchmark-suite-50-scenarios)
 [![False Success](https://img.shields.io/badge/false%20success-0.0%25%20(Zero)-success.svg)](#-the-truth-barrier-00-false-success-guarantee)
 [![Latency](https://img.shields.io/badge/latency-1.17s%20%2F%20form%20(9x%20Boost)-purple.svg)](#-the-performance-breakthrough-9x-native-speedup)
-[![Unit Tests](https://img.shields.io/badge/tests-86%2F86%20passing%20(100%25)-brightgreen.svg)](#-unit-testing--verification)
+[![Unit Tests](https://img.shields.io/badge/tests-91%2F91%20passing%20(100%25)-brightgreen.svg)](#-unit-testing--verification)
 [![License](https://img.shields.io/badge/license-MIT-informational.svg)](LICENSE)
 
 **WebPilot Engine** is a high-performance, enterprise-grade autonomous browser engine and AI agent web runtime designed to inspect, interact with, populate, and operate complex modern web applications, single-page apps (SPAs), dynamic Shadow DOMs, and enterprise ATS/ERP widgets (Workday, SAP SuccessFactors, Taleo, Oracle Cloud, custom modal flows) with **zero site-specific selectors or hardcoded scripts**.
@@ -136,7 +136,7 @@ WebPilot enforces a strict **Multi-Stage Physical Truth Verification Pipeline**:
 
 ---
 
-## 🧹 Clean Architecture & SOLID Engineering (v2.4.0)
+## 🧹 Clean Architecture & SOLID Engineering (v2.5.0)
 
 Following an extensive project-wide architectural refactoring milestone, the codebase adheres to strict enterprise software standards:
 

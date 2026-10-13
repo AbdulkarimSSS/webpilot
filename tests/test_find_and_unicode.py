@@ -533,8 +533,237 @@ def test_eval_and_css_execution_live():
         browser.close()
 
 
+def test_probe_regex_query_filtering():
+    from playwright.sync_api import sync_playwright
+    from adapters.dom.probe import PROBE_FIELD_DOM_SCRIPT
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content("""
+        <html><body>
+            <select id="industry">
+                <option value="1">Advertising/Marketing</option>
+                <option value="2">Banking</option>
+                <option value="3">Biotechnology</option>
+                <option value="4">Construction</option>
+                <option value="5">Healthcare</option>
+                <option value="6">Information Technology</option>
+            </select>
+        </body></html>
+        """)
+
+        # 1. Regex starting with B: ^B
+        res = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["#industry", True, "^B", 0, ""])
+        assert res["found"] is True
+        texts = [o["text"] for o in res["options"]]
+        assert "Banking" in texts
+        assert "Biotechnology" in texts
+        assert "Healthcare" not in texts
+
+        # 2. Regex alternation: Banking|Healthcare
+        res2 = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["#industry", True, "Banking|Healthcare", 0, ""])
+        texts2 = [o["text"] for o in res2["options"]]
+        assert "Banking" in texts2
+        assert "Healthcare" in texts2
+        assert "Construction" not in texts2
+
+        # 3. Simple substring fallback: 'tech'
+        res3 = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["#industry", True, "tech", 0, ""])
+        texts3 = [o["text"] for o in res3["options"]]
+        assert "Biotechnology" in texts3
+        assert "Information Technology" in texts3
+        assert "Banking" not in texts3
+
+        browser.close()
 
 
+def test_cli_find_options_pagination_args(capsys):
+    from cli_parser import build_cli_parser
+    from cli_commands.find_cmd import find_cmd
+    from unittest.mock import MagicMock, patch
+
+    parser = build_cli_parser()
+
+    # Verify parser flags
+    args = parser.parse_args(["find", "@drop-1", "--show", "50", "--from", "30"])
+    assert args.limit == 50
+    assert args.offset == 30
+
+    args_all = parser.parse_args(["find", "@drop-1", "--all"])
+    assert args_all.all_options is True
+
+    args_page = parser.parse_args(["find", "@drop-1", "--page", "2", "--page-size", "15"])
+    assert args_page.page == 2
+    assert args_page.page_size == 15
+
+    # Mock client and test output slicing
+    mock_resp = MagicMock()
+    mock_resp.success = True
+    mock_resp.field_details = {
+        "found": True,
+        "local_id": "@drop-1",
+        "type": "picklist",
+        "label": "Industry",
+        "options": [{"local_id": f"@opt-{i}", "text": f"Option {i}"} for i in range(1, 37)]
+    }
+
+    with patch("cli_commands.find_cmd.get_supervisor_client") as mock_client:
+        mock_client.return_value.execute.return_value = mock_resp
+
+        # Case 1: Page 2 of size 15 -> Options 16 to 30
+        find_cmd(args_page)
+        out = capsys.readouterr().out
+        assert "Page 2" in out
+        assert "Option 16" in out
+        assert "Option 30" in out
+        assert "Option 15" not in out
+        assert "Option 31" not in out
+
+        # Case 2: From 30 -> Options 31 to 36
+        args_from = parser.parse_args(["find", "@drop-1", "--from", "30", "--show", "10"])
+        find_cmd(args_from)
+        out2 = capsys.readouterr().out
+        assert "Showing 31-36 of 36" in out2
+        assert "Option 31" in out2
+        assert "Option 36" in out2
+        assert "Option 30" not in out2
+
+        # Case 3: All options
+        find_cmd(args_all)
+        out3 = capsys.readouterr().out
+        assert "Full List" in out3
+        assert "Option 1" in out3
+        assert "Option 36" in out3
 
 
+def test_ranked_overlap_scoring_picklist():
+    """Verify that 'Electrical Engineering' selects 'Electrical Engineering' and NEVER 'Aeronautical and Astronautical Engineering'."""
+    from playwright.sync_api import sync_playwright
+    from adapters.dom.picklist import PICKLIST_AUTO_SCROLL_SCRIPT
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content("""
+        <html><body>
+            <input id="major:_input" role="combobox" aria-owns="major:_listSelect" />
+            <ul id="major:_listSelect" role="listbox">
+                <li role="option" title="Aeronautical and Astronautical Engineering">Aeronautical and Astronautical Engineering</li>
+                <li role="option" title="Agricultural Engineering">Agricultural Engineering</li>
+                <li role="option" title="Architectural Engineering">Architectural Engineering</li>
+                <li role="option" title="Chemical Engineering">Chemical Engineering</li>
+                <li role="option" title="Civil and Environmental Engineering">Civil and Environmental Engineering</li>
+                <li role="option" title="Electrical Engineering">Electrical Engineering</li>
+                <li role="option" title="Mechanical Engineering">Mechanical Engineering</li>
+            </ul>
+        </body></html>
+        """)
+
+        # Execute smart selection for "Electrical Engineering"
+        res = page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, ["major:_input", "Electrical Engineering"])
+        assert res["success"] is True
+        assert res["text"] == "Electrical Engineering"
+
+        # Even with partial tokens: "Electrical Eng"
+        res2 = page.evaluate(PICKLIST_AUTO_SCROLL_SCRIPT, ["major:_input", "Electrical Eng"])
+        assert res2["success"] is True
+        assert res2["text"] == "Electrical Engineering"
+
+        browser.close()
+
+
+def test_dependent_cascading_field_detection():
+    """Verify that disabled University dropdown accurately detects parent Country dropdown."""
+    from playwright.sync_api import sync_playwright
+    from adapters.dom.probe import PROBE_FIELD_DOM_SCRIPT
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content("""
+        <html><body>
+            <form>
+                <div class="rcmFormField">
+                    <label for="country_sel">Country of Education</label>
+                    <select id="country_sel" name="country">
+                        <option value="">Select Country</option>
+                        <option value="SD">Sudan</option>
+                    </select>
+                </div>
+                <div class="rcmFormField">
+                    <label for="univ_sel">University / College</label>
+                    <select id="univ_sel" name="university" disabled>
+                        <option value="">Select University</option>
+                    </select>
+                </div>
+            </form>
+        </body></html>
+        """)
+
+        res = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["#univ_sel", False, "", False, 0, ""])
+        assert res["found"] is True
+        assert res["disabled"] is True
+        dep = res.get("dependency")
+        assert dep is not None
+        assert dep["is_dependent"] is True
+        assert "country_sel" in dep["parent_id"]
+        assert "Country of Education" in dep["parent_label"]
+
+        browser.close()
+
+
+def test_persistent_local_ids_across_mutations():
+    """Verify that adding new DOM elements preserves existing @fld IDs and assigns new incremental IDs."""
+    from playwright.sync_api import sync_playwright
+    from adapters.dom.inspection import INSPECT_PAGE_DOM_SCRIPT
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content("""
+        <html><body>
+            <div id="row_1">
+                <label for="fname">First Name</label>
+                <input id="fname" type="text" />
+                <label for="city_1">City</label>
+                <input id="city_1" type="text" />
+            </div>
+        </body></html>
+        """)
+
+        # 1. Initial inspection
+        res1 = page.evaluate(INSPECT_PAGE_DOM_SCRIPT, {"puaMode": "strip"})
+        fname_id = next(i["local_id"] for i in res1["inputs"] if i["id"] == "fname")
+        city1_id = next(i["local_id"] for i in res1["inputs"] if i["id"] == "city_1")
+        assert fname_id == "@fld-1"
+        assert city1_id == "@fld-2"
+
+        # 2. Dynamic row added (e.g. Add Row in Experience)
+        page.evaluate("""() => {
+            const row2 = document.createElement('div');
+            row2.id = 'row_2';
+            row2.innerHTML = '<label for="company">Company</label><input id="company" type="text" />' +
+                             '<label for="city_2">Work City</label><input id="city_2" type="text" />';
+            document.body.appendChild(row2);
+        }""")
+
+        # 3. Second inspection
+        res2 = page.evaluate(INSPECT_PAGE_DOM_SCRIPT, {"puaMode": "strip"})
+        fname_id2 = next(i["local_id"] for i in res2["inputs"] if i["id"] == "fname")
+        city1_id2 = next(i["local_id"] for i in res2["inputs"] if i["id"] == "city_1")
+        company_id = next(i["local_id"] for i in res2["inputs"] if i["id"] == "company")
+        city2_id = next(i["local_id"] for i in res2["inputs"] if i["id"] == "city_2")
+
+        # Existing fields MUST preserve their exact original IDs!
+        assert fname_id2 == "@fld-1"
+        assert city1_id2 == "@fld-2"
+
+        # Newly added fields get incremental new IDs!
+        assert company_id == "@fld-3"
+        assert city2_id == "@fld-4"
+        assert "@fld-3" in res2["new_elements_captured"]
+        assert "@fld-4" in res2["new_elements_captured"]
+
+        browser.close()
 

@@ -146,8 +146,31 @@ _PROBE_LOGIC: Final[str] = r"""
             }
         }
         if (queryFilter) {
-            const q = queryFilter.toLowerCase();
-            optionsList = optionsList.filter(o => o.text.toLowerCase().includes(q) || (o.value && o.value.toLowerCase().includes(q)) || (o.local_id && o.local_id.toLowerCase().includes(q)));
+            let regex = null;
+            try {
+                const matchRegex = queryFilter.match(/^\/(.+)\/([gimsuy]*)$/);
+                if (matchRegex) {
+                    regex = new RegExp(matchRegex[1], matchRegex[2]);
+                } else {
+                    regex = new RegExp(queryFilter, 'i');
+                }
+            } catch(e) {
+                regex = null;
+            }
+
+            const qLower = queryFilter.toLowerCase();
+            optionsList = optionsList.filter(o => {
+                if (regex) {
+                    try {
+                        if (regex.test(o.text) || (o.value && regex.test(o.value)) || (o.local_id && regex.test(o.local_id))) {
+                            return true;
+                        }
+                    } catch(e) {}
+                }
+                return o.text.toLowerCase().includes(qLower) || 
+                       (o.value && o.value.toLowerCase().includes(qLower)) || 
+                       (o.local_id && o.local_id.toLowerCase().includes(qLower));
+            });
         }
     }
 
@@ -218,6 +241,8 @@ _PROBE_LOGIC: Final[str] = r"""
         }
     }
 
+    const dep = detectDependentParentField(el);
+
     return {
         found: true,
         local_id: el.getAttribute('data-wp-id') || '',
@@ -234,6 +259,7 @@ _PROBE_LOGIC: Final[str] = r"""
         visible: !isHoneypotOrHidden(el),
         trigger_button: trigBtn ? trigBtn.id : null,
         owns_id: el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '',
+        dependency: dep,
         options_count: optionsList.length,
         options: optionsList,
         ancestor_depth: currentDepth,

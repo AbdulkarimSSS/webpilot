@@ -67,7 +67,9 @@ class InspectionFormatterService:
         lines.append(f"🔘 Key Action Buttons ({len(buttons)}):")
         for btn in buttons:
             lid = f" [{btn['local_id']}]" if btn.get("local_id") else ""
-            lines.append(f"  • [{btn.get('action', 'action').upper()}] '{btn['text']}'{lid} (ID: {btn['id']})")
+            b_text = btn.get("text") or btn.get("label") or btn.get("value") or ""
+            b_id = btn.get("id") or ""
+            lines.append(f"  • [{btn.get('action', 'action').upper()}] '{b_text}'{lid} (ID: {b_id})")
         lines.append("")
 
         return "\n".join(lines)

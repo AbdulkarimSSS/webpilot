@@ -53,11 +53,43 @@ _INSPECT_LOGIC: Final[str] = r"""
         return false;
     }
 
-    let fldCount = 0;
-    let dropCount = 0;
-    let optCount = 0;
-    let upCount = 0;
-    let btnCount = 0;
+    // Scan existing DOM data-wp-id attributes to preserve IDs across dynamic mutations
+    let maxFld = 0, maxDrop = 0, maxOpt = 0, maxUp = 0, maxBtn = 0;
+    deepQueryAll(document, '[data-wp-id]').forEach(el => {
+        const idVal = el.getAttribute('data-wp-id') || '';
+        const mFld = idVal.match(/^@fld-(\d+)$/);
+        if (mFld) maxFld = Math.max(maxFld, parseInt(mFld[1], 10));
+        const mDrop = idVal.match(/^@drop-(\d+)$/);
+        if (mDrop) maxDrop = Math.max(maxDrop, parseInt(mDrop[1], 10));
+        const mOpt = idVal.match(/^@opt-(\d+)$/);
+        if (mOpt) maxOpt = Math.max(maxOpt, parseInt(mOpt[1], 10));
+        const mUp = idVal.match(/^@file-(\d+)$/);
+        if (mUp) maxUp = Math.max(maxUp, parseInt(mUp[1], 10));
+        const mBtn = idVal.match(/^@btn-(\d+)$/);
+        if (mBtn) maxBtn = Math.max(maxBtn, parseInt(mBtn[1], 10));
+    });
+
+    const counters = {
+        fld: maxFld,
+        drop: maxDrop,
+        opt: maxOpt,
+        file: maxUp,
+        btn: maxBtn
+    };
+    const newElementsCaptured = [];
+
+    function getOrCreateLocalId(el, prefix, key) {
+        if (!el) return '';
+        const existing = el.getAttribute('data-wp-id');
+        if (existing && existing.startsWith('@' + prefix + '-')) {
+            return existing;
+        }
+        counters[key]++;
+        const newId = '@' + prefix + '-' + counters[key];
+        try { el.setAttribute('data-wp-id', newId); } catch(e){}
+        newElementsCaptured.push(newId);
+        return newId;
+    }
 
     // 1. Sections
     const sectionTitles = deepQueryAll(document, '.rcmFormSectionTopBar, legend, h2, h3, [role="heading"]')
@@ -80,9 +112,7 @@ _INSPECT_LOGIC: Final[str] = r"""
         if (!lbl || seenUploadLabels.has(lbl.toLowerCase())) return;
         seenUploadLabels.add(lbl.toLowerCase());
 
-        upCount++;
-        const localId = '@file-' + upCount;
-        try { fi.setAttribute('data-wp-id', localId); } catch(e){}
+        const localId = getOrCreateLocalId(fi, 'file', 'file');
 
         result.file_uploads.push({
             local_id: localId,
@@ -102,9 +132,8 @@ _INSPECT_LOGIC: Final[str] = r"""
     selectNodes.forEach(sel => {
         if (isHoneypotOrHidden(sel)) return;
         const lbl = getLabel(sel);
-        dropCount++;
-        const localId = '@drop-' + dropCount;
-        try { sel.setAttribute('data-wp-id', localId); } catch(e){}
+        const localId = getOrCreateLocalId(sel, 'drop', 'drop');
+        const dep = detectDependentParentField(sel);
 
         result.dropdowns.push({
             local_id: localId,
@@ -112,6 +141,8 @@ _INSPECT_LOGIC: Final[str] = r"""
             label: lbl,
             type: 'select',
             required: isRequired(sel, lbl),
+            disabled: Boolean(sel.disabled || sel.getAttribute('aria-disabled') === 'true'),
+            dependency: dep,
             value: sel.value || (sel.selectedOptions && sel.selectedOptions[0] ? clean(sel.selectedOptions[0].text) : '')
         });
     });
@@ -125,12 +156,11 @@ _INSPECT_LOGIC: Final[str] = r"""
         const baseId = pi.id ? pi.id.replace(':_input', '') : '';
         const root = pi.getRootNode ? pi.getRootNode() : document;
         const btn = baseId ? (root.getElementById ? root.getElementById(baseId + ':_selectButton') : document.getElementById(baseId + ':_selectButton')) : null;
-        dropCount++;
-        const localId = '@drop-' + dropCount;
-        try {
-            pi.setAttribute('data-wp-id', localId);
-            if (btn) btn.setAttribute('data-wp-id', localId + '-trigger');
-        } catch(e){}
+        const localId = getOrCreateLocalId(pi, 'drop', 'drop');
+        if (btn) {
+            try { btn.setAttribute('data-wp-id', localId + '-trigger'); } catch(e){}
+        }
+        const dep = detectDependentParentField(pi);
 
         result.dropdowns.push({
             local_id: localId,
@@ -140,6 +170,8 @@ _INSPECT_LOGIC: Final[str] = r"""
             label: lbl,
             type: 'picklist',
             required: isRequired(pi, lbl),
+            disabled: Boolean(pi.disabled || pi.getAttribute('aria-disabled') === 'true'),
+            dependency: dep,
             value: clean(pi.value)
         });
     });
@@ -182,8 +214,7 @@ _INSPECT_LOGIC: Final[str] = r"""
         const isSwitch = rRole === 'switch';
 
         if (!choiceGroups[q]) {
-            optCount++;
-            const localId = '@opt-' + optCount;
+            const localId = getOrCreateLocalId(rg || r, 'opt', 'opt');
             choiceGroups[q] = {
                 local_id: localId,
                 id: r.id || r.name || q,
@@ -273,9 +304,7 @@ _INSPECT_LOGIC: Final[str] = r"""
     finalInputs.forEach(inp => {
         const lbl = getLabel(inp);
         if (!lbl) return;
-        fldCount++;
-        const localId = '@fld-' + fldCount;
-        try { inp.setAttribute('data-wp-id', localId); } catch(e){}
+        const localId = getOrCreateLocalId(inp, 'fld', 'fld');
 
         const tag = (inp.tagName || '').toLowerCase();
         const wc = (tag !== 'input' && tag !== 'textarea') ? (resolveWebComponent(inp) || inp) : null;
@@ -304,12 +333,16 @@ _INSPECT_LOGIC: Final[str] = r"""
             inpVal = clean(inp.innerText || inp.textContent);
         }
 
+        const dep = detectDependentParentField(inp);
+
         result.inputs.push({
             local_id: localId,
             id: inp.id || inp.name || (wc && (wc.id || wc.getAttribute('name'))) || '',
             label: lbl,
             type: inpType,
             required: isRequired(inp, lbl),
+            disabled: Boolean(inp.disabled || inp.getAttribute('aria-disabled') === 'true'),
+            dependency: dep,
             value: inpVal
         });
     });
@@ -342,18 +375,17 @@ _INSPECT_LOGIC: Final[str] = r"""
         if (seenButtons.has(key)) return;
         seenButtons.add(key);
 
-        btnCount++;
-        const localId = '@btn-' + btnCount;
-        try { btn.setAttribute('data-wp-id', localId); } catch(e){}
+        const localId = getOrCreateLocalId(btn, 'btn', 'btn');
 
         result.buttons.push({
             local_id: localId,
             id: id,
-            text: text,
+            label: text,
             action: action
         });
     });
 
+    result.new_elements_captured = newElementsCaptured;
     return result;
 """
 
