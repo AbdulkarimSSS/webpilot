@@ -17,6 +17,16 @@ def build_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default="127.0.0.1", help="Supervisor host address (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=9333, help="Supervisor port (default: 9333)")
     parser.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    parser.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
+    )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -24,6 +34,17 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_inspect = subparsers.add_parser(
         "inspect",
         help="Inspect URL and return full schema of inputs, dropdowns, buttons, uploads",
+    )
+    p_inspect.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
     )
     p_inspect.add_argument(
         "--url",
@@ -89,6 +110,17 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_apply = subparsers.add_parser(
         "apply",
         help="Fill fields dynamically via JSON file or CLI flags, and optionally submit",
+    )
+    p_apply.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
     )
     p_apply.add_argument(
         "--url",
@@ -202,7 +234,27 @@ def build_cli_parser() -> argparse.ArgumentParser:
         aliases=["probe"],
         help="Probe a specific element/field and inspect its properties, options, or HTML",
     )
-    p_find.add_argument("target", help="Field identifier (local_id e.g. @fld-1, label, name, or DOM id)")
+    p_find.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
+    )
+    p_find.add_argument(
+        "--selector",
+        "--css",
+        "--xpath",
+        "-sel",
+        dest="selector",
+        default=None,
+        help="Search / probe element by arbitrary CSS selector or XPath (e.g. --selector 'div.datePicker', --selector '#250\\:_datepicker', --selector '//button[contains(., \"Next\")]')",
+    )
+    p_find.add_argument("target", nargs="?", default=None, help="Field identifier (local_id e.g. @fld-1, label, name, DOM id, or selector)")
     p_find.add_argument(
         "--url",
         nargs="?",
@@ -224,6 +276,24 @@ def build_cli_parser() -> argparse.ArgumentParser:
     )
     p_find.add_argument("--query", "-q", help="Filter options by search substring or regex")
     p_find.add_argument("--html", action="store_true", help="Include outerHTML in diagnostic output")
+    p_find.add_argument(
+        "--up",
+        "--ascend",
+        "--ancestor",
+        dest="up",
+        type=int,
+        default=0,
+        help="Ascend N levels up the DOM hierarchy (e.g. --up 1 for parent wrapper, --up 2 for outer section/card) to inspect ancestor HTML",
+    )
+    p_find.add_argument(
+        "--screenshot",
+        "-s",
+        dest="screenshot",
+        nargs="?",
+        const="auto",
+        default=None,
+        help="Save visual screenshot of the target element (or its ascended container) to image file path",
+    )
     p_find.add_argument("--json", action="store_true", help="Output raw JSON instead of formatted text")
     p_find.add_argument(
         "--tab",
@@ -238,6 +308,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         default=30,
         help="Inactivity timeout in minutes (default: 30)",
     )
+    p_find.add_argument("--standalone", action="store_true", help="Run in-process via Playwright instead of Master Supervisor daemon")
     p_find.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_find.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_find.add_argument("--token", help="Explicit Master Supervisor authentication token")
@@ -247,6 +318,17 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "reload",
         aliases=["refresh"],
         help="Hard-reload the active page from the server and inspect updated form state",
+    )
+    p_reload.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
     )
     p_reload.add_argument("--url", nargs="?", default=None, help="Optional target URL")
     p_reload.add_argument("--cookies", help="Path to cookies JSON file")
@@ -267,5 +349,67 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_reload.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
     p_reload.add_argument("--env-file", help="Path to custom .env file")
     p_reload.set_defaults(reload=True)
+
+    # 9. Eval / JavaScript Execution Subcommand
+    p_eval = subparsers.add_parser(
+        "eval",
+        aliases=["js", "exec"],
+        help="Execute arbitrary JavaScript expression in the active page and return results",
+    )
+    p_eval.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
+    )
+    p_eval.add_argument("script", nargs="?", default=None, help="JavaScript expression or function to evaluate")
+    p_eval.add_argument("--code", "-c", help="Alternative flag to pass JavaScript expression")
+    p_eval.add_argument("--file", "-f", help="Path to .js file to execute")
+    p_eval.add_argument("--url", nargs="?", default=None, help="Target URL (optional if connecting to existing live session)")
+    p_eval.add_argument("--tab", type=int, default=None, help="Target specific tab by index (0-based)")
+    p_eval.add_argument("--json", action="store_true", help="Output raw JSON instead of text")
+    p_eval.add_argument("--headed", action="store_true", help="Run headed browser")
+    p_eval.add_argument("--timeout-minutes", type=int, default=30, help="Inactivity timeout in minutes")
+    p_eval.add_argument("--standalone", action="store_true", help="Run in-process via Playwright instead of Master Supervisor daemon")
+    p_eval.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_eval.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_eval.add_argument("--token", help="Explicit Master Supervisor authentication token")
+
+    # 10. CSS Injection & Inspection Subcommand
+    p_css = subparsers.add_parser(
+        "css",
+        aliases=["style"],
+        help="Inject custom CSS styles or inspect computed styles of an element",
+    )
+    p_css.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
+    )
+    p_css.add_argument("target", nargs="?", default=None, help="CSS stylesheet rules to inject, or selector to inspect/modify computed styles")
+    p_css.add_argument("--selector", "-sel", help="Element selector to inspect or modify styles")
+    p_css.add_argument("--set", "-s", dest="set_style", help="Write / set inline CSS styles on the element (e.g. --set 'display: block !important')")
+    p_css.add_argument("--prop", "-p", help="Specific computed CSS property name to inspect (e.g. display, visibility)")
+    p_css.add_argument("--file", "-f", help="Path to .css file to inject")
+    p_css.add_argument("--url", nargs="?", default=None, help="Target URL (optional if connecting to existing live session)")
+    p_css.add_argument("--tab", type=int, default=None, help="Target specific tab by index (0-based)")
+    p_css.add_argument("--json", action="store_true", help="Output raw JSON instead of text")
+    p_css.add_argument("--headed", action="store_true", help="Run headed browser")
+    p_css.add_argument("--timeout-minutes", type=int, default=30, help="Inactivity timeout in minutes")
+    p_css.add_argument("--standalone", action="store_true", help="Run in-process via Playwright instead of Master Supervisor daemon")
+    p_css.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_css.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_css.add_argument("--token", help="Explicit Master Supervisor authentication token")
 
     return parser

@@ -12,6 +12,7 @@ from common.logging import is_sensitive_key
 from services.field_interaction_service import FieldInteractionService
 from services.inspection_service import InspectionService
 from services.reactive_interaction_service import ReactiveInteractionService
+from services.target_descriptor import TargetDescriptorParser
 from validators.form_validator import FormValidator
 
 
@@ -81,6 +82,14 @@ class FormApplicationPipeline:
         if not fields_to_set:
             return confirmed, unconfirmed, failed
 
+        if any(str(k).strip().startswith("@") for k, _ in fields_to_set):
+            try:
+                has_stamp = page.evaluate("() => !!document.querySelector('[data-wp-id]')")
+                if not has_stamp:
+                    InspectionService(page).inspect(unpack_options=False)
+            except Exception:
+                pass
+
         lines.append(f"[*] Populating {len(fields_to_set)} field(s)...")
 
         remaining_queue = list(fields_to_set)
@@ -135,10 +144,13 @@ class FormApplicationPipeline:
 
 
                 if success:
-                    clean_key = getattr(field_svc, "parse_target_descriptor", lambda k: (None, k, None))(key)[1]
-                    verified = field_svc.verify_field_value(clean_key, val)
-                    if not verified and clean_key != key:
+                    type_hint, clean_key, scoped_p = TargetDescriptorParser.parse(key).to_tuple()
+                    verify_key = key if scoped_p else clean_key
+                    verified = field_svc.verify_field_value(verify_key, val)
+                    if not verified and verify_key != key:
                         verified = field_svc.verify_field_value(key, val)
+                    if not verified and effective_key != key:
+                        verified = field_svc.verify_field_value(effective_key, val)
                     pass_tag = f" (Pass {pass_num})" if pass_num > 1 else ""
                     if verified:
                         confirmed.append((key, val))

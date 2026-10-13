@@ -37,6 +37,11 @@ class TargetDescriptorParser:
         "choice",
         "input",
         "textarea",
+        "date",
+        "datepicker",
+        "selector",
+        "css",
+        "xpath",
     )
 
     @classmethod
@@ -51,6 +56,14 @@ class TargetDescriptorParser:
             if prefix.lower().strip() in cls.KNOWN_TYPES:
                 type_hint = prefix.lower().strip()
                 raw = rest.strip()
+
+        # If explicit selector type, preserve full selector without treating '>' as hierarchy divider
+        if type_hint in ("selector", "css", "xpath") or raw.startswith(("css=", "xpath=", "//")):
+            return TargetDescriptor(
+                type_hint=type_hint or ("xpath" if raw.startswith(("//", "xpath=")) else "selector"),
+                clean_target=raw,
+                scoped_parent=None,
+            )
 
         # 1. Explicit safe prefix: 'scope:Section:Field' or 'section:Section:Field'
         if raw.lower().startswith(("scope:", "section:")):
@@ -69,6 +82,11 @@ class TargetDescriptorParser:
             raw = parts[1].strip()
 
         # 3. Fallback divider support
+        elif ">>" in raw:
+            parts = [p.strip() for p in raw.split(">>") if p.strip()]
+            if len(parts) >= 2:
+                scoped_parent = " >> ".join(parts[:-1])
+                raw = parts[-1]
         elif " > " in raw:
             parts = [p.strip() for p in raw.split(" > ")]
             if len(parts) >= 2:

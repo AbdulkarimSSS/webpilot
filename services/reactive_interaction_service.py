@@ -43,8 +43,26 @@ class ReactiveInteractionService:
 
         is_scoped = ">>" in target
 
+        # Strategy 0: Arbitrary selector (css=..., xpath=..., //..., selector:...)
+        clean_sel = target.strip()
+        if clean_sel.startswith(("selector:", "selector=")):
+            clean_sel = clean_sel.split(":", 1)[-1] if ":" in clean_sel else clean_sel.split("=", 1)[-1]
+        if clean_sel.startswith(("css=", "css:", "xpath=", "xpath:", "//")):
+            if clean_sel.startswith("css:"):
+                clean_sel = clean_sel[4:]
+            elif clean_sel.startswith("xpath:"):
+                clean_sel = "xpath=" + clean_sel[6:]
+            try:
+                loc = self.page.locator(clean_sel)
+                if loc.count() > 0 and loc.first.is_visible(timeout=400):
+                    loc.first.scroll_into_view_if_needed()
+                    loc.first.click(timeout=1500)
+                    clicked = True
+            except Exception:
+                pass
+
         # Strategy A: LocalID (@btn-N) or Native ID ([id="..."])
-        if not is_scoped and target.startswith("@"):
+        if not is_scoped and not clicked and target.startswith("@"):
             try:
                 loc = self.page.locator(f'[data-wp-id="{target}"]')
                 if loc.count() > 0 and loc.first.is_visible(timeout=400):

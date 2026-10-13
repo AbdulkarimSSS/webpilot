@@ -59,9 +59,11 @@ class FlowOrchestrator:
             close_session=req.close_session,
             timeout_minutes=req.timeout_minutes or 30,
             tab_index=req.tab_index,
+            strip_header=req.strip_header,
         )
 
         with SessionCoordinator(session_ctx) as coordinator:
+            coordinator.adapter.strip_header = req.strip_header
             if req.list_tabs:
                 tabs = coordinator.list_open_tabs()
                 print("\n" + "═" * 70)
@@ -163,9 +165,11 @@ class FlowOrchestrator:
             close_session=req.close_session,
             timeout_minutes=req.timeout_minutes or 30,
             tab_index=req.tab_index,
+            strip_header=req.strip_header,
         )
 
         with SessionCoordinator(session_ctx) as coordinator:
+            coordinator.adapter.strip_header = req.strip_header
             if req.list_tabs:
                 tabs = coordinator.list_open_tabs()
                 print("\n" + "═" * 70)

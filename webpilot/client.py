@@ -129,20 +129,27 @@ class WebPilot:
 
     def find(
         self,
-        target: str,
+        target: Optional[str] = None,
         url: Optional[str] = None,
         options: bool = True,
         query: Optional[str] = None,
         html: bool = False,
+        up: int = 0,
+        screenshot: Optional[str] = None,
         tab: Optional[int] = None,
+        selector: Optional[str] = None,
     ) -> SupervisorActionResponse:
-        """Probes a specific field/element and returns its options, attributes, or HTML."""
+        """Probes a specific field/element and returns its options, attributes, ancestor HTML, or visual crop."""
+        effective_target = target or selector or ""
         req = SupervisorActionRequest(
             action="probe",
             url=url,
-            target_field=target,
+            target_field=effective_target,
+            selector=selector,
             include_options=options,
-            include_html=html,
+            include_html=html or (up > 0),
+            up_levels=up,
+            screenshot_path=screenshot,
             query=query,
             tab_index=tab,
             headed=self.headed,
@@ -158,6 +165,51 @@ class WebPilot:
     ) -> SupervisorActionResponse:
         """Clicks a button or interactive element."""
         return self.apply(url=url, press=[button_text], tab=tab, auto_inspect=False)
+
+    def eval(
+        self,
+        script: str,
+        args: Optional[Any] = None,
+        url: Optional[str] = None,
+        tab: Optional[int] = None,
+    ) -> Any:
+        """Executes arbitrary JavaScript expression in the active page and returns result."""
+        req = SupervisorActionRequest(
+            action="eval",
+            url=url,
+            script=script,
+            script_args=args,
+            tab_index=tab,
+            headed=self.headed,
+            timeout_minutes=self.timeout_minutes,
+        )
+        resp = self.client.execute(req)
+        return (resp.reactive_event or {}).get("result")
+
+    def js(self, script: str, **kwargs: Any) -> Any:
+        """Alias for eval()."""
+        return self.eval(script, **kwargs)
+
+    def css(
+        self,
+        target_or_rules: str,
+        selector: Optional[str] = None,
+        prop: Optional[str] = None,
+        url: Optional[str] = None,
+        tab: Optional[int] = None,
+    ) -> SupervisorActionResponse:
+        """Injects custom CSS styles or inspects computed styles of an element."""
+        req = SupervisorActionRequest(
+            action="css",
+            url=url,
+            script=target_or_rules,
+            selector=selector,
+            query=prop,
+            tab_index=tab,
+            headed=self.headed,
+            timeout_minutes=self.timeout_minutes,
+        )
+        return self.client.execute(req)
 
     def list_tabs(self) -> List[Dict[str, Any]]:
         """Returns list of open browser tabs in the active session."""

@@ -77,9 +77,12 @@ class OperationalWorker:
                 close_session=False,
                 timeout_minutes=req.timeout_minutes,
                 tab_index=req.tab_index,
+                strip_header=getattr(req, "strip_header", False),
             )
             self.coordinator = SessionCoordinator(session_ctx)
             self.coordinator.start()
+        if self.coordinator and self.coordinator.adapter:
+            self.coordinator.adapter.strip_header = getattr(req, "strip_header", False)
         return self.coordinator
 
     def handle_request(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
@@ -109,8 +112,11 @@ class OperationalWorker:
             elif action in ("probe", "find"):
                 return self._handle_probe(req)
 
-            elif action == "eval":
+            elif action in ("eval", "js", "exec"):
                 return self._handle_eval(req)
+
+            elif action in ("css", "style"):
+                return self._handle_css(req)
 
             elif action == "eval_py":
                 return self._handle_eval_py(req)
@@ -253,6 +259,83 @@ class OperationalWorker:
                 message=f"Error: {exc}\n{tb}",
                 active_url=coord.page.url if coord.page else "",
                 active_title=coord.page.title() if coord.page else "",
+            )
+
+    def _handle_css(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        assert coord.page is not None
+        if req.url:
+            coord.adapter.navigate(req.url)
+        css_content = (req.script or req.target_field or "").strip()
+        selector = (req.selector or "").strip()
+        prop_name = (req.query or "").strip()
+
+        # Mode A: CSS Property Inspection or Modification on an element
+        set_rules = str(req.script_args).strip() if req.script_args else ""
+        if selector or (css_content and "{" not in css_content and ";" not in css_content):
+            target_sel = selector or css_content
+            try:
+                from adapters.dom.universal_core import UNIVERSAL_DOM_CORE_JS
+                js_inspect = UNIVERSAL_DOM_CORE_JS + """
+                ([sel, propName, setRules]) => {
+                    const el = deepQuerySelector(document, sel);
+                    if (!el) return { found: false, error: "Element not found" };
+                    if (setRules) {
+                        el.style.cssText += ';' + setRules;
+                        return { found: true, modified: true, selector: sel, set: setRules, style: el.style.cssText };
+                    }
+                    const style = window.getComputedStyle(el);
+                    if (propName) {
+                        return { found: true, selector: sel, property: propName, value: style.getPropertyValue(propName) || style[propName] || "" };
+                    }
+                    const keys = ['display', 'visibility', 'opacity', 'position', 'zIndex', 'pointerEvents', 'overflow', 'color', 'backgroundColor', 'width', 'height', 'top', 'left'];
+                    const res = { found: true, selector: sel, properties: {} };
+                    keys.forEach(k => { res.properties[k] = style[k] || style.getPropertyValue(k); });
+                    return res;
+                }
+                """
+                res = coord.page.evaluate(js_inspect, [target_sel, prop_name, set_rules])
+                if not res.get("found"):
+                    return SupervisorActionResponse(
+                        success=False,
+                        action="css",
+                        message=f"Element not found for selector: '{target_sel}'",
+                        active_url=coord.page.url,
+                    )
+                msg = f"Applied inline style on '{target_sel}': {set_rules}" if set_rules else f"Computed styles retrieved for '{target_sel}'"
+                return SupervisorActionResponse(
+                    success=True,
+                    action="css",
+                    message=msg,
+                    reactive_event={"result": res},
+                    active_url=coord.page.url,
+                    active_title=coord.page.title(),
+                )
+            except Exception as exc:
+                return SupervisorActionResponse(
+                    success=False,
+                    action="css",
+                    message=f"Error inspecting CSS styles: {exc}",
+                    active_url=coord.page.url,
+                )
+
+        # Mode B: CSS Injection
+        try:
+            coord.page.add_style_tag(content=css_content)
+            return SupervisorActionResponse(
+                success=True,
+                action="css",
+                message=f"Successfully injected CSS stylesheet ({len(css_content)} chars).",
+                reactive_event={"injected": True, "length": len(css_content)},
+                active_url=coord.page.url,
+                active_title=coord.page.title(),
+            )
+        except Exception as exc:
+            return SupervisorActionResponse(
+                success=False,
+                action="css",
+                message=f"Failed to inject CSS: {exc}",
+                active_url=coord.page.url,
             )
 
     def shutdown(self) -> None:

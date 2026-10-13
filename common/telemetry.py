@@ -8,8 +8,10 @@ if TYPE_CHECKING:
     from supervisor.contracts import SupervisorActionResponse
 
 
-def print_telemetry_banner(resp: SupervisorActionResponse) -> None:
+def print_telemetry_banner(resp: SupervisorActionResponse, strip_header: bool = False) -> None:
     """Renders real-time process tree telemetry across Layer 1, 2, and 3."""
+    if strip_header:
+        return
     if resp.browser_pid or resp.worker_pid or resp.active_url:
         print("\n" + "═" * 70)
         print(" 🚀 WEBPILOT | AUTONOMOUS BROWSER RUNTIME & SUPERVISOR TELEMETRY")

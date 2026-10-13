@@ -21,6 +21,8 @@ except ImportError:
 try:
     from cli_commands import (
         apply_cmd,
+        css_cmd,
+        eval_cmd,
         find_cmd,
         get_base_url,
         get_supervisor_client,
@@ -34,6 +36,8 @@ except ImportError:
     try:
         from .cli_commands import (
             apply_cmd,
+            css_cmd,
+            eval_cmd,
             find_cmd,
             get_base_url,
             get_supervisor_client,
@@ -47,6 +51,8 @@ except ImportError:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from cli_commands import (
             apply_cmd,
+            css_cmd,
+            eval_cmd,
             find_cmd,
             get_base_url,
             get_supervisor_client,
@@ -64,6 +70,11 @@ DISPATCH_TABLE = {
     "apply": apply_cmd,
     "find": find_cmd,
     "probe": find_cmd,
+    "eval": eval_cmd,
+    "js": eval_cmd,
+    "exec": eval_cmd,
+    "css": css_cmd,
+    "style": css_cmd,
     "service": service_cmd,
     "shell": shell_cmd,
     "install": install_cmd,

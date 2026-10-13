@@ -34,6 +34,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
         close_session: bool = False,
         timeout_minutes: Optional[int] = None,
         tab_index: Optional[int] = None,
+        strip_header: bool = False,
     ):
         self.settings = settings or get_settings()
         self.device_profile = device_profile or load_device_profile()
@@ -42,6 +43,8 @@ class BrowserAdapter(BrowserAdapterProtocol):
         self.close_session = close_session
         self.timeout_minutes = timeout_minutes if timeout_minutes is not None else 30
         self.tab_index = tab_index
+        self.strip_header: bool = strip_header or getattr(self.settings, "strip_header", False)
+        self._last_printed_url: Optional[str] = None
 
         self._pw: Optional[Playwright] = None
         self.browser: Optional[Browser] = None
@@ -67,6 +70,8 @@ class BrowserAdapter(BrowserAdapterProtocol):
 
     def print_browser_telemetry(self) -> None:
         """Prints a structured telemetry card for the browser process."""
+        if self.strip_header:
+            return
         pid_str = str(self.browser_pid) if self.browser_pid else "In-Process"
         port_str = f"127.0.0.1:{self.cdp_port}" if self.cdp_port else "Local Native"
         mode_str = "PERSISTENT (Live Session)" if self.is_persistent else "ISOLATED (Single-Run)"
@@ -87,10 +92,17 @@ class BrowserAdapter(BrowserAdapterProtocol):
         if not self._page or not self._context:
             return
 
+        url = self._page.url or "about:blank"
+        if self.strip_header:
+            if url and url != self._last_printed_url and url != "about:blank":
+                print(f"[*] URL: {url}")
+                self._last_printed_url = url
+            return
+
+        self._last_printed_url = url
         active_idx = self.get_active_tab_index()
         total_tabs = len(self._context.pages)
         title = self._page.title() or "Untitled"
-        url = self._page.url or "about:blank"
 
         print(" 📄 ACTIVE PAGE & TAB TELEMETRY")
         print("─" * 70)

@@ -164,8 +164,9 @@ class SupervisorClient:
             headers=headers,
             method="POST",
         )
+        req_timeout = max(240, int(getattr(action_req, "timeout_minutes", 4) or 4) * 60)
         try:
-            with urllib.request.urlopen(req, timeout=90) as resp:
+            with urllib.request.urlopen(req, timeout=req_timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 return SupervisorActionResponse.from_dict(data)
         except Exception as exc:

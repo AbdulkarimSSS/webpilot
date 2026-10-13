@@ -117,12 +117,12 @@ def handle_worker_probe(
         coord.adapter.navigate(req.url)
         page = coord.page
 
-    target = req.target_field or ""
+    target = req.selector or req.target_field or ""
     if not target:
         return SupervisorActionResponse(
             success=False,
             action="probe",
-            message="Missing target field to probe.",
+            message="Missing target field or selector to probe.",
         )
 
     if target.startswith("@"):
@@ -142,7 +142,10 @@ def handle_worker_probe(
         target=decoded_target,
         include_options=req.include_options,
         query=decoded_query,
-        include_html=req.include_html,
+        include_html=req.include_html or (getattr(req, "up_levels", 0) > 0),
+        up_levels=getattr(req, "up_levels", 0),
+        screenshot_path=req.screenshot_path,
+        selector=req.selector,
     )
 
     if not details or not details.get("found"):
@@ -335,18 +338,21 @@ def handle_worker_apply(
         lines.append("[✓] Zero validation errors detected!")
 
     if getattr(req, "reload", False):
-        try:
-            lines.append(f"[*] Hard-reloading active page from server: {page.url}")
-            page.reload(wait_until="load")
-            for _ in range(10):
-                if page.locator("input:not([type='hidden']), select, textarea, .rcmFormSection, [id*='expandAllSections']").count() > 0:
-                    break
-                page.wait_for_timeout(250)
-            worker.cached_schema = None
-            lifecycle_svc.wait_for_form_ready(worker.settings.form_ready_timeout_ms)
-            lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
-        except Exception as exc:
-            lines.append(f"[!] Warning during page reload: {exc}")
+        if (validation_errors or failed or unconfirmed) and (req.press_buttons or req.submit):
+            lines.append("[!] Skipping post-action reload because failed/unconfirmed fields or validation errors are present (preserving filled state).")
+        else:
+            try:
+                lines.append(f"[*] Hard-reloading active page from server: {page.url}")
+                page.reload(wait_until="load")
+                for _ in range(10):
+                    if page.locator("input:not([type='hidden']), select, textarea, .rcmFormSection, [id*='expandAllSections']").count() > 0:
+                        break
+                    page.wait_for_timeout(250)
+                worker.cached_schema = None
+                lifecycle_svc.wait_for_form_ready(worker.settings.form_ready_timeout_ms)
+                lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
+            except Exception as exc:
+                lines.append(f"[!] Warning during page reload: {exc}")
 
     schema = None
     if req.auto_inspect:

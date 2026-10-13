@@ -85,6 +85,7 @@ class MasterSupervisor:
         self.worker_process: Optional[subprocess.Popen] = None
         self.last_active_time: float = time.time()
         self.lock = threading.Lock()
+        self.rpc_lock = threading.Lock()
         self._is_running = True
 
         # Launch watchdog sentinel
@@ -167,46 +168,47 @@ class MasterSupervisor:
                 message="Master Supervisor and all worker tiers shut down.",
             )
 
-        worker = self._ensure_worker()
-        assert worker.stdin is not None and worker.stdout is not None
+        with self.rpc_lock:
+            worker = self._ensure_worker()
+            assert worker.stdin is not None and worker.stdout is not None
 
-        req_line = json.dumps(req.to_dict()) + "\n"
-        try:
-            worker.stdin.write(req_line)
-            worker.stdin.flush()
+            req_line = json.dumps(req.to_dict()) + "\n"
+            try:
+                worker.stdin.write(req_line)
+                worker.stdin.flush()
 
-            data = None
-            while True:
-                line = worker.stdout.readline()
-                if not line:
-                    break
-                line_str = line.strip()
-                if not line_str:
-                    continue
-                try:
-                    data = json.loads(line_str)
-                    break
-                except Exception:
-                    log_daemon(f"Skipping non-JSON worker stdout: {line_str}")
-                    continue
+                data = None
+                while True:
+                    line = worker.stdout.readline()
+                    if not line:
+                        break
+                    line_str = line.strip()
+                    if not line_str:
+                        continue
+                    try:
+                        data = json.loads(line_str)
+                        break
+                    except Exception:
+                        log_daemon(f"Skipping non-JSON worker stdout: {line_str}")
+                        continue
 
-            if not data:
-                log_daemon("Worker returned no valid JSON response.")
-                self.terminate_worker()
+                if not data:
+                    log_daemon("Worker returned no valid JSON response.")
+                    self.terminate_worker()
+                    return SupervisorActionResponse(
+                        success=False,
+                        action=req.action,
+                        message="Operational Worker failed to return valid JSON response.",
+                    )
+
+                return SupervisorActionResponse.from_dict(data)
+
+            except Exception as exc:
                 return SupervisorActionResponse(
                     success=False,
                     action=req.action,
-                    message="Operational Worker failed to return valid JSON response.",
+                    message=f"Supervisor dispatch error: {exc}",
                 )
-
-            return SupervisorActionResponse.from_dict(data)
-
-        except Exception as exc:
-            return SupervisorActionResponse(
-                success=False,
-                action=req.action,
-                message=f"Supervisor dispatch error: {exc}",
-            )
 
     def restart_worker(self) -> SupervisorActionResponse:
         """Cascading kill of Layer 2 Worker and all child Chromium processes, then respawns fresh."""

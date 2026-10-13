@@ -61,7 +61,7 @@ class FieldInteractionService:
                             if (scope) {
                                 return (sec.innerText || '').toLowerCase().includes(scope.toLowerCase());
                             }
-                            const existingInputs = sec.querySelectorAll('input:not([type="hidden"]):not([type="button"]), select, textarea');
+                            const existingInputs = sec.querySelectorAll('input:not([type="hidden"]):not([type="button"]), select, textarea, .datePicker[id], [id$=":_datepicker"], ui5-date-picker-xweb-calendar-widget, ui5-date-picker');
                             return existingInputs.length === 0;
                         }""",
                         scoped_parent or "",
@@ -267,15 +267,23 @@ class FieldInteractionService:
         # If an input has an isTrusted check or synthetic event rejection,
         # the JS write will be immediately wiped, so we fall through to Playwright native interaction.
         if res.get("success") and res.get("type") not in ("picklist",):
-            if self.verify_field_value(clean_target, value, settle_delay_ms=20):
+            verify_target = res.get("id") if (scoped_parent and res.get("id")) else clean_target
+            if self.verify_field_value(verify_target, value, settle_delay_ms=20):
                 self.last_failure_reason = ""
                 return True
+            if res.get("type") == "date":
+                self.last_failure_reason = f"Invalid or rejected date value '{value}' for field '{clean_target}'"
+                return False
 
         # Fallback to Playwright native interaction
         fallback_res = self._playwright_click_fallback(clean_target, value)
         if fallback_res:
-            self.last_failure_reason = ""
-        return fallback_res
+            if self.verify_field_value(clean_target, value, settle_delay_ms=30):
+                self.last_failure_reason = ""
+                return True
+            self.last_failure_reason = f"Value for '{clean_target}' did not verify after native interaction"
+            return False
+        return False
 
     def verify_field_value(self, target: str, expected: Any, settle_delay_ms: int = 50) -> bool:
         """Reads back current DOM value and confirms state, allowing framework settle window."""
@@ -310,16 +318,21 @@ class FieldInteractionService:
 
     def probe_field(
         self,
-        target: str,
+        target: Optional[str] = None,
         include_options: bool = True,
         query: Optional[str] = None,
         include_html: bool = False,
+        up_levels: int = 0,
+        screenshot_path: Optional[str] = None,
+        selector: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """Probes a specific form field or picklist and retrieves deep diagnostic metadata."""
+        effective_target = target or ""
+        effective_selector = selector or ""
         try:
             details = self.page.evaluate(
                 PROBE_FIELD_DOM_SCRIPT,
-                [target, include_options, query or "", include_html],
+                [effective_target, include_options, query or "", include_html, up_levels, effective_selector],
             )
             if details and details.get("found"):
                 # If picklist options were requested but list is not loaded yet in DOM
@@ -336,7 +349,7 @@ class FieldInteractionService:
                                 self.page.wait_for_timeout(150)
                                 retry_details = self.page.evaluate(
                                     PROBE_FIELD_DOM_SCRIPT,
-                                    [target, include_options, query or "", include_html],
+                                    [target, include_options, query or "", include_html, up_levels],
                                 )
                                 if retry_details and retry_details.get("options"):
                                     details = retry_details
@@ -355,7 +368,7 @@ class FieldInteractionService:
                                 self.page.wait_for_timeout(150)
                                 retry_details = self.page.evaluate(
                                     PROBE_FIELD_DOM_SCRIPT,
-                                    [target, include_options, query or "", include_html],
+                                    [target, include_options, query or "", include_html, up_levels],
                                 )
                                 if retry_details and retry_details.get("options"):
                                     details = retry_details
@@ -368,6 +381,27 @@ class FieldInteractionService:
                                 [inp_id],
                             )
                             self.page.wait_for_timeout(100)
+
+                # Capture element visual screenshot if requested
+                if screenshot_path:
+                    try:
+                        probe_loc = self.page.locator('[data-wp-probe-target="1"]').first
+                        if probe_loc.count() > 0:
+                            probe_loc.scroll_into_view_if_needed()
+                            resolved_path = screenshot_path
+                            if resolved_path == "auto" or not resolved_path:
+                                clean_id = (details.get("local_id") or details.get("id") or "element").replace("@", "").replace(":", "_")
+                                resolved_path = f"element_{clean_id}.png"
+                            probe_loc.screenshot(path=resolved_path)
+                            details["screenshot_path"] = resolved_path
+                    except Exception as exc:
+                        details["screenshot_error"] = str(exc)
+                    finally:
+                        try:
+                            self.page.evaluate("() => { document.querySelectorAll('[data-wp-probe-target]').forEach(n => n.removeAttribute('data-wp-probe-target')); }")
+                        except Exception:
+                            pass
+
             return details
         except Exception:
             return None

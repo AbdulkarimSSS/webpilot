@@ -84,12 +84,21 @@ def test_enterprise_portal_full_lifecycle():
             page.locator("#country_picklist_trigger").click()
             page.locator('div[role="option"]:has-text("Saudi Arabia")').click()
 
+        # SAP UI5 Custom DatePicker with Shadow DOM and wrapper div (#250:_datepicker)
+        assert field_svc.set_field("From Date", "2024-06-01") is True
+        assert field_svc.verify_field_value("From Date", "01/06/2024") is True
+
+        # Also test direct ID targeting on wrapper div (#250:_datepicker)
+        assert field_svc.set_field("250:_datepicker", "15/08/2024") is True
+        assert field_svc.verify_field_value("250:_datepicker", "15/08/2024") is True
+
         # 6. Verify input values inside DOM
         assert page.locator("#first_name").input_value() == "Abdulkarim"
         assert page.locator("#last_name").input_value() == "Salih"
         assert page.locator("#email_address").input_value() == "candidate@enterprise.com"
         assert page.locator("#password").input_value() == "ComplexSecret123!"
         assert page.locator("#country_combobox").input_value() == "Saudi Arabia"
+        assert page.locator("ui5-date-picker-xweb-calendar-widget").evaluate("el => el.value") == "15/08/2024"
 
         # 7. Submit Application
         submit_res = reactive_svc.click_button("Submit Application")

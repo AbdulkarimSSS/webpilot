@@ -120,13 +120,31 @@ class DOMDataMatcher:
                     return True
                 return False
 
-            # Standard text / textarea
+            # Standard text / textarea / date
             val = str(actual.get("value", "")).strip()
             val_lower = val.lower()
             if not val:
                 return expected_str == ""
             if expected_str == val_lower:
                 return True
+            # Date normalization: YYYY-MM-DD <-> DD/MM/YYYY
+            iso_exp = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", expected_str)
+            slash_val = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", val_lower)
+            if iso_exp and slash_val:
+                if (
+                    int(iso_exp.group(1)) == int(slash_val.group(3))
+                    and int(iso_exp.group(2)) == int(slash_val.group(2))
+                    and int(iso_exp.group(3)) == int(slash_val.group(1))
+                ):
+                    return True
+            slash_exp = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", expected_str)
+            if slash_exp and slash_val:
+                if (
+                    int(slash_exp.group(1)) == int(slash_val.group(1))
+                    and int(slash_exp.group(2)) == int(slash_val.group(2))
+                    and int(slash_exp.group(3)) == int(slash_val.group(3))
+                ):
+                    return True
             # Whitespace normalized comparison
             if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", val_lower).strip():
                 return True

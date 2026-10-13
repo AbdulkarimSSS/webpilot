@@ -101,6 +101,15 @@
           </div>
         </div>
       </div>
+
+      <!-- 4. SAP UI5 Custom DatePicker with Shadow DOM and Outer Wrapper Div -->
+      <div class="field-group">
+        <label for="250:_datepicker">From Date</label>
+        <div id="250:_datepicker" class="datePicker">
+          <ui5-date-picker-xweb-calendar-widget id="widget_from_date" title="From Date" format-pattern="dd/MM/yyyy" placeholder="DD/MM/YYYY">
+          </ui5-date-picker-xweb-calendar-widget>
+        </div>
+      </div>
     </div>
 
     <div style="margin-top: 20px;">
@@ -154,7 +163,32 @@
       });
     });
 
-    // 4. Submission
+    // 4. Custom UI5 DatePicker Web Component with Shadow DOM
+    class UI5DatePickerWidget extends HTMLElement {
+      constructor() {
+        super();
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot.innerHTML = '<input type="text" placeholder="DD/MM/YYYY" id="inner-input" style="padding: 8px; border: 1px solid #ccc; width: 100%;" />';
+        const inp = this.shadowRoot.querySelector('input');
+        inp.addEventListener('input', (e) => {
+          this.dispatchEvent(new CustomEvent('input', { detail: { value: inp.value }, bubbles: true, composed: true }));
+        });
+        inp.addEventListener('change', (e) => {
+          this.dispatchEvent(new CustomEvent('change', { detail: { value: inp.value }, bubbles: true, composed: true }));
+        });
+      }
+      get value() {
+        return this.shadowRoot.querySelector('input').value;
+      }
+      set value(val) {
+        this.shadowRoot.querySelector('input').value = val;
+      }
+    }
+    if (!customElements.get('ui5-date-picker-xweb-calendar-widget')) {
+      customElements.define('ui5-date-picker-xweb-calendar-widget', UI5DatePickerWidget);
+    }
+
+    // 5. Submission
     document.getElementById('submit_application').addEventListener('click', function(e) {
       e.preventDefault();
       document.getElementById('confirmation_box').style.display = 'block';

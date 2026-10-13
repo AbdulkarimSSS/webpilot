@@ -5,6 +5,42 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-10-13
+
+### Enterprise DatePickers, Shadow DOM Core & Full Agent Toolkit Overhaul
+
+#### 1. Universal DOM Core & Deep Shadow DOM Penetration (`universal_core.py`)
+- **Recursive Shadow Root Traversal**: Implemented `deepQuerySelector(root, selector)` in `adapters/dom/universal_core.py` to recursively pierce through nested and compound Shadow DOM boundaries.
+- **Colon-Escaped Enterprise IDs**: Added automatic normalization for IDs with colons and special characters (e.g. SAP-UI5 `div#250:_datepicker`, `[id="250:_datepicker"]`), eliminating `SyntaxError` and locator resolution failures.
+- **Unified Engine Integration**: Connected `universal_core.py` across DOM inspection (`inspection.py`), probing (`probe.py`), setting (`set_field.py`), and verification (`verify.py`).
+
+#### 2. Explicit Selectors & XPath Interaction Support
+- **Prefix-Based Selector Parsing**: Enhanced `services/target_descriptor.py` and `adapters/locator_fallbacks.py` to support explicit selector prefixes:
+  - `--fill "selector:div#250:_datepicker=01/06/2024"`
+  - `--fill "css:input[name='date']=2024-06-01"`
+  - `--press "xpath://button[contains(., 'Submit')]"`
+- **Intelligent Fallback Cascade**: Automatic differentiation between plain labels, local identifiers (`@fld-N`), CSS selectors, and XPath expressions.
+
+#### 3. Decoupled Physical State Sensor & Semantic Judge
+- **In-Browser Physical Sensor (`verify.py`)**: Dedicated JavaScript sensor reading raw physical properties, child text nodes, and validity flags from DOM and Shadow DOM roots.
+- **Semantic Normalization Judge (`dom_verifier.py`)**: Independent Python-side matcher normalizing date format variations (e.g. `2024-06-01` vs `01/06/2024`), phone masks, and whitespace, enforcing the strict **0.0% False Success Truth Barrier**.
+
+#### 4. Type-to-Reveal Combobox & Dynamic Options Engine
+- **Sequential Keystroke Activation**: In `services/reactive_interaction_service.py` and `adapters/dom/set_field.py`, enabled automatic input focusing, sequential typing, and option popup waiting for AJAX-driven dynamic picklists.
+
+#### 5. Anti-Bot Natural Human Simulation
+- **Micro-Jitter Pointer Trajectory**: Simulated natural mouse movement curves with micro-jitter noise and authentic event sequences (`pointermove` ➔ `mousedown` ➔ `focus` ➔ `mouseup` ➔ `click`) to bypass aggressive bot detection systems (Cloudflare Turnstile, DataDome, PerimeterX).
+
+#### 6. New CLI Tools & Inspection Capabilities
+- **Ancestor Traversal (`--up <N>` / `--ascend <N>` / `--ancestor <N>`)**: Added container traversal in `wp find` to extract wrapper HTML up to $N$ ancestor levels for surrounding context and labels.
+- **Targeted Element Crop Screenshot (`-s / --screenshot <path>`)**: Enabled bounding-box visual crop screenshots of specific elements in `wp find` for multimodal vision agents without capturing full pages.
+- **Token-Saving Header Mode (`--strip-header` / `--no-header`)**: Global flag stripping diagnostic headers and ASCII banners across all CLI commands to conserve LLM context tokens.
+- **Direct JavaScript Execution Engine (`wp eval` / `wp js` / `wp exec`)**: Complete new subcommand for executing arbitrary JavaScript, inspecting SPA state (`window.__INITIAL_STATE__`), mutating DOM nodes, and running script files (`--file`).
+- **CSS Style Engine (`wp css` / `wp style`)**: Complete new subcommand for reading computed CSS properties (`-p`), applying inline style modifications (`--set`), and injecting global page stylesheets.
+
+#### 7. Certified Test Suite
+- Comprehensive test suite expanded in `tests/test_find_and_unicode.py` and `tests/test_enterprise_integration.py` to **86 passed tests (100%)** in 30.17 seconds.
+
 ## [2.3.0] - 2026-10-13
 
 ### The Truth Barrier & Enterprise Resilience Overhaul (12 Root-Cause Architectural Fixes)

@@ -24,6 +24,61 @@ class PlaywrightLocatorFallback:
         safe_target = cls.escape_css_attr(target)
         safe_strval = cls.escape_css_attr(strval)
 
+        # 000. Arbitrary Selector locator (css=..., xpath=..., //..., selector:...)
+        clean_sel = target.strip()
+        if clean_sel.startswith(("selector:", "selector=")):
+            clean_sel = clean_sel.split(":", 1)[-1] if ":" in clean_sel else clean_sel.split("=", 1)[-1]
+        if clean_sel.startswith(("css=", "css:", "xpath=", "xpath:", "//")):
+            if clean_sel.startswith("css:"):
+                clean_sel = clean_sel[4:]
+            elif clean_sel.startswith("xpath:"):
+                clean_sel = "xpath=" + clean_sel[6:]
+            try:
+                sel_loc = page.locator(clean_sel)
+                if sel_loc.count() > 0 and sel_loc.first.is_visible(timeout=300):
+                    first_el = sel_loc.first
+                    tag = (first_el.evaluate("el => (el.tagName || '').toLowerCase()") or "")
+                    if tag == "select":
+                        first_el.select_option(strval)
+                        return True
+                    else:
+                        first_el.focus()
+                        try:
+                            first_el.fill(strval)
+                        except Exception:
+                            first_el.press_sequentially(strval, delay=15)
+                        first_el.dispatch_event("input")
+                        first_el.dispatch_event("change")
+                        return True
+            except Exception:
+                pass
+
+        # 00. Direct LocalID (@fld-N, @drop-N, @opt-N) with Playwright (pierces open Shadow DOMs natively)
+        if target.startswith("@"):
+            try:
+                wp_loc = page.locator(f'[data-wp-id="{safe_target}"]')
+                if wp_loc.count() > 0 and wp_loc.first.is_visible(timeout=300):
+                    first_el = wp_loc.first
+                    tag = (first_el.evaluate("el => (el.tagName || '').toLowerCase()") or "")
+                    role = (first_el.get_attribute("role") or "").lower()
+                    if tag == "select":
+                        first_el.select_option(strval)
+                        return True
+                    elif role == "switch" or (tag == "input" and (first_el.get_attribute("type") or "").lower() in ("checkbox", "radio")):
+                        first_el.click()
+                        return True
+                    else:
+                        first_el.focus()
+                        try:
+                            first_el.fill(strval)
+                        except Exception:
+                            first_el.press_sequentially(strval, delay=15)
+                        first_el.dispatch_event("input")
+                        first_el.dispatch_event("change")
+                        return True
+            except Exception:
+                pass
+
         # 0a. Native <select> (single or multi-select)
         try:
             for sel_css in [f'select#{safe_target}', f'select[name="{safe_target}"]']:

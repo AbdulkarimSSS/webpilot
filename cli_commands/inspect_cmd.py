@@ -17,6 +17,7 @@ from supervisor.contracts import SupervisorActionRequest
 def inspect_cmd(args: argparse.Namespace) -> None:
     """Executes the universal inspection workflow."""
     do_reload = bool(getattr(args, "reload", False) or getattr(args, "command", "") in ("reload", "refresh"))
+    strip_header = getattr(args, "strip_header", False)
     if getattr(args, "standalone", False):
         req = InspectionRequestContext(
             url=args.url,
@@ -34,6 +35,7 @@ def inspect_cmd(args: argparse.Namespace) -> None:
             tab_index=args.tab,
             timeout_minutes=args.timeout_minutes,
             reload=do_reload,
+            strip_header=strip_header,
         )
         FlowOrchestrator.execute_inspection_flow(req)
         return
@@ -69,9 +71,10 @@ def inspect_cmd(args: argparse.Namespace) -> None:
         headed=args.headed,
         timeout_minutes=args.timeout_minutes,
         reload=do_reload,
+        strip_header=strip_header,
     )
     resp = client.execute(req)
-    print_telemetry_banner(resp)
+    print_telemetry_banner(resp, strip_header=strip_header)
     for line in resp.output_lines:
         print(line)
 

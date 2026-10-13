@@ -13,27 +13,68 @@ from supervisor.contracts import SupervisorActionRequest
 
 def find_cmd(args: argparse.Namespace) -> None:
     """Probes a specific element/field and inspects its properties, options, or HTML."""
-    client = get_supervisor_client(args)
-    req = SupervisorActionRequest(
-        action="probe",
-        url=args.url,
-        cookies_path=args.cookies,
-        tab_index=args.tab,
-        target_field=args.target,
-        include_options=args.options,
-        query=args.query,
-        include_html=args.html,
-        headed=args.headed,
-        timeout_minutes=args.timeout_minutes,
-    )
-    resp = client.execute(req)
-    print_telemetry_banner(resp)
+    up_val = getattr(args, "up", 0)
+    screen_val = getattr(args, "screenshot", None)
+    strip_header = getattr(args, "strip_header", False)
+    selector_val = getattr(args, "selector", None)
+    target_val = args.target or selector_val
 
-    if not resp.success:
-        print(f"\n[!] {resp.message}")
+    if not target_val:
+        print("[!] Error: You must specify a target or provide a --selector (e.g. wp find --selector 'div.datePicker').", file=sys.stderr)
         sys.exit(1)
 
-    details = resp.field_details or {}
+    if getattr(args, "standalone", False) and args.url:
+        from playwright.sync_api import sync_playwright
+        from services.field_interaction_service import FieldInteractionService
+        from services.inspection_service import InspectionService
+
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=not args.headed)
+            page = browser.new_page()
+            page.goto(args.url)
+            if target_val and target_val.startswith("@"):
+                InspectionService(page).inspect()
+            svc = FieldInteractionService(page)
+            details = svc.probe_field(
+                target=target_val,
+                include_options=args.options,
+                query=args.query,
+                include_html=args.html or (up_val > 0),
+                up_levels=up_val,
+                screenshot_path=screen_val,
+                selector=selector_val,
+            )
+            browser.close()
+
+            if not details or not details.get("found"):
+                print(f"\n[!] Element not found: '{selector_val or target_val}'")
+                sys.exit(1)
+    else:
+        client = get_supervisor_client(args)
+        req = SupervisorActionRequest(
+            action="probe",
+            url=args.url,
+            cookies_path=args.cookies,
+            tab_index=args.tab,
+            target_field=target_val,
+            selector=selector_val,
+            include_options=args.options,
+            query=args.query,
+            include_html=args.html or (up_val > 0),
+            up_levels=up_val,
+            screenshot_path=screen_val,
+            headed=args.headed,
+            timeout_minutes=args.timeout_minutes,
+            strip_header=strip_header,
+        )
+        resp = client.execute(req)
+        print_telemetry_banner(resp, strip_header=strip_header)
+
+        if not resp.success:
+            print(f"\n[!] {resp.message}")
+            sys.exit(1)
+
+        details = resp.field_details or {}
     if getattr(args, "json", False):
         print(json.dumps(details, indent=2, ensure_ascii=False))
         return
@@ -52,6 +93,20 @@ def find_cmd(args: argparse.Namespace) -> None:
     print(f" • Disabled    : {details.get('disabled')}")
     print(f" • Visible     : {details.get('visible')}")
 
+    ancestor_d = details.get("ancestor_depth", 0)
+    if ancestor_d > 0:
+        a_tag = details.get("ancestor_tag", "")
+        a_id = details.get("ancestor_id", "")
+        id_str = f"#{a_id}" if a_id else ""
+        a_cls = details.get("ancestor_class", "")
+        cls_str = f".{a_cls.replace(' ', '.')}" if a_cls else ""
+        print(f" • Ascended Up : +{ancestor_d} levels -> <{a_tag}{id_str}{cls_str}>")
+
+    if details.get("screenshot_path"):
+        bbox = details.get("bounding_box") or {}
+        box_str = f"({bbox.get('width')}x{bbox.get('height')}px at x={bbox.get('x')}, y={bbox.get('y')})" if bbox else ""
+        print(f" • Screenshot  : Saved to '{details.get('screenshot_path')}' {box_str}")
+
     opts = details.get("options")
     if opts is not None:
         total_cnt = details.get("options_count", len(opts))
@@ -67,6 +122,7 @@ def find_cmd(args: argparse.Namespace) -> None:
             print(f"   ... and {len(opts) - 30} more options (use --query to filter).")
 
     outer_html = details.get("outerHTML") or details.get("html")
-    if args.html and outer_html:
-        print(f"\n 🌐 Outer HTML:\n{outer_html}")
+    if (args.html or up_val > 0) and outer_html:
+        header_lvl = f" (Level +{ancestor_d})" if ancestor_d > 0 else ""
+        print(f"\n 🌐 Outer HTML{header_lvl}:\n{outer_html}")
     print("═" * 70 + "\n")

@@ -1,8 +1,9 @@
 """Isolated DOM script for setting form field values."""
 
 from typing import Final
+from adapters.dom.universal_core import UNIVERSAL_DOM_CORE_JS
 
-SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) => {
+_SET_FIELD_LOGIC: Final[str] = r"""
     let mode = 'contains';
     let rawTarget = (target || '').trim();
     if (rawTarget.startsWith('exact:')) { mode = 'exact'; rawTarget = rawTarget.slice(6).trim(); }
@@ -21,7 +22,7 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
     let parentScope = document;
     if (scopedParent && String(scopedParent).trim()) {
         const spLower = String(scopedParent).trim().toLowerCase();
-        const containers = Array.from(document.querySelectorAll('section, fieldset, details, tr, .rcmFormField, .rcmFormSection, .form-group, .accordion-item, div'));
+        const containers = deepQueryAll(document, 'section, fieldset, details, tr, .rcmFormField, .rcmFormSection, .form-group, .accordion-item, div');
         const matchedContainer = containers.find(c => {
             const h = c.querySelector('h1, h2, h3, h4, h5, legend, th, button, .rcmFormSectionTopBar, summary, strong');
             if (h && (h.innerText || '').toLowerCase().includes(spLower)) return true;
@@ -58,30 +59,60 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
         if (el.id && (el.id.toLowerCase() === lowerTarget || checkText(el.id))) return true;
         if (el.name && (el.name.toLowerCase() === lowerTarget || checkText(el.name))) return true;
         if (el.placeholder && checkText(el.placeholder)) return true;
+        if (el.getAttribute) {
+            const ariaLbl = el.getAttribute('aria-label') || el.getAttribute('accessible-name') || el.getAttribute('title');
+            if (ariaLbl && checkText(ariaLbl)) return true;
+        }
+        const wc = resolveWebComponent(el);
+        if (wc && wc.getAttribute) {
+            const wcLbl = wc.getAttribute('accessible-name') || wc.getAttribute('aria-label') || wc.getAttribute('title') || wc.getAttribute('placeholder');
+            if (wcLbl && checkText(wcLbl)) return true;
+        }
 
         if (el.id) {
-            const l = parentScope.querySelector ? parentScope.querySelector('label[for="' + el.id + '"]') : null;
+            const root = el.getRootNode ? el.getRootNode() : document;
+            const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
             if (l && l.innerText && checkText(l.innerText)) return true;
         }
-        const container = el.closest ? el.closest('tr, .rcmFormField, .form-group, .field, div') : null;
-        if (container && container.innerText && checkText(container.innerText)) return true;
+        const parentLbl = el.closest ? el.closest('label') : null;
+        if (parentLbl && parentLbl.innerText && checkText(parentLbl.innerText)) return true;
+        if (el.previousElementSibling) {
+            const prev = el.previousElementSibling;
+            const pt = (prev.innerText || prev.textContent || '').trim();
+            if (pt && pt.length < 60 && checkText(pt)) return true;
+        }
+        const container = el.closest ? el.closest('tr, .rcmFormField, .form-group, .field') : null;
+        if (container && container !== el) {
+            const header = container.querySelector('label, legend, .control-label, .field-label, th, dt, strong');
+            if (header && header.innerText && checkText(header.innerText)) return true;
+        }
         return false;
     }
 
     let exactEl = null;
-    if (rawTarget.startsWith('@')) {
-        exactEl = parentScope.querySelector('[data-wp-id="' + rawTarget + '"]');
+    if (hint === 'selector' || hint === 'css' || hint === 'xpath' || rawTarget.startsWith('css=') || rawTarget.startsWith('css:') || rawTarget.startsWith('selector:') || rawTarget.startsWith('selector=') || rawTarget.startsWith('xpath=') || rawTarget.startsWith('xpath:') || rawTarget.startsWith('//')) {
+        exactEl = deepQuerySelector(parentScope, rawTarget);
+    }
+    if (!exactEl && rawTarget.startsWith('@')) {
+        const matched = deepQueryAll(parentScope, '[data-wp-id="' + rawTarget + '"]');
+        if (matched.length > 0) exactEl = matched[0];
     }
     if (!exactEl) {
-        exactEl = document.getElementById(rawTarget);
+        exactEl = deepGetElementById(parentScope, rawTarget);
     }
     if (!exactEl && rawTarget.includes(':')) {
-        exactEl = parentScope.querySelector ? parentScope.querySelector('[id="' + rawTarget + '"]') : null;
+        const matched = deepQueryAll(parentScope, '[id="' + rawTarget + '"]');
+        if (matched.length > 0) exactEl = matched[0];
+    }
+    if (!exactEl) {
+        try {
+            exactEl = deepQuerySelector(parentScope, rawTarget);
+        } catch(e) {}
     }
 
     // 1. SELECT
     if (!hint || hint === 'select' || hint === 'dropdown') {
-        const selects = Array.from(parentScope.querySelectorAll('select'));
+        const selects = deepQueryAll(parentScope, 'select');
         const targetSelect = exactEl && exactEl.tagName === 'SELECT' ? exactEl : selects.find(matchElement);
         if (targetSelect) {
             if (targetSelect.disabled || targetSelect.getAttribute('aria-disabled') === 'true') {
@@ -105,8 +136,8 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
                 const idx = parseInt(rawVal, 10);
                 if (idx > 0 && targetSelect.options.length >= idx) {
                     targetSelect.selectedIndex = idx - 1;
-                    targetSelect.dispatchEvent(new Event('input', { bubbles: true }));
-                    targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    targetSelect.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                    targetSelect.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
                     return { success: true, type: 'select', id: targetSelect.id };
                 }
             }
@@ -122,8 +153,8 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
                         matchedCount++;
                     }
                 }
-                targetSelect.dispatchEvent(new Event('input', { bubbles: true }));
-                targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                targetSelect.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                targetSelect.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
                 return { success: matchedCount > 0, type: 'select', id: targetSelect.id, multiple: true };
             }
 
@@ -150,8 +181,8 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
                 }
             }
             if (matched) {
-                targetSelect.dispatchEvent(new Event('input', { bubbles: true }));
-                targetSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                targetSelect.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                targetSelect.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
                 return { success: true, type: 'select', id: targetSelect.id };
             }
             let reason = 'Option not found';
@@ -165,9 +196,9 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
         }
     }
 
-    // 2. Picklist
+    // 2. Picklist / Combobox
     if (!hint || hint === 'picklist' || hint === 'combobox' || hint === 'dropdown') {
-        const picklistInputs = Array.from(document.querySelectorAll('input')).filter(i => 
+        const picklistInputs = deepQueryAll(parentScope, 'input').filter(i => 
             i.id.endsWith(':_input') || i.getAttribute('role') === 'combobox' || (i.getAttribute('data-wp-id') && i.getAttribute('data-wp-id').startsWith('@drop-'))
         );
         const targetPicklist = (exactEl && picklistInputs.includes(exactEl)) ? exactEl : picklistInputs.find(matchElement);
@@ -176,28 +207,44 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
                 return { success: false, type: 'picklist', id: targetPicklist.id, reason: 'Picklist is disabled (awaiting dependency)' };
             }
             const baseId = targetPicklist.id.replace(':_input', '');
-            const btn = document.getElementById(baseId + ':_selectButton');
+            const root = targetPicklist.getRootNode ? targetPicklist.getRootNode() : document;
+            let btn = (root.getElementById ? root.getElementById(baseId + ':_selectButton') : null) || document.getElementById(baseId + ':_selectButton');
+            if (!btn) {
+                btn = (targetPicklist.parentElement ? targetPicklist.parentElement.querySelector('button, [aria-haspopup="listbox"], .picklist-btn') : null)
+                   || (targetPicklist.nextElementSibling && targetPicklist.nextElementSibling.tagName === 'BUTTON' ? targetPicklist.nextElementSibling : null);
+            }
             return { success: false, type: 'picklist', id: targetPicklist.id, trigger_button: btn ? btn.id : null };
         }
     }
 
-    // 3. Radio / Checkboxes
-    if (!hint || hint === 'choice' || hint === 'radio' || hint === 'checkbox') {
-        const choices = Array.from(document.querySelectorAll('input[type="radio"], input[type="checkbox"]'));
+    // 3. Radio / Checkboxes / Switches
+    if (!hint || hint === 'choice' || hint === 'radio' || hint === 'checkbox' || hint === 'switch') {
+        const choices = deepQueryAll(parentScope, 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], [role="switch"]');
         const matchingChoices = choices.filter(c => matchElement(c) || (c.name && c.name.toLowerCase().includes(lowerTarget)));
         if (matchingChoices.length > 0) {
             const strVal = String(val).toLowerCase();
+
+            // Handle [role="switch"]
+            const sw = matchingChoices.find(c => c.getAttribute('role') === 'switch');
+            if (sw) {
+                const curOn = sw.getAttribute('aria-checked') === 'true';
+                const wantOn = (val === true || strVal === 'on' || strVal === 'yes' || strVal === 'true' || strVal === '1');
+                if (curOn !== wantOn) {
+                    sw.click();
+                }
+                return { success: true, type: 'switch', id: sw.id || target, value: wantOn ? 'on' : '' };
+            }
+
             // Handle multi-value checkbox group (e.g. "AI,Security")
-            if (strVal.includes(',') && matchingChoices.some(c => c.type === 'checkbox')) {
+            if (strVal.includes(',') && matchingChoices.some(c => c.type === 'checkbox' || c.getAttribute('role') === 'checkbox')) {
                 const parts = strVal.split(',').map(s => s.trim().toLowerCase());
                 let checkedCount = 0;
                 for (let c of matchingChoices) {
-                    if (c.type !== 'checkbox') continue;
                     const cLabel = (c.value + ' ' + (c.nextSibling ? c.nextSibling.textContent : '') + ' ' + (c.parentElement ? c.parentElement.innerText : '')).toLowerCase();
                     if (parts.some(p => p && (c.value.toLowerCase() === p || cLabel.includes(p)))) {
                         c.checked = true;
-                        c.dispatchEvent(new Event('change', { bubbles: true }));
-                        c.dispatchEvent(new Event('click', { bubbles: true }));
+                        c.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                        c.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
                         checkedCount++;
                     }
                 }
@@ -205,10 +252,11 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
                     return { success: true, type: 'checkbox_group', id: matchingChoices[0].id || target, count: checkedCount };
                 }
             }
+
             let chosen = null;
             for (let c of matchingChoices) {
                 const cLabel = (c.value + ' ' + (c.nextSibling ? c.nextSibling.textContent : '') + ' ' + (c.parentElement ? c.parentElement.innerText : '')).toLowerCase();
-                if (cLabel.includes(strVal) || c.value.toLowerCase() === strVal) {
+                if (cLabel.includes(strVal) || (c.value && c.value.toLowerCase() === strVal) || (c.getAttribute('data-val') && c.getAttribute('data-val').toLowerCase() === strVal)) {
                     chosen = c;
                     break;
                 }
@@ -217,49 +265,149 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
                 chosen = matchingChoices[0];
             }
             if (chosen) {
-                chosen.checked = true;
-                chosen.dispatchEvent(new Event('change', { bubbles: true }));
-                chosen.dispatchEvent(new Event('click', { bubbles: true }));
-                return { success: true, type: chosen.type, id: chosen.id };
+                if (chosen.tagName === 'INPUT') {
+                    chosen.checked = true;
+                    chosen.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                    chosen.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+                } else {
+                    chosen.click();
+                }
+                return { success: true, type: chosen.getAttribute('role') || chosen.type || 'choice', id: chosen.id || '' };
             }
         }
 
-        // Custom Radio Groups
-        const customGroups = Array.from(document.querySelectorAll('[role="radiogroup"], .radioGroup, .rcmFormQuestionElement, .RCMFormField'));
+        // Custom Radio Groups in containers
+        const customGroups = deepQueryAll(parentScope, '[role="radiogroup"], .radioGroup, .rcmFormQuestionElement, .RCMFormField');
         const matchingGroup = customGroups.find(g => (g.innerText || '').toLowerCase().includes(lowerTarget));
         if (matchingGroup) {
             const strVal = String(val).toLowerCase();
-            const radioOptions = Array.from(matchingGroup.querySelectorAll('.globalRadio, [role="radio"], .radioCheck, .sfRadioInputField'));
+            const radioOptions = Array.from(matchingGroup.querySelectorAll('.globalRadio, [role="radio"], .radioCheck, .sfRadioInputField, .radioLabel'));
             for (let opt of radioOptions) {
-                const optText = (opt.innerText || '').trim().toLowerCase();
-                if (optText === strVal || optText.startsWith(strVal)) {
-                    const clickable = opt.querySelector('.radioCheck, [role="radio"], .radioContainer') || opt;
-                    clickable.click();
+                const optText = (opt.innerText || opt.textContent || '').trim().toLowerCase();
+                const optVal = (opt.getAttribute('data-val') || '').toLowerCase();
+                if (optText === strVal || optText.startsWith(strVal) || optVal === strVal) {
+                    opt.click();
                     return { success: true, type: 'custom_radio', id: opt.id || '', value: strVal };
                 }
             }
         }
     }
 
-    // 4. Text / Textarea
-    if (!hint || hint === 'text' || hint === 'input' || hint === 'textarea' || hint === 'string' || hint === 'number') {
-        const textInputs = Array.from(document.querySelectorAll('input, textarea')).filter(i => {
-            const t = (i.type || '').toLowerCase();
-            return !['radio', 'checkbox', 'file', 'hidden', 'submit', 'button'].includes(t);
+    // 4. Text / Textarea / DatePicker / ContentEditable / Custom Web Components
+    if (!hint || hint === 'text' || hint === 'input' || hint === 'textarea' || hint === 'string' || hint === 'number' || hint === 'date' || hint === 'datepicker' || hint === 'contenteditable') {
+        const textCandidates = deepQueryAll(parentScope, 'input, textarea, [contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"], [role="textbox"], [role="searchbox"], [role="spinbutton"], [role="slider"], *').filter(i => {
+            const tag = (i.tagName || '').toLowerCase();
+            if (tag === 'input' || tag === 'textarea') {
+                const t = (i.type || '').toLowerCase();
+                if (['radio', 'checkbox', 'file', 'hidden', 'submit', 'button', 'reset'].includes(t)) return false;
+                if (i.id && i.id.endsWith(':_input') && hint !== 'text') return false;
+                if (i.getAttribute('role') === 'combobox' && hint !== 'text') return false;
+                return true;
+            }
+            if (i.isContentEditable || i.getAttribute('contenteditable') !== null) return true;
+            const role = i.getAttribute('role');
+            if (['textbox', 'searchbox', 'spinbutton', 'slider'].includes(role)) return true;
+            if (isCustomElement(i)) return true;
+            if (i.classList && (i.classList.contains('datePicker') || (i.id && i.id.includes('datepicker')))) return true;
+            if (i.id) {
+                const root = i.getRootNode ? i.getRootNode() : document;
+                const hasLbl = !!((root.querySelector ? root.querySelector('label[for="' + i.id + '"]') : null) || document.querySelector('label[for="' + i.id + '"]'));
+                if (hasLbl && !['select', 'button', 'a', 'label'].includes(tag)) return true;
+            }
+            return false;
         });
-        const targetText = exactEl || textInputs.find(matchElement);
+
+        let targetText = exactEl;
+        if (!targetText) {
+            const primaryInputs = textCandidates.filter(i => {
+                const tag = (i.tagName || '').toLowerCase();
+                return tag === 'input' || tag === 'textarea' || i.isContentEditable || ['textbox', 'searchbox'].includes(i.getAttribute('role'));
+            });
+            targetText = primaryInputs.find(i => !isHoneypotOrHidden(i) && matchElement(i)) || primaryInputs.find(matchElement);
+        }
+        if (!targetText) {
+            targetText = textCandidates.find(i => !isHoneypotOrHidden(i) && matchElement(i)) || textCandidates.find(matchElement);
+        }
         if (targetText) {
-            if (targetText.disabled || targetText.getAttribute('aria-disabled') === 'true') {
-                return { success: false, type: targetText.tagName.toLowerCase(), id: targetText.id, reason: 'Field is disabled (awaiting dependency)' };
+            const tag = (targetText.tagName || '').toLowerCase();
+            const wc = (tag !== 'input' && tag !== 'textarea' && !targetText.isContentEditable) ? resolveWebComponent(targetText) : null;
+            const shadowInp = wc ? resolveShadowInput(targetText) : null;
+
+            if (targetText.disabled || targetText.getAttribute('aria-disabled') === 'true' ||
+                (wc && (wc.disabled || wc.getAttribute('disabled') !== null || wc.getAttribute('aria-disabled') === 'true'))) {
+                return { success: false, type: wc ? 'date' : tag, id: targetText.id, reason: 'Field is disabled (awaiting dependency)' };
             }
-            if (targetText.readOnly) {
-                return { success: false, type: targetText.tagName.toLowerCase(), id: targetText.id, reason: 'Field is read-only' };
-            }
+
             let toSet = String(val);
-            if (targetText.maxLength > 0 && toSet.length > targetText.maxLength) {
-                toSet = toSet.substring(0, targetText.maxLength);
+
+            // Handle ContentEditable (Rich Text / Div Soup S41)
+            if (targetText.isContentEditable || targetText.getAttribute('contenteditable') !== null) {
+                targetText.focus();
+                targetText.textContent = toSet;
+                targetText.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, composed: true, inputType: 'insertText', data: toSet }));
+                targetText.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: toSet }));
+                targetText.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                targetText.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
+                return { success: true, type: 'contenteditable', id: targetText.id || '', value: toSet };
             }
-            // Invoke native prototype descriptor setter for React / controlled synthetic state
+
+            // Handle ReadOnly input with Calendar Button fallback (S07)
+            if (targetText.readOnly || (wc && (wc.readOnly || wc.getAttribute('readonly') !== null))) {
+                const calButtons = deepQueryAll(document, '#cal button, .calendar button, [data-d], button[data-date]');
+                const dateMatch = calButtons.find(b => {
+                    const d = b.getAttribute('data-d') || b.getAttribute('data-date') || b.innerText.trim();
+                    return d === toSet || toSet.endsWith(d);
+                });
+                if (dateMatch) {
+                    dateMatch.click();
+                    return { success: true, type: 'date', id: targetText.id, value: toSet };
+                }
+                return { success: false, type: wc ? 'date' : tag, id: targetText.id, reason: 'Field is read-only' };
+            }
+
+            // Date Normalization for Web Components and Date Inputs
+            const fmtPattern = (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || targetText.getAttribute('placeholder') || '';
+            const isDateField = tag === 'date' || targetText.type === 'date' || (fmtPattern && (fmtPattern.toLowerCase().includes('dd/mm') || fmtPattern.toLowerCase().includes('yyyy-mm'))) || (wc && (wc.tagName || '').toLowerCase().includes('date'));
+            
+            let isValidDate = true;
+            if (isDateField && toSet) {
+                const norm = normalizeUniversalDate(toSet, fmtPattern);
+                toSet = norm.value;
+                isValidDate = norm.isValid;
+            }
+
+            if (wc) {
+                try { wc.value = toSet; } catch(e){}
+                try { wc.setAttribute('value', toSet); } catch(e){}
+                try { wc.setAttribute('value-state', isValidDate ? 'None' : 'Error'); } catch(e){}
+                if (shadowInp) {
+                    try {
+                        const sProto = Object.getPrototypeOf(shadowInp);
+                        const sDesc = Object.getOwnPropertyDescriptor(sProto, 'value');
+                        if (sDesc && sDesc.set) sDesc.set.call(shadowInp, toSet);
+                    } catch(e){}
+                    try { shadowInp.value = toSet; } catch(e){}
+                    shadowInp.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: toSet }));
+                    shadowInp.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                    shadowInp.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
+                }
+                wc.dispatchEvent(new CustomEvent('input', { detail: { value: toSet, valid: isValidDate }, bubbles: true, composed: true }));
+                wc.dispatchEvent(new CustomEvent('change', { detail: { value: toSet, valid: isValidDate }, bubbles: true, composed: true }));
+                wc.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
+                return { success: true, type: 'date', id: targetText.id || wc.id || '', value: toSet };
+            }
+
+            // Pre-focus element; if focusin detached and re-rendered the node (S48), catch the fresh node!
+            try {
+                targetText.focus();
+                targetText.dispatchEvent(new FocusEvent('focusin', { bubbles: true, composed: true }));
+                if (!document.contains(targetText)) {
+                    const reFound = deepGetElementById(parentScope, targetText.id) || textCandidates.find(matchElement);
+                    if (reFound) targetText = reFound;
+                }
+            } catch(e){}
+
+            // Invoke native prototype descriptor setter for React / controlled synthetic state (S22, S33)
             try {
                 const proto = Object.getPrototypeOf(targetText);
                 const protoDesc = Object.getOwnPropertyDescriptor(proto, 'value');
@@ -270,19 +418,34 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
             try {
                 targetText.value = toSet;
             } catch(e){}
-            targetText.dispatchEvent(new Event('input', { bubbles: true }));
-            targetText.dispatchEvent(new Event('change', { bubbles: true }));
-            targetText.dispatchEvent(new Event('blur', { bubbles: true }));
+
+            targetText.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: toSet }));
+            targetText.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+            targetText.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
+
+            // Autocomplete / Typeahead suggestion matching (S03, S24)
+            try {
+                const sugContainers = deepQueryAll(document, '#sug, .sug, [role="listbox"]:not([style*="display: none"]), .cb-menu:not([style*="display: none"])');
+                for (let sc of sugContainers) {
+                    const items = Array.from(sc.querySelectorAll('div, [role="option"], li, a'));
+                    const matchItem = items.find(it => (it.innerText || it.textContent || '').trim().toLowerCase() === toSet.toLowerCase());
+                    if (matchItem) {
+                        matchItem.click();
+                        break;
+                    }
+                }
+            } catch(e){}
+
             return { success: true, type: targetText.tagName.toLowerCase(), id: targetText.id, value: toSet };
         }
     }
 
     // Diagnostic probe for candidate elements that exist but were not interactable
     try {
-        const allCandidates = Array.from(document.querySelectorAll('input, select, textarea, [role="combobox"], [role="radiogroup"]'));
+        const allCandidates = deepQueryAll(document, 'input, select, textarea, [role="combobox"], [role="radiogroup"]');
         const cand = allCandidates.find(matchElement);
         if (cand) {
-            if (cand.offsetParent === null || (window.getComputedStyle && (window.getComputedStyle(cand).display === 'none' || window.getComputedStyle(cand).visibility === 'hidden'))) {
+            if (isHoneypotOrHidden(cand)) {
                 return { success: false, reason: 'Field is hidden or collapsed in DOM', id: cand.id || '' };
             }
             if (cand.disabled || cand.getAttribute('aria-disabled') === 'true') {
@@ -295,5 +458,6 @@ SET_FIELD_DOM_SCRIPT: Final[str] = """([target, val, typeHint, scopedParent]) =>
     } catch(e){}
 
     return { success: false, reason: 'No matching element found' };
-}"""
+"""
 
+SET_FIELD_DOM_SCRIPT: Final[str] = "([target, val, typeHint, scopedParent]) => {\n" + UNIVERSAL_DOM_CORE_JS + "\n" + _SET_FIELD_LOGIC + "\n}"

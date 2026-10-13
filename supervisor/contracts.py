@@ -29,6 +29,9 @@ class SupervisorActionRequest:
     include_html: bool = False
     query: Optional[str] = None
     reload: bool = False
+    up_levels: int = 0
+    strip_header: bool = False
+    selector: Optional[str] = None
     script: Optional[str] = None
     script_args: Optional[Any] = None
 

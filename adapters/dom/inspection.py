@@ -1,8 +1,9 @@
 """Isolated DOM scripts for page schema inspection and picklist option probing."""
 
 from typing import Final
+from adapters.dom.universal_core import UNIVERSAL_DOM_CORE_JS
 
-INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
+_INSPECT_LOGIC: Final[str] = r"""
     let puaMode = args && args.puaMode ? args.puaMode : null;
     if (!puaMode) {
         const sanitizePua = args && typeof args.sanitizePua === 'boolean' ? args.sanitizePua : true;
@@ -21,45 +22,29 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
     };
 
     function clean(t) {
-        if (!t) return '';
-        let res = t;
-        if (puaMode === 'strip') {
-            res = res.replace(/[\uE000-\uF8FF]/g, '');
-        } else if (puaMode === 'escape') {
-            res = res.replace(/[\uE000-\uF8FF]/g, ch => '\\\\u' + ch.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0'));
-        }
-        return res.replace(/[\\u00a0\\r\\n\\t]+/g, ' ')
-                .replace(/^[\\s\\*]+/, '')
-                .trim();
+        return cleanStr(t, puaMode);
     }
 
     function getLabel(el) {
-        if (el.getAttribute('aria-label')) return clean(el.getAttribute('aria-label'));
-        if (el.getAttribute('title')) return clean(el.getAttribute('title'));
-        if (el.id) {
-            const lbl = document.querySelector('label[for="' + el.id + '"]');
-            if (lbl && lbl.innerText) return clean(lbl.innerText);
-        }
-        const parentLbl = el.closest('label');
-        if (parentLbl && parentLbl.innerText) return clean(parentLbl.innerText);
-
-        const container = el.closest('tr, .rcmFormField, .form-group, .field, .row, div');
-        if (container) {
-            const lblEl = container.querySelector('label, .control-label, .field-label, th, dt, span.label, strong');
-            if (lblEl && lblEl !== el && lblEl.innerText) {
-                return clean(lblEl.innerText);
-            }
-            const text = container.innerText.trim().split('\\n')[0];
-            if (text && text.length < 80) return clean(text);
-        }
-        return clean(el.placeholder || el.name || '');
+        return getUniversalLabel(el, puaMode === 'strip');
     }
 
     function isRequired(el, labelText) {
         if (el.required || el.getAttribute('aria-required') === 'true') return true;
+        const wc = resolveWebComponent(el);
+        if (wc && (wc.required || wc.getAttribute('required') !== null || wc.getAttribute('aria-required') === 'true')) return true;
+        if (el.id) {
+            const root = el.getRootNode ? el.getRootNode() : document;
+            const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
+            if (l && ((l.innerText || '').includes('*') || l.querySelector('.required, .requiredField, .mandatory'))) return true;
+            if (el.id.endsWith('_datepicker') && window.juic && window.juic.Component && window.juic.Component._registry) {
+                const jc = window.juic.Component._registry[el.id.replace('_datepicker', '')];
+                if (jc && jc._isRequired) return true;
+            }
+        }
         const lower = (labelText || '').toLowerCase();
         if (lower.includes('*') || lower.includes('required')) return true;
-        const container = el.closest('tr, .rcmFormField, .form-group, .field, div');
+        const container = el.closest ? el.closest('tr, .rcmFormField, .form-group, .field, div, fieldset') : null;
         if (container) {
             const reqMarker = container.querySelector('.required, .mandatory, [aria-hidden="false"]');
             if (reqMarker && (reqMarker.innerText || '').includes('*')) return true;
@@ -75,14 +60,14 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
     let btnCount = 0;
 
     // 1. Sections
-    const sectionTitles = Array.from(document.querySelectorAll('.rcmFormSectionTopBar, legend, h2, h3'))
-        .map(el => clean(el.innerText))
+    const sectionTitles = deepQueryAll(document, '.rcmFormSectionTopBar, legend, h2, h3, [role="heading"]')
+        .map(el => clean(el.innerText || el.textContent))
         .filter(t => t.length > 2 && t.length < 80);
     result.sections = Array.from(new Set(sectionTitles));
 
     // 2. File Uploads
     const seenUploadLabels = new Set();
-    const uploadNodes = Array.from(document.querySelectorAll('input[type="file"], .sfFileUpload, .fileUploadWrapper, [role="button"][id*="_attach"]'));
+    const uploadNodes = deepQueryAll(document, 'input[type="file"], .sfFileUpload, .fileUploadWrapper, [role="button"][id*="_attach"]');
     uploadNodes.forEach(fi => {
         if (['LINK', 'SCRIPT', 'STYLE'].includes(fi.tagName)) return;
         const id = fi.id || '';
@@ -91,7 +76,7 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
             id.includes('Form') || id.includes('Wrapper')) return;
 
         const rawLbl = getLabel(fi) || 'Document Upload';
-        const lbl = clean(rawLbl.split('\\n')[0]);
+        const lbl = clean(rawLbl.split('\n')[0]);
         if (!lbl || seenUploadLabels.has(lbl.toLowerCase())) return;
         seenUploadLabels.add(lbl.toLowerCase());
 
@@ -107,14 +92,15 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
         });
     });
 
-    const docLinks = Array.from(document.querySelectorAll('.documentName, a[href*="download"], a[title*="Download"], span[title*=".pdf"]'))
+    const docLinks = deepQueryAll(document, '.documentName, a[href*="download"], a[title*="Download"], span[title*=".pdf"]')
         .map(a => clean(a.innerText || a.title))
         .filter(t => t.includes('.pdf') || t.includes('.doc') || t.includes('.docx'));
     result.already_uploaded_files = Array.from(new Set(docLinks));
 
     // 3. Dropdowns & Picklists
-    document.querySelectorAll('select').forEach(sel => {
-        if (sel.offsetParent === null) return;
+    const selectNodes = deepQueryAll(document, 'select');
+    selectNodes.forEach(sel => {
+        if (isHoneypotOrHidden(sel)) return;
         const lbl = getLabel(sel);
         dropCount++;
         const localId = '@drop-' + dropCount;
@@ -126,17 +112,19 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
             label: lbl,
             type: 'select',
             required: isRequired(sel, lbl),
-            value: sel.value || (sel.selectedOptions[0] ? clean(sel.selectedOptions[0].text) : '')
+            value: sel.value || (sel.selectedOptions && sel.selectedOptions[0] ? clean(sel.selectedOptions[0].text) : '')
         });
     });
 
-    const picklistInputs = Array.from(document.querySelectorAll('input')).filter(inp => 
-        inp.id.endsWith(':_input') || inp.getAttribute('role') === 'combobox'
+    const picklistInputs = deepQueryAll(document, 'input').filter(inp => 
+        inp.id.endsWith(':_input') || inp.getAttribute('role') === 'combobox' || (inp.getAttribute('aria-haspopup') === 'listbox')
     );
     picklistInputs.forEach(pi => {
+        if (isHoneypotOrHidden(pi)) return;
         const lbl = getLabel(pi);
-        const baseId = pi.id.replace(':_input', '');
-        const btn = document.getElementById(baseId + ':_selectButton');
+        const baseId = pi.id ? pi.id.replace(':_input', '') : '';
+        const root = pi.getRootNode ? pi.getRootNode() : document;
+        const btn = baseId ? (root.getElementById ? root.getElementById(baseId + ':_selectButton') : document.getElementById(baseId + ':_selectButton')) : null;
         dropCount++;
         const localId = '@drop-' + dropCount;
         try {
@@ -156,28 +144,42 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
         });
     });
 
-    // 4. Choices (Radio / Checkbox Groups)
+    // 4. Choices (Radio / Checkbox Groups & Switches)
     const choiceGroups = {};
-    const radios = Array.from(document.querySelectorAll('input[type="radio"], input[type="checkbox"], [role="radio"]'));
-    radios.forEach(r => {
-        const rg = r.closest('[role="radiogroup"], .rcmFormField, .form-group, tr, fieldset');
+    const choices = deepQueryAll(document, 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], [role="switch"]');
+    choices.forEach(r => {
+        if (isHoneypotOrHidden(r)) return;
+        const rg = r.closest ? r.closest('[role="radiogroup"], .rcmFormField, .form-group, tr, fieldset') : null;
         let q = '';
         if (rg) {
             if (rg.getAttribute('aria-labelledby')) {
-                const qNode = document.getElementById(rg.getAttribute('aria-labelledby'));
-                if (qNode) q = clean(qNode.innerText);
+                const root = rg.getRootNode ? rg.getRootNode() : document;
+                const qNode = (root.getElementById ? root.getElementById(rg.getAttribute('aria-labelledby')) : null) || document.getElementById(rg.getAttribute('aria-labelledby'));
+                if (qNode) q = clean(qNode.innerText || qNode.textContent);
             }
             if (!q) {
                 const qEl = rg.querySelector('label, .rcmFormQuestionLabel, legend, strong');
-                if (qEl) q = clean(qEl.innerText);
+                if (qEl) q = clean(qEl.innerText || qEl.textContent);
             }
         }
         if (!q && r.name) q = r.name;
+        if (!q && r.getAttribute('aria-label')) q = r.getAttribute('aria-label');
+        if (!q && r.id) {
+            const root = r.getRootNode ? r.getRootNode() : document;
+            const l = (root.querySelector ? root.querySelector('label[for="' + r.id + '"]') : null) || document.querySelector('label[for="' + r.id + '"]');
+            if (l) q = clean(l.innerText);
+        }
+        if (!q && r.getAttribute('role') === 'switch') q = clean(r.innerText || r.textContent);
         if (!q) return;
 
         let optLabel = clean(r.getAttribute('aria-label') || r.value || (r.parentElement ? r.parentElement.innerText : ''));
+        if (r.getAttribute('role') === 'switch') optLabel = clean(r.innerText || 'Toggle');
         if (!optLabel || optLabel.toLowerCase() === 'options') return;
         if (optLabel.length > 40) optLabel = optLabel.slice(0, 40);
+
+        const rRole = r.getAttribute('role') || r.type || '';
+        const isRadio = rRole === 'radio';
+        const isSwitch = rRole === 'switch';
 
         if (!choiceGroups[q]) {
             optCount++;
@@ -188,7 +190,7 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
                 name: r.name || r.id || q,
                 label: q,
                 question: q,
-                type: (r.getAttribute('role') === 'radio' || r.type === 'radio') ? 'radio' : 'checkbox',
+                type: isRadio ? 'radio' : (isSwitch ? 'switch' : 'checkbox'),
                 required: isRequired(r, q),
                 options: [],
                 selected: null
@@ -202,7 +204,7 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
             r.setAttribute('data-wp-id', choiceGroups[q].local_id);
         } catch(e){}
 
-        const isChecked = r.checked || r.getAttribute('aria-checked') === 'true' || r.classList.contains('radioOn');
+        const isChecked = r.checked || r.getAttribute('aria-checked') === 'true' || r.classList.contains('radioOn') || r.classList.contains('checked');
         if (!choiceGroups[q].options.includes(optLabel)) {
             choiceGroups[q].options.push(optLabel);
         }
@@ -212,38 +214,111 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
     });
     result.choices = Object.values(choiceGroups);
 
-    // 5. Inputs
-    const standardInputs = Array.from(document.querySelectorAll('input, textarea')).filter(el => {
+    // 5. Universal Inputs, Textareas, DatePickers & Custom Web Components
+    const seenInputElements = new Set();
+    const candidateInputs = [];
+
+    // 5a. Deep standard inputs and textareas
+    deepQueryAll(document, 'input, textarea').forEach(el => {
         const t = (el.type || 'text').toLowerCase();
-        if (['radio', 'checkbox', 'file', 'hidden', 'button', 'submit', 'reset'].includes(t)) return false;
-        if (el.id.endsWith(':_input')) return false;
-        if (el.getAttribute('role') === 'combobox') return false;
-        if (el.offsetParent === null) return false;
+        if (['radio', 'checkbox', 'file', 'hidden', 'button', 'submit', 'reset'].includes(t)) return;
+        if (el.id && el.id.endsWith(':_input')) return;
+        if (el.getAttribute('role') === 'combobox') return;
+        if (isHoneypotOrHidden(el)) return;
+        candidateInputs.push(el);
+    });
+
+    // 5b. ContentEditable & ARIA value roles
+    deepQueryAll(document, '[contenteditable="true"], [contenteditable=""], [contenteditable="plaintext-only"], [role="textbox"], [role="searchbox"], [role="spinbutton"], [role="slider"]').forEach(el => {
+        const tag = (el.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
+        if (isHoneypotOrHidden(el)) return;
+        candidateInputs.push(el);
+    });
+
+    // 5c. Custom Web Elements & Label-bound elements
+    deepQueryAll(document, '*').forEach(el => {
+        if (isCustomElement(el)) {
+            if (isHoneypotOrHidden(el)) return;
+            const tag = (el.tagName || '').toLowerCase();
+            if (['select', 'button', 'a', 'form', 'style', 'script'].includes(tag)) return;
+            candidateInputs.push(el);
+        } else if (el.id) {
+            const root = el.getRootNode ? el.getRootNode() : document;
+            const hasLabel = !!((root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]'));
+            if (hasLabel && !isHoneypotOrHidden(el)) {
+                const tag = (el.tagName || '').toLowerCase();
+                if (!['input', 'textarea', 'select', 'button', 'a', 'label'].includes(tag)) {
+                    candidateInputs.push(el);
+                }
+            }
+        }
+    });
+
+    // Deduplicate and consolidate outer hosts vs inner shadow inputs
+    const finalInputs = candidateInputs.filter(el => {
+        if (seenInputElements.has(el)) return false;
+        const tag = (el.tagName || '').toLowerCase();
+        if (tag !== 'input' && tag !== 'textarea') {
+            const isDatePicker = el.classList.contains('datePicker') || (el.id && el.id.includes('datepicker')) || isCustomElement(el);
+            if (!isDatePicker) {
+                const innerInp = el.querySelector ? el.querySelector('input:not([type="hidden"]), textarea') : null;
+                if (innerInp && seenInputElements.has(innerInp)) return false;
+            }
+        }
+        seenInputElements.add(el);
         return true;
     });
 
-    standardInputs.forEach(inp => {
+    finalInputs.forEach(inp => {
         const lbl = getLabel(inp);
         if (!lbl) return;
         fldCount++;
         const localId = '@fld-' + fldCount;
         try { inp.setAttribute('data-wp-id', localId); } catch(e){}
 
+        const tag = (inp.tagName || '').toLowerCase();
+        const wc = (tag !== 'input' && tag !== 'textarea') ? (resolveWebComponent(inp) || inp) : null;
+        const shadowInp = wc ? resolveShadowInput(inp) : null;
+        if (wc) try { wc.setAttribute('data-wp-id', localId); } catch(e){}
+        if (shadowInp) try { shadowInp.setAttribute('data-wp-id', localId); } catch(e){}
+
+        const fmt = (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || inp.getAttribute('placeholder') || '';
+        const isDatePicker = (
+            inp.classList.contains('datePicker') || 
+            (inp.id && inp.id.includes('datepicker')) || 
+            (wc && (wc.tagName || '').toLowerCase().includes('date')) ||
+            (wc && fmt && (fmt.toLowerCase().includes('dd/mm') || fmt.toLowerCase().includes('yyyy-mm'))) ||
+            (inp.type === 'date')
+        );
+        const inpType = isDatePicker ? 'date' : (inp.type || (wc && wc.getAttribute('type')) || (inp.getAttribute('contenteditable') !== null ? 'contenteditable' : tag));
+
+        let inpVal = (inp.value !== undefined && inp.value !== '') ? inp.value : '';
+        if (!inpVal && wc) {
+            inpVal = wc.value || (wc.getAttribute && wc.getAttribute('value')) || '';
+        }
+        if (!inpVal && shadowInp) {
+            inpVal = shadowInp.value || '';
+        }
+        if (!inpVal && inp.isContentEditable) {
+            inpVal = clean(inp.innerText || inp.textContent);
+        }
+
         result.inputs.push({
             local_id: localId,
-            id: inp.id || inp.name,
+            id: inp.id || inp.name || (wc && (wc.id || wc.getAttribute('name'))) || '',
             label: lbl,
-            type: inp.type || inp.tagName.toLowerCase(),
+            type: inpType,
             required: isRequired(inp, lbl),
-            value: inp.value || ''
+            value: inpVal
         });
     });
 
     // 6. Action Buttons
-    const buttonEls = Array.from(document.querySelectorAll('button, input[type="submit"], input[type="button"], a.btn, [role="button"], span[id$="_submitBtn"], span[id$="_saveBtn"]'));
+    const buttonEls = deepQueryAll(document, 'button, input[type="submit"], input[type="button"], a.btn, [role="button"], span[id$="_submitBtn"], span[id$="_saveBtn"]');
     const seenButtons = new Set();
     buttonEls.forEach(btn => {
-        if (btn.offsetParent === null) return;
+        if (isHoneypotOrHidden(btn)) return;
         const id = btn.id || '';
         if (id.endsWith(':_selectButton')) return;
         const text = clean(btn.innerText || btn.value || btn.title);
@@ -280,7 +355,9 @@ INSPECT_PAGE_DOM_SCRIPT: Final[str] = """(args = {}) => {
     });
 
     return result;
-}"""
+"""
+
+INSPECT_PAGE_DOM_SCRIPT: Final[str] = "(args = {}) => {\n" + UNIVERSAL_DOM_CORE_JS + "\n" + _INSPECT_LOGIC + "\n}"
 
 PROBE_PICKLIST_OPTIONS_SCRIPT: Final[str] = """(ownsId) => {
     let container = ownsId ? document.getElementById(ownsId) : null;

@@ -17,9 +17,9 @@ from supervisor.contracts import SupervisorActionResponse
 
 def test_package_exports_and_aliases():
     """Verifies that webpilot exports expected symbols and version."""
-    assert __version__ == "2.3.0"
-    assert webpilot.__version__ == "2.3.0"
-    assert webpilot_engine.__version__ == "2.3.0"
+    assert __version__ == "2.4.0"
+    assert webpilot.__version__ == "2.4.0"
+    assert webpilot_engine.__version__ == "2.4.0"
     assert WebPilotEngine is UniversalFormEngine
     assert issubclass(WebPilot, object)
 
@@ -112,7 +112,7 @@ def test_webpilot_find_and_click(mock_execute):
     )
 
     wp = WebPilot()
-    res = wp.find("Country", options=True, query="Jap", html=True)
+    res = wp.find("Country", options=True, query="Jap", html=True, up=2, screenshot="crop.png")
 
     assert res.success is True
     req = mock_execute.call_args[0][0]
@@ -120,6 +120,8 @@ def test_webpilot_find_and_click(mock_execute):
     assert req.target_field == "Country"
     assert req.include_options is True
     assert req.include_html is True
+    assert req.up_levels == 2
+    assert req.screenshot_path == "crop.png"
     assert req.query == "Jap"
 
     # Test click

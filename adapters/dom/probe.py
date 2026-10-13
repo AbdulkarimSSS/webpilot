@@ -1,21 +1,60 @@
 """Isolated DOM script for element probing and diagnostic metadata inspection."""
 
 from typing import Final
+from adapters.dom.universal_core import UNIVERSAL_DOM_CORE_JS
 
-PROBE_FIELD_DOM_SCRIPT: Final[str] = """([target, includeOptions = false, queryFilter = '', includeHtml = false]) => {
-    const rawTarget = (target || '').trim();
+_PROBE_LOGIC: Final[str] = r"""
+    let rawTarget = (target || '').trim();
+    if (/^(text|picklist|select|combobox|radio|checkbox|choice|input|textarea|date|datepicker|switch|contenteditable):/i.test(rawTarget)) {
+        rawTarget = rawTarget.split(':', 2)[1].trim();
+    }
+    let scopedParent = null;
+    if (rawTarget.includes('>>')) {
+        const parts = rawTarget.split('>>').map(s => s.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+            scopedParent = parts.slice(0, -1).join(' >> ');
+            rawTarget = parts[parts.length - 1];
+        }
+    } else if (rawTarget.includes(' > ')) {
+        const parts = rawTarget.split(' > ').map(s => s.trim()).filter(Boolean);
+        if (parts.length >= 2) {
+            scopedParent = parts.slice(0, -1).join(' > ');
+            rawTarget = parts[parts.length - 1];
+        }
+    }
     const lowerTarget = rawTarget.toLowerCase();
 
+    let parentScope = document;
+    if (scopedParent) {
+        const spLower = scopedParent.toLowerCase();
+        const containers = deepQueryAll(document, 'section, fieldset, details, tr, .rcmFormField, .rcmFormSection, .form-group, .accordion-item, div');
+        const matchedContainer = containers.find(c => {
+            const h = c.querySelector('h1, h2, h3, h4, h5, legend, th, button, .rcmFormSectionTopBar, summary, strong');
+            if (h && (h.innerText || '').toLowerCase().includes(spLower)) return true;
+            return (c.getAttribute && c.getAttribute('aria-label') && c.getAttribute('aria-label').toLowerCase().includes(spLower));
+        });
+        if (matchedContainer) parentScope = matchedContainer;
+    }
+
     function matchElement(el) {
-        if (!el) return false;
+        if (!el || !lowerTarget) return false;
         if (rawTarget.startsWith('@') && el.getAttribute && el.getAttribute('data-wp-id') === rawTarget) return true;
         if (el.getAttribute && el.getAttribute('data-wp-id') === rawTarget) return true;
         if (el.id && el.id.toLowerCase() === lowerTarget) return true;
         if (el.name && el.name.toLowerCase() === lowerTarget) return true;
         if (el.placeholder && el.placeholder.toLowerCase().includes(lowerTarget)) return true;
-        if (el.getAttribute && el.getAttribute('aria-label') && el.getAttribute('aria-label').toLowerCase().includes(lowerTarget)) return true;
+        if (el.getAttribute) {
+            const ariaLbl = el.getAttribute('aria-label') || el.getAttribute('accessible-name') || el.getAttribute('title');
+            if (ariaLbl && ariaLbl.toLowerCase().includes(lowerTarget)) return true;
+        }
+        const wc = resolveWebComponent(el);
+        if (wc && wc.getAttribute) {
+            const wcLbl = wc.getAttribute('accessible-name') || wc.getAttribute('aria-label') || wc.getAttribute('title') || wc.getAttribute('placeholder');
+            if (wcLbl && wcLbl.toLowerCase().includes(lowerTarget)) return true;
+        }
         if (el.id) {
-            const l = document.querySelector('label[for="' + el.id + '"]');
+            const root = el.getRootNode ? el.getRootNode() : document;
+            const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
             if (l && l.innerText && l.innerText.toLowerCase().includes(lowerTarget)) return true;
         }
         const container = el.closest ? el.closest('tr, .rcmFormField, .form-group, .field, td, fieldset') : null;
@@ -24,48 +63,60 @@ PROBE_FIELD_DOM_SCRIPT: Final[str] = """([target, includeOptions = false, queryF
     }
 
     let el = null;
-    if (rawTarget.startsWith('@')) {
-        el = document.querySelector('[data-wp-id="' + rawTarget + '"]');
+    const explicitSelector = (typeof selector !== 'undefined' && selector) ? String(selector).trim() : '';
+    if (explicitSelector) {
+        el = deepQuerySelector(parentScope, explicitSelector);
+    }
+    if (!el && (rawTarget.startsWith('css=') || rawTarget.startsWith('css:') || rawTarget.startsWith('selector:') || rawTarget.startsWith('selector=') || rawTarget.startsWith('xpath=') || rawTarget.startsWith('xpath:') || rawTarget.startsWith('//'))) {
+        el = deepQuerySelector(parentScope, rawTarget);
+    }
+    if (!el && rawTarget.startsWith('@')) {
+        const matched = deepQueryAll(parentScope, '[data-wp-id="' + rawTarget + '"]');
+        if (matched.length > 0) el = matched[0];
     }
     if (!el) {
-        el = document.getElementById(rawTarget);
+        el = deepGetElementById(parentScope, rawTarget);
     }
     if (!el && rawTarget.includes(':')) {
-        try { el = document.querySelector('[id="' + rawTarget + '"]'); } catch(e){}
+        const matched = deepQueryAll(parentScope, '[id="' + rawTarget + '"]');
+        if (matched.length > 0) el = matched[0];
     }
     if (!el) {
-        const candidates = Array.from(document.querySelectorAll('input:not([type="hidden"]), select, textarea, button, [role="button"], [role="combobox"], [role="radiogroup"]'));
-        el = candidates.find(c => c.offsetParent !== null && matchElement(c)) || candidates.find(matchElement);
+        try {
+            el = deepQuerySelector(parentScope, rawTarget);
+        } catch(e) {}
+    }
+    if (!el) {
+        const candidates = deepQueryAll(parentScope, 'input:not([type="hidden"]), select, textarea, button, [role="button"], [role="combobox"], [role="radiogroup"], [contenteditable="true"], [contenteditable=""], [role="textbox"], [role="switch"], *').filter(c => {
+            const t = (c.tagName || '').toLowerCase();
+            if (['script', 'style', 'head', 'link'].includes(t)) return false;
+            return true;
+        });
+        el = candidates.find(c => !isHoneypotOrHidden(c) && matchElement(c)) || candidates.find(matchElement);
     }
 
     if (!el) {
-        return { found: false, target: rawTarget, reason: 'Element not found in DOM' };
+        return { found: false, target: explicitSelector || rawTarget, reason: 'Element not found in DOM' };
     }
 
     const tag = (el.tagName || '').toLowerCase();
+    const wc = (tag !== 'input' && tag !== 'select' && tag !== 'textarea' && tag !== 'button' && !el.isContentEditable) ? (resolveWebComponent(el) || el) : null;
+    const shadowInp = wc ? resolveShadowInput(el) : null;
     const elType = (el.type || el.getAttribute('role') || tag).toLowerCase();
+    const fmt = (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || el.getAttribute('placeholder') || '';
+    const isDatePicker = el.classList.contains('datePicker') || (el.id && el.id.includes('datepicker')) || (wc && (wc.tagName || '').toLowerCase().includes('date')) || (fmt && (fmt.toLowerCase().includes('dd/mm') || fmt.toLowerCase().includes('yyyy-mm')));
     let widgetType = 'input';
-    if (tag === 'select') widgetType = 'select';
+    if (isDatePicker) widgetType = 'date';
+    else if (tag === 'select') widgetType = 'select';
     else if (el.id && el.id.endsWith(':_input')) widgetType = 'picklist';
     else if (elType === 'combobox') widgetType = 'picklist';
     else if (elType === 'radio') widgetType = 'radio';
     else if (elType === 'checkbox') widgetType = 'checkbox';
+    else if (elType === 'switch') widgetType = 'switch';
+    else if (el.isContentEditable || el.getAttribute('contenteditable') !== null) widgetType = 'contenteditable';
     else if (tag === 'button' || elType === 'button' || elType === 'submit') widgetType = 'button';
 
-    let label = '';
-    if (el.getAttribute('aria-label')) label = el.getAttribute('aria-label').trim();
-    if (!label && el.id) {
-        const l = document.querySelector('label[for="' + el.id + '"]');
-        if (l) label = (l.innerText || '').trim();
-    }
-    if (!label) {
-        const c = el.closest ? el.closest('tr, .rcmFormField, .form-group, .field, div') : null;
-        if (c) {
-            const lblEl = c.querySelector('label, .control-label, .field-label, th, dt, strong');
-            if (lblEl && lblEl !== el) label = (lblEl.innerText || '').trim();
-        }
-    }
-    if (!label) label = (el.placeholder || el.title || el.name || '').trim();
+    const label = getUniversalLabel(el, false);
 
     let optionsList = [];
     if (includeOptions) {
@@ -78,13 +129,13 @@ PROBE_FIELD_DOM_SCRIPT: Final[str] = """([target, includeOptions = false, queryF
         } else if (widgetType === 'picklist') {
             const baseId = el.id ? el.id.replace(':_input', '') : '';
             const owns = el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '';
-            let list = owns ? document.getElementById(owns) : null;
-            if (!list && baseId) list = document.getElementById(baseId + ':_listSelect');
+            const root = el.getRootNode ? el.getRootNode() : document;
+            let list = owns ? ((root.getElementById ? root.getElementById(owns) : null) || document.getElementById(owns)) : null;
+            if (!list && baseId) list = (root.getElementById ? root.getElementById(baseId + ':_listSelect') : null) || document.getElementById(baseId + ':_listSelect');
             if (!list && !owns) list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"])');
             if (list) {
                 const searchRoot = list.closest('.globalMenu, .sf-combo-listselect') || list;
                 const rawItems = Array.from(searchRoot.querySelectorAll('a, li, [role="option"], [role="menuitem"], .globalMenuItem, .picklistOption, .rcmpaginatedselectitem, [class*="selectItem"]'));
-                // Deduplicate wrapper elements (e.g. keep inner <a> if wrapped by <li>)
                 const items = rawItems.filter(item => !rawItems.some(other => other !== item && item.contains(other)));
                 optionsList = items.map((i, idx) => ({
                     local_id: '@opt-' + (idx + 1),
@@ -102,13 +153,68 @@ PROBE_FIELD_DOM_SCRIPT: Final[str] = """([target, includeOptions = false, queryF
 
     const trigBtn = el.id && el.id.endsWith(':_input') ? document.getElementById(el.id.replace(':_input', ':_selectButton')) : null;
 
+    let targetEl = el;
+    let currentDepth = 0;
+    const requestedUp = parseInt(upLevels, 10) || 0;
+    while (currentDepth < requestedUp && targetEl && targetEl.parentElement && targetEl.parentElement !== document.documentElement && (targetEl.parentElement.tagName || '').toLowerCase() !== 'html') {
+        targetEl = targetEl.parentElement;
+        currentDepth++;
+    }
+
+    try {
+        deepQueryAll(document, '[data-wp-probe-target]').forEach(n => n.removeAttribute('data-wp-probe-target'));
+        if (targetEl && targetEl.setAttribute) {
+            targetEl.setAttribute('data-wp-probe-target', '1');
+        }
+    } catch(e) {}
+
+    let bbox = null;
+    try {
+        if (targetEl && targetEl.getBoundingClientRect) {
+            const r = targetEl.getBoundingClientRect();
+            bbox = {
+                x: Math.round(r.x),
+                y: Math.round(r.y),
+                width: Math.round(r.width),
+                height: Math.round(r.height)
+            };
+        }
+    } catch(e) {}
+
     let htmlOut = undefined;
-    if (includeHtml) {
-        htmlOut = el.outerHTML || '';
-        const ownsId = el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '';
-        const listEl = ownsId ? document.getElementById(ownsId) : null;
-        if (listEl && listEl.outerHTML) {
-            htmlOut += '\\n<!-- LIST_HTML -->\\n' + listEl.outerHTML.slice(0, 1200);
+    if (includeHtml || requestedUp > 0) {
+        htmlOut = (targetEl && targetEl.outerHTML) || el.outerHTML || '';
+        if (requestedUp === 0) {
+            const ownsId = el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '';
+            const listEl = ownsId ? document.getElementById(ownsId) : null;
+            if (listEl && listEl.outerHTML) {
+                htmlOut += '\n<!-- LIST_HTML -->\n' + listEl.outerHTML.slice(0, 1200);
+            }
+        }
+    }
+
+    let curVal = (el.value !== undefined && el.value !== '') ? el.value : '';
+    if (!curVal && wc) {
+        curVal = wc.value || (wc.getAttribute && wc.getAttribute('value')) || '';
+    }
+    if (!curVal && shadowInp) {
+        curVal = shadowInp.value || '';
+    }
+    if (!curVal && (el.isContentEditable || el.getAttribute('contenteditable') !== null)) {
+        curVal = el.textContent || el.innerText || '';
+    }
+    if (!curVal && el.value === undefined && !wc) {
+        curVal = el.innerText || '';
+    }
+
+    let isReq = Boolean(el.required || el.getAttribute('aria-required') === 'true' || (wc && (wc.required || wc.getAttribute('required') !== null || wc.getAttribute('aria-required') === 'true')));
+    if (!isReq && el.id) {
+        const root = el.getRootNode ? el.getRootNode() : document;
+        const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
+        if (l && ((l.innerText || '').includes('*') || l.querySelector('.required, .requiredField, .mandatory'))) isReq = true;
+        if (el.id.endsWith('_datepicker') && window.juic && window.juic.Component && window.juic.Component._registry) {
+            const jc = window.juic.Component._registry[el.id.replace('_datepicker', '')];
+            if (jc && jc._isRequired) isReq = true;
         }
     }
 
@@ -119,19 +225,25 @@ PROBE_FIELD_DOM_SCRIPT: Final[str] = """([target, includeOptions = false, queryF
         name: el.name || '',
         tag: tag,
         type: widgetType,
-        input_type: el.type || '',
+        input_type: isDatePicker ? 'date' : (el.type || ''),
+        format_pattern: (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || '',
         label: label,
-        value: el.value !== undefined ? el.value : (el.innerText || ''),
-        required: el.required || el.getAttribute('aria-required') === 'true',
-        disabled: el.disabled || el.getAttribute('aria-disabled') === 'true',
-        visible: el.offsetParent !== null,
+        value: curVal,
+        required: isReq,
+        disabled: Boolean(el.disabled || el.getAttribute('aria-disabled') === 'true' || (wc && (wc.disabled || wc.getAttribute('disabled') !== null))),
+        visible: !isHoneypotOrHidden(el),
         trigger_button: trigBtn ? trigBtn.id : null,
         owns_id: el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '',
         options_count: optionsList.length,
         options: optionsList,
+        ancestor_depth: currentDepth,
+        ancestor_tag: targetEl ? (targetEl.tagName || '').toLowerCase() : tag,
+        ancestor_id: targetEl ? (targetEl.id || '') : (el.id || ''),
+        ancestor_class: targetEl ? (targetEl.className || '') : '',
+        bounding_box: bbox,
         outerHTML: htmlOut,
         html: htmlOut
     };
-}"""
+"""
 
-
+PROBE_FIELD_DOM_SCRIPT: Final[str] = "([target, includeOptions = false, queryFilter = '', includeHtml = false, upLevels = 0, selector = '']) => {\n" + UNIVERSAL_DOM_CORE_JS + "\n" + _PROBE_LOGIC + "\n}"

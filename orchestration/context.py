@@ -19,6 +19,7 @@ class SessionContext:
     close_session: bool = False
     timeout_minutes: int = 30
     tab_index: Optional[int] = None
+    strip_header: bool = False
 
 
 @dataclass
@@ -39,6 +40,7 @@ class InspectionRequestContext:
     tab_index: Optional[int] = None
     timeout_minutes: Optional[int] = 30
     reload: bool = False
+    strip_header: bool = False
 
 
 @dataclass
@@ -63,6 +65,7 @@ class ApplyRequestContext:
     timeout_minutes: Optional[int] = 30
     auto_inspect: bool = True
     reload: bool = False
+    strip_header: bool = False
 
 
 __all__ = [
