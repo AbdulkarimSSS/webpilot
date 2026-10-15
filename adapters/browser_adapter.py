@@ -386,7 +386,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
             LiveSessionManager.terminate_session()
 
     def navigate(self, url: str, wait_timeout: Optional[int] = None) -> None:
-        """Navigates to URL and waits for DOM content loaded."""
+        """Navigates to URL and waits for DOM content loaded with transient retry."""
         if self._page is None:
             raise AutomationError("Browser not started. Call start() first.")
         if self._page.url == url:
@@ -394,24 +394,40 @@ class BrowserAdapter(BrowserAdapterProtocol):
             self.print_page_telemetry()
             return
         timeout = wait_timeout if wait_timeout is not None else self.settings.default_timeout_ms
-        try:
-            self._page.goto(url, timeout=timeout, wait_until="domcontentloaded")
-        except Exception as exc:
-            err_msg = str(exc).lower()
-            fatal_indicators = (
-                "err_name_not_resolved",
-                "err_connection_refused",
-                "err_address_unreachable",
-                "err_connection_reset",
-                "err_invalid_url",
-                "cannot navigate to invalid url",
-                "net::err_",
-            )
-            if any(ind in err_msg for ind in fatal_indicators) or (
-                self._page.url in ("", "about:blank") and url not in ("", "about:blank")
-            ):
-                raise NavigationError(f"Navigation to '{url}' failed: {exc}") from exc
-            print(f"[!] Notice: Navigation event delayed by tracker/network: {exc}. Continuing with page state...")
+        max_attempts = 2
+        for attempt in range(1, max_attempts + 1):
+            try:
+                resp = self._page.goto(url, timeout=timeout, wait_until="domcontentloaded")
+                if resp is not None and resp.status in (502, 503, 504) and attempt < max_attempts:
+                    print(f"[*] Transient HTTP {resp.status} on '{url}'. Retrying in 500ms (attempt {attempt}/{max_attempts})...")
+                    self._page.wait_for_timeout(500)
+                    continue
+                break
+            except Exception as exc:
+                err_msg = str(exc).lower()
+                is_download = "download is starting" in err_msg or ("net::err_aborted" in err_msg and "download" in err_msg)
+                if is_download:
+                    print(f"[*] Detected download triggered by navigation to: {url}")
+                    return
+                if attempt < max_attempts and any(x in err_msg for x in ("err_connection_reset", "err_network_changed", "timeout", "timed out")):
+                    print(f"[*] Transient error navigating to '{url}': {exc}. Retrying in 500ms...")
+                    self._page.wait_for_timeout(500)
+                    continue
+                fatal_indicators = (
+                    "err_name_not_resolved",
+                    "err_connection_refused",
+                    "err_address_unreachable",
+                    "err_connection_reset",
+                    "err_invalid_url",
+                    "cannot navigate to invalid url",
+                    "net::err_",
+                )
+                if any(ind in err_msg for ind in fatal_indicators) or (
+                    self._page.url in ("", "about:blank") and url not in ("", "about:blank")
+                ):
+                    raise NavigationError(f"Navigation to '{url}' failed: {exc}") from exc
+                print(f"[!] Notice: Navigation event delayed by tracker/network: {exc}. Continuing with page state...")
+                break
         self._page.wait_for_timeout(PAUSE_DOM_CONTENT_LOADED_MS)
         self.print_page_telemetry()
 

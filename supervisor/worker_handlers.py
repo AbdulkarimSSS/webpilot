@@ -46,6 +46,14 @@ def handle_worker_inspect(
         raise RuntimeError("Worker page is not available.")
 
     lines: List[str] = []
+    if req.url is not None and not req.url.strip():
+        return SupervisorActionResponse(
+            success=False,
+            action="inspect",
+            message="Explicit empty URL is invalid.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+        )
     if req.url:
         coord.adapter.navigate(req.url)
         page = coord.page
@@ -192,6 +200,15 @@ def handle_worker_apply(
     if req.tab_index is not None:
         page = coord.switch_to_tab(req.tab_index)
 
+    if req.url is not None and not req.url.strip():
+        return SupervisorActionResponse(
+            success=False,
+            action="apply",
+            message="Explicit empty URL is invalid.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+        )
+
     if req.url:
         lines.append(f"[*] Navigating to target URL: {req.url}")
         coord.adapter.navigate(req.url)
@@ -259,9 +276,20 @@ def handle_worker_apply(
         if not upload_ok:
             upload_failed = True
 
-    # 5. Pre-submit verification barrier (if uploads or intervening actions occurred)
-    if confirmed and req.upload_files and (req.press_buttons or req.submit):
+    # 5. Pre-submit verification barrier (WP-002)
+    if confirmed and (req.press_buttons or req.submit):
         confirmed = worker._reverify_fields(field_svc, confirmed, unconfirmed, lines, "Pre-submit check")
+        if unconfirmed:
+            to_recover = list(unconfirmed)
+            for k, v in to_recover:
+                try:
+                    if field_svc.set_field(k, v):
+                        if field_svc.verify_field_value(k, v):
+                            unconfirmed.remove((k, v))
+                            confirmed.append((k, v))
+                            lines.append(f"  [✓] Recovered and re-verified wiped field: '{k}'")
+                except Exception:
+                    pass
 
     # 6. Handle buttons with reactive observation
     inspection_cls = _resolve("InspectionService", InspectionService)
@@ -281,6 +309,10 @@ def handle_worker_apply(
     press_failed = False
     if req.press_buttons:
         for btn in req.press_buttons:
+            if not btn or not str(btn).strip():
+                lines.append("  [!] Failed: Empty button text specified.")
+                press_failed = True
+                continue
             lines.append(f"[*] Pressing button: '{btn}'...")
             res = reactive_svc.click_button(btn)
             if not res.get("success"):

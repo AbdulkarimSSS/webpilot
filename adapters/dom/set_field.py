@@ -19,6 +19,23 @@ _SET_FIELD_LOGIC: Final[str] = r"""
         try { targetRegex = new RegExp(rawTarget, 'i'); } catch(e){}
     }
 
+
+    function markActiveForm(node) {
+        if (!node) return;
+        try {
+            let f = node.form || (node.closest ? node.closest('form') : null);
+            if (!f && node.getRootNode) {
+                const root = node.getRootNode();
+                if (root && root.querySelector) {
+                    f = root.querySelector('form');
+                }
+            }
+            if (f && f.setAttribute) {
+                f.setAttribute('data-wp-active-form', 'true');
+            }
+        } catch(e) {}
+    }
+
     let parentScope = document;
     if (scopedParent && String(scopedParent).trim()) {
         const spLower = String(scopedParent).trim().toLowerCase();
@@ -231,6 +248,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             if (matched) {
                 targetSelect.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
                 targetSelect.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                markActiveForm(targetSelect);
                 return { success: true, type: 'select', id: targetSelect.id };
             }
             let reason = 'Option not found';
@@ -275,6 +293,29 @@ _SET_FIELD_LOGIC: Final[str] = r"""
         if (matchingChoices.length > 0) {
             const strVal = String(val).toLowerCase();
 
+            function getChoiceText(c) {
+                let lbl = (c.value || '').toLowerCase();
+                if (c.id) {
+                    try {
+                        const root = c.getRootNode ? c.getRootNode() : document;
+                        const escId = (window.CSS && CSS.escape) ? CSS.escape(c.id) : c.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+                        const l = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+                        if (l && (l.innerText || l.textContent)) {
+                            lbl += ' ' + (l.innerText || l.textContent).toLowerCase();
+                        }
+                    } catch(e) {}
+                }
+                if (c.parentElement && c.parentElement.tagName === 'LABEL') {
+                    lbl += ' ' + (c.parentElement.innerText || c.parentElement.textContent || '').toLowerCase();
+                }
+                if (c.nextElementSibling && ['LABEL', 'SPAN'].includes(c.nextElementSibling.tagName)) {
+                    lbl += ' ' + (c.nextElementSibling.innerText || c.nextElementSibling.textContent || '').toLowerCase();
+                } else if (c.nextSibling && c.nextSibling.textContent) {
+                    lbl += ' ' + c.nextSibling.textContent.toLowerCase();
+                }
+                return lbl.trim();
+            }
+
             // Handle [role="switch"]
             const sw = matchingChoices.find(c => c.getAttribute('role') === 'switch');
             if (sw) {
@@ -283,6 +324,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 if (curOn !== wantOn) {
                     sw.click();
                 }
+                markActiveForm(sw);
                 return { success: true, type: 'switch', id: sw.id || target, value: wantOn ? 'on' : '' };
             }
 
@@ -291,8 +333,9 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 const parts = strVal.split(',').map(s => s.trim().toLowerCase());
                 let checkedCount = 0;
                 for (let c of matchingChoices) {
-                    const cLabel = (c.value + ' ' + (c.nextSibling ? c.nextSibling.textContent : '') + ' ' + (c.parentElement ? c.parentElement.innerText : '')).toLowerCase();
-                    if (parts.some(p => p && (c.value.toLowerCase() === p || cLabel.includes(p)))) {
+                    const cVal = (c.value || '').toLowerCase();
+                    const cLabel = getChoiceText(c);
+                    if (parts.some(p => p && (cVal === p || cLabel.includes(p)))) {
                         c.checked = true;
                         c.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
                         c.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
@@ -300,16 +343,51 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                     }
                 }
                 if (checkedCount > 0) {
+                    markActiveForm(matchingChoices[0]);
                     return { success: true, type: 'checkbox_group', id: matchingChoices[0].id || target, count: checkedCount };
                 }
             }
 
             let chosen = null;
+            // 1. Exact value match
             for (let c of matchingChoices) {
-                const cLabel = (c.value + ' ' + (c.nextSibling ? c.nextSibling.textContent : '') + ' ' + (c.parentElement ? c.parentElement.innerText : '')).toLowerCase();
-                if (cLabel.includes(strVal) || (c.value && c.value.toLowerCase() === strVal) || (c.getAttribute('data-val') && c.getAttribute('data-val').toLowerCase() === strVal)) {
+                if ((c.value && c.value.toLowerCase() === strVal) || (c.getAttribute && c.getAttribute('data-val') && c.getAttribute('data-val').toLowerCase() === strVal)) {
                     chosen = c;
                     break;
+                }
+            }
+            // 2. Exact associated label match
+            if (!chosen) {
+                for (let c of matchingChoices) {
+                    let directLabel = '';
+                    if (c.id) {
+                        try {
+                            const root = c.getRootNode ? c.getRootNode() : document;
+                            const escId = (window.CSS && CSS.escape) ? CSS.escape(c.id) : c.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+                            const l = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+                            if (l && (l.innerText || l.textContent)) directLabel = (l.innerText || l.textContent).trim().toLowerCase();
+                        } catch(e) {}
+                    }
+                    if (!directLabel && c.parentElement && c.parentElement.tagName === 'LABEL') {
+                        directLabel = (c.parentElement.innerText || c.parentElement.textContent || '').trim().toLowerCase();
+                    }
+                    if (!directLabel && c.nextElementSibling && ['LABEL', 'SPAN'].includes(c.nextElementSibling.tagName)) {
+                        directLabel = (c.nextElementSibling.innerText || c.nextElementSibling.textContent || '').trim().toLowerCase();
+                    }
+                    if (directLabel && directLabel === strVal) {
+                        chosen = c;
+                        break;
+                    }
+                }
+            }
+            // 3. Substring in choice text
+            if (!chosen) {
+                for (let c of matchingChoices) {
+                    const cLabel = getChoiceText(c);
+                    if (cLabel.includes(strVal)) {
+                        chosen = c;
+                        break;
+                    }
                 }
             }
             if (!chosen && matchingChoices.length === 1 && (val === true || strVal === 'yes' || strVal === 'true' || strVal === 'on')) {
@@ -323,6 +401,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 } else {
                     chosen.click();
                 }
+                markActiveForm(chosen);
                 return { success: true, type: chosen.getAttribute('role') || chosen.type || 'choice', id: chosen.id || '' };
             }
         }
@@ -338,6 +417,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 const optVal = (opt.getAttribute('data-val') || '').toLowerCase();
                 if (optText === strVal || optText.startsWith(strVal) || optVal === strVal) {
                     opt.click();
+                    markActiveForm(opt);
                     return { success: true, type: 'custom_radio', id: opt.id || '', value: strVal };
                 }
             }
@@ -509,6 +589,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 }
             } catch(e){}
 
+            markActiveForm(targetText);
             return { success: true, type: targetText.tagName.toLowerCase(), id: targetText.id, value: toSet };
         }
     }

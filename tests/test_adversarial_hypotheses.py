@@ -131,5 +131,64 @@ class TestAdversarialHypotheses(unittest.TestCase):
             mock_close.assert_called_once()
 
 
+    def test_wp009_whitespace_preserved_in_fill_args(self):
+        """WP-009: Significant whitespace in fill values must be preserved."""
+        from common.secrets import parse_and_resolve_fill_args
+        res = parse_and_resolve_fill_args(["n=  spaces  "])
+        self.assertEqual(res, [("n", "  spaces  ")])
+
+    def test_wp004_empty_click_button_rejected(self):
+        """WP-004: Empty button text returns error and does not click/submit."""
+        from services.reactive_interaction_service import ReactiveInteractionService
+        mock_page = MagicMock()
+        mock_ctx = MagicMock()
+        mock_insp = MagicMock()
+        mock_val = MagicMock()
+        svc = ReactiveInteractionService(mock_page, mock_ctx, mock_insp, mock_val)
+        res = svc.click_button("")
+        self.assertFalse(res["success"])
+        self.assertIn("Empty button", res["message"])
+
+        mock_client = MagicMock()
+        from mcp_tools import execute_click_button
+        mcp_res = json.loads(execute_click_button(mock_client, "   "))
+        self.assertFalse(mcp_res["success"])
+        self.assertEqual(mcp_res["status"], "error")
+        mock_client.execute.assert_not_called()
+
+    def test_wp010_empty_url_rejected(self):
+        """WP-010: Explicit empty url returns error rather than inspecting/evaluating active page."""
+        mock_client = MagicMock()
+        mcp_res = json.loads(execute_inspect(mock_client, url=""))
+        self.assertFalse(mcp_res["success"])
+        self.assertEqual(mcp_res["status"], "error")
+        self.assertIn("explicit empty URL", mcp_res["error"])
+        mock_client.execute.assert_not_called()
+
+    def test_wp003_eval_navigates_to_url(self):
+        """WP-003: _handle_eval navigates when req.url is specified."""
+        from supervisor.worker_process import OperationalWorker
+        from supervisor.contracts import SupervisorActionRequest
+        worker = OperationalWorker(headed=False)
+        mock_coord = MagicMock()
+        mock_coord.page.evaluate.return_value = "Test Title"
+        mock_coord.page.url = "http://example.com/test"
+        mock_coord.page.title.return_value = "Test Title"
+        worker._ensure_session = MagicMock(return_value=mock_coord)
+
+        req = SupervisorActionRequest(action="eval", script="document.title", url="http://example.com/test")
+        resp = worker._handle_eval(req)
+        self.assertTrue(resp.success)
+        mock_coord.adapter.navigate.assert_called_once_with("http://example.com/test")
+
+    def test_wp007_accept_downloads_enabled(self):
+        """WP-007: BrowserContextEnvelopeBuilder sets accept_downloads=True."""
+        from adapters.envelope_builder import BrowserContextEnvelopeBuilder
+        builder = BrowserContextEnvelopeBuilder()
+        envelope = builder.build_context_envelope()
+        self.assertTrue(envelope.get("accept_downloads"))
+
+
 if __name__ == "__main__":
     unittest.main()
+

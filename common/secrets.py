@@ -137,10 +137,10 @@ def parse_and_resolve_fill_args(fill_args: Optional[List[str]]) -> List[Tuple[st
             except Exception:
                 pass
 
-        if "=" in trimmed:
-            k, v = trimmed.split("=", 1)
+        if "=" in item:
+            k, v = item.split("=", 1)
             key = k.strip()
-            raw_val = v.strip()
+            raw_val = v
         elif " > " in trimmed:
             k, v = trimmed.split(" > ", 1)
             key = k.strip() if ":" in k else f"picklist:{k.strip()}"

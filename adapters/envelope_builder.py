@@ -83,6 +83,7 @@ class BrowserContextEnvelopeBuilder:
             "has_touch": profile.has_touch,
             "locale": profile.locale,
             "timezone_id": profile.timezone_id,
+            "accept_downloads": True,
         }
 
         if profile.permissions:

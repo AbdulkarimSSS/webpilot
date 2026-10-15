@@ -17,7 +17,18 @@ def execute_inspect(
     screenshot_path: Optional[str] = None,
     tab_index: Optional[int] = None,
 ) -> str:
-    """Executes page inspection via supervisor client."""
+    if url is not None and not url.strip():
+        return json.dumps(
+            {
+                "success": False,
+                "status": "error",
+                "error": "Validation error: explicit empty URL is invalid.",
+                "message": "Validation error: explicit empty URL is invalid.",
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
     req = SupervisorActionRequest(
         action="inspect",
         url=url,
@@ -95,7 +106,18 @@ def execute_click_button(
     cookies_path: Optional[str] = None,
     tab_index: Optional[int] = None,
 ) -> str:
-    """Clicks a button or element with reactive tracking."""
+    if not button_text or not button_text.strip():
+        return json.dumps(
+            {
+                "success": False,
+                "status": "error",
+                "error": "Validation error: button_text cannot be empty.",
+                "message": "Validation error: button_text cannot be empty.",
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
     req = SupervisorActionRequest(
         action="apply",
         press_buttons=[button_text],

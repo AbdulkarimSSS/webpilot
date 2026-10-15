@@ -5,6 +5,37 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.5] - 2026-10-15
+
+### Benchmark Adversarial Catalog Remediation (WP-001 - WP-010)
+
+#### 1. Shadow-DOM Form Submit & Active Scoping (WP-001)
+- **Active Form Scoped Button Targeting**: Marked active forms with `data-wp-active-form="true"` during field population; updated `CLICK_BUTTON_DOM_SCRIPT` to pierce recursive Shadow DOMs and prioritize submit buttons within the active form before falling back to outer light-DOM locators.
+
+#### 2. Pre-Submit Verification Barrier & Stale-Confirmation Recovery (WP-002)
+- **Universal Pre-Submit Check**: Removed conditional restrictions on pre-submit verification; all button presses and form submissions re-verify filled fields right before dispatching clicks.
+- **Delayed-Wipe Auto-Recovery**: Automatically attempts an immediate fast refill and verification pass for fields cleared by page timers right before clicking submit.
+
+#### 3. URL Navigation & Target Adherence (WP-003, WP-010)
+- **`eval --url` Navigation**: Navigates to target URL in `OperationalWorker._handle_eval` when `req.url` is specified, preventing stale page evaluation.
+- **Explicit Empty URL Validation**: Rejects `url=""` with explicit validation errors across `inspect`, `apply`, `eval`, and MCP tools, reserving active-page targeting strictly for `url=None`.
+
+#### 4. Interaction Guardrails & Empty Button Rejection (WP-004)
+- **Empty Button Target Validation**: Validated `button_text_or_purpose` in `ReactiveInteractionService.click_button`, `mcp_tools.execute_click_button`, and CLI apply, rejecting empty string targets with an honest validation error rather than triggering phantom submits.
+
+#### 5. Radio & Grouped-Choice Label Scoping (WP-005)
+- **Container Text Bleed Isolation**: Isolated radio and checkbox option matching to exact `value`, `data-val`, associated `<label for="...">`, and parent `<label>` tags only. Prohibited querying `parentElement.innerText` on `<fieldset>` or container `<div>` tags, accurately selecting options without text contamination.
+
+#### 6. Authentic Trusted Event Preservation (WP-006)
+- **Eliminated Synthetic Overwrite**: Removed redundant synthetic `dispatch_event("input")` and `dispatch_event("change")` after Playwright `locator.fill()`. Preserved CDP-native `isTrusted=true` events, enabling reliable interaction with forms protected by `e.isTrusted` checks.
+
+#### 7. Navigation Resilience & Download Handling (WP-007, WP-008)
+- **Browser Download Compatibility**: Added `accept_downloads=True` to browser context envelopes and handled `Download is starting` in `navigate()` gracefully without raising fatal errors.
+- **Transient Navigation Retries**: Added 2-attempt bounded retry with 500ms backoff for transient 502/503/504 errors and network resets.
+
+#### 8. Whitespace Preservation in Input Payloads (WP-009)
+- **Raw Value Preservation**: Preserved significant leading and trailing whitespace in `parse_and_resolve_fill_args`, ensuring credentials and formatted text are delivered verbatim to DOM fields.
+
 ## [2.5.4] - 2026-10-15
 
 ### Adversarial Defect Remediation & Protocol Truth Barrier Hardening (M1 - M19, H4.1, H4.2)

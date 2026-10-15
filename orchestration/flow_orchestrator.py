@@ -272,6 +272,12 @@ class FlowOrchestrator:
                 if not upload_ok:
                     failed.append(("@upload", "one or more file uploads failed"))
 
+            # 5b. Pre-submit verification barrier (WP-002)
+            if confirmed and (req.press_buttons or req.submit):
+                confirmed = FormApplicationPipeline.reverify_fields(
+                    field_svc, confirmed, unconfirmed, [], "Pre-submit check"
+                )
+
             # 6. Handle custom button presses with reactive observation
             inspection_svc = InspectionService(page)
             validator = FormValidator(page)
@@ -285,6 +291,9 @@ class FlowOrchestrator:
 
             if req.press_buttons:
                 for btn in req.press_buttons:
+                    if not btn or not str(btn).strip():
+                        print("  [!] Failed: Empty button text specified.")
+                        continue
                     print(f"\n[*] Pressing requested button: '{btn}'...")
                     res = reactive_svc.click_button(btn)
                     if not res.get("success"):

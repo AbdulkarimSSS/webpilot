@@ -47,8 +47,10 @@ class PlaywrightLocatorFallback:
                             first_el.fill(strval)
                         except Exception:
                             first_el.press_sequentially(strval, delay=15)
-                        first_el.dispatch_event("input")
-                        first_el.dispatch_event("change")
+                        try:
+                            first_el.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                        except Exception:
+                            pass
                         return True
             except Exception:
                 pass
@@ -73,8 +75,10 @@ class PlaywrightLocatorFallback:
                             first_el.fill(strval)
                         except Exception:
                             first_el.press_sequentially(strval, delay=15)
-                        first_el.dispatch_event("input")
-                        first_el.dispatch_event("change")
+                        try:
+                            first_el.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                        except Exception:
+                            pass
                         return True
             except Exception:
                 pass
@@ -123,8 +127,10 @@ class PlaywrightLocatorFallback:
                 if loc.count() > 0 and loc.first.is_visible(timeout=300):
                     loc.first.focus()
                     loc.first.fill(strval)
-                    loc.first.dispatch_event("input")
-                    loc.first.dispatch_event("change")
+                    try:
+                        loc.first.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                    except Exception:
+                        pass
                     return True
             except Exception:
                 pass
@@ -183,8 +189,10 @@ class PlaywrightLocatorFallback:
                 field_role = (field.first.get_attribute("role") or "").lower()
                 if field_type not in ("checkbox", "radio") and field_role not in ("checkbox", "switch"):
                     field.first.fill(strval)
-                    field.first.dispatch_event("input")
-                    field.first.dispatch_event("change")
+                    try:
+                        field.first.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                    except Exception:
+                        pass
                     # If this input is a combobox, select the option that appeared
                     if field_role == "combobox":
                         page.wait_for_timeout(200)
@@ -203,7 +211,10 @@ class PlaywrightLocatorFallback:
             field = page.get_by_placeholder(lower, exact=False)
             if field.count() > 0 and field.first.is_visible(timeout=300):
                 field.first.fill(strval)
-                field.first.dispatch_event("change")
+                try:
+                    field.first.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                except Exception:
+                    pass
                 return True
         except Exception:
             pass
@@ -223,8 +234,10 @@ class PlaywrightLocatorFallback:
                     f = page.locator(sel)
                     if f.count() > 0 and f.first.is_visible(timeout=300):
                         f.first.fill(strval)
-                        f.first.dispatch_event("input")
-                        f.first.dispatch_event("change")
+                        try:
+                            f.first.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                        except Exception:
+                            pass
                         return True
                 except Exception:
                     pass
@@ -235,8 +248,10 @@ class PlaywrightLocatorFallback:
                 f = page.locator('input[type="password"]')
                 if f.count() > 0 and f.first.is_visible(timeout=300):
                     f.first.fill(strval)
-                    f.first.dispatch_event("input")
-                    f.first.dispatch_event("change")
+                    try:
+                        f.first.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                    except Exception:
+                        pass
                     return True
             except Exception:
                 pass

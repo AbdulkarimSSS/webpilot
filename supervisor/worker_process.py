@@ -292,6 +292,18 @@ class OperationalWorker:
         coord = self._ensure_session(req)
         if coord.page is None:
             raise RuntimeError("Worker page is not available.")
+        if req.url is not None and not req.url.strip():
+            return SupervisorActionResponse(
+                success=False,
+                action="eval",
+                message="Explicit empty URL is invalid.",
+                browser_pid=coord.adapter.browser_pid,
+                worker_pid=os.getpid(),
+                active_url=coord.page.url,
+                active_title=coord.page.title(),
+            )
+        if req.url:
+            coord.adapter.navigate(req.url)
         safe_eval_wrapper = """([code, args]) => {
             let raw;
             try {
@@ -401,6 +413,16 @@ class OperationalWorker:
         coord = self._ensure_session(req)
         if coord.page is None:
             raise RuntimeError("Worker page is not available.")
+        if req.url is not None and not req.url.strip():
+            return SupervisorActionResponse(
+                success=False,
+                action="css",
+                message="Explicit empty URL is invalid.",
+                browser_pid=coord.adapter.browser_pid,
+                worker_pid=os.getpid(),
+                active_url=coord.page.url,
+                active_title=coord.page.title(),
+            )
         if req.url:
             coord.adapter.navigate(req.url)
         css_content = (req.script or req.target_field or "").strip()

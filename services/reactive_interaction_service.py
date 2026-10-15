@@ -31,7 +31,16 @@ class ReactiveInteractionService:
 
     def click_button(self, button_text_or_purpose: str) -> Dict[str, Any]:
         """Intelligently clicks a button/link and monitors reactive consequences."""
-        target = button_text_or_purpose.strip()
+        target = (button_text_or_purpose or "").strip()
+        if not target:
+            return {
+                "success": False,
+                "message": "Empty button text or target specified.",
+                "redirected": False,
+                "new_window": False,
+                "modal_opened": False,
+                "new_inputs_count": 0,
+            }
 
         # 1. Baseline state
         pre_url = self.page.url
@@ -51,6 +60,15 @@ class ReactiveInteractionService:
         def _is_nav_exc(exc: Exception) -> bool:
             err = str(exc).lower()
             return "execution context was destroyed" in err or "navigation" in err or "navigating" in err
+
+        # Strategy -1: Active Form Scoped Button Search (pierces Shadow DOM) (WP-001)
+        if not is_scoped and not target.startswith("@"):
+            try:
+                if self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target):
+                    clicked = True
+            except Exception as exc:
+                if _is_nav_exc(exc):
+                    clicked = True
 
         # Strategy 0: Arbitrary selector (css=..., xpath=..., //..., selector:...)
         clean_sel = target.strip()
