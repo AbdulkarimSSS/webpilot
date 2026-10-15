@@ -41,6 +41,7 @@ class InspectionRequestContext:
     timeout_minutes: Optional[int] = 30
     reload: bool = False
     strip_header: bool = False
+    auto_expand: bool = True
 
 
 @dataclass

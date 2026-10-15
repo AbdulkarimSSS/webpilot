@@ -46,3 +46,42 @@ class TabManager:
             return target_page
         else:
             raise IndexError(f"Tab index #{index} out of range (Total open tabs: {len(pages)})")
+
+    @staticmethod
+    def create_new_tab(context: BrowserContext, url: Optional[str] = None) -> Page:
+        """Opens a new tab in BrowserContext, navigates to url if provided, and brings it to front."""
+        page = context.new_page()
+        if url:
+            page.goto(url)
+        page.bring_to_front()
+        return page
+
+    @staticmethod
+    def close_tab(context: BrowserContext, index: Optional[int] = None, active_page: Optional[Page] = None) -> Page:
+        """Safely closes the target tab, ensuring at least one tab or an about:blank page remains open."""
+        pages = context.pages
+        if not pages:
+            page = context.new_page()
+            return page
+
+        if index is not None:
+            if 0 <= index < len(pages):
+                target_page = pages[index]
+            else:
+                raise IndexError(f"Tab index #{index} out of range (Total open tabs: {len(pages)})")
+        else:
+            target_page = active_page if (active_page and active_page in pages) else pages[-1]
+
+        # Ensure at least one tab or an about:blank page remains open
+        if len(pages) <= 1:
+            replacement = context.new_page()
+            replacement.goto("about:blank")
+            target_page.close()
+            replacement.bring_to_front()
+            return replacement
+
+        target_page.close()
+        remaining = context.pages
+        new_active = remaining[-1]
+        new_active.bring_to_front()
+        return new_active

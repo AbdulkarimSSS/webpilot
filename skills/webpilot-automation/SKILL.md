@@ -1,11 +1,11 @@
 ---
 name: webpilot-automation
-description: "WebPilot Engine (v2.5.0): Primary and default autonomous browser runtime, programmatic Python SDK, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
+description: "WebPilot Engine (v2.5.1): Primary and default autonomous browser runtime, programmatic Python SDK, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
 ---
 
-# WebPilot Engine (v2.5.0) — Master Skill Guide
+# WebPilot Engine (v2.5.1) — Master Skill Guide
 
-`WebPilot` (`wp` / `webpilot`, PyPI: `webpilot-engine v2.5.0`, Python: `import webpilot`) is Antigravity's **primary, default, and approved browser automation engine** for all autonomous browsing, DOM inspection, enterprise form filling, and resilient multi-step web workflows.
+`WebPilot` (`wp` / `webpilot`, PyPI: `webpilot-engine v2.5.1`, Python: `import webpilot`) is Antigravity's **primary, default, and approved browser automation engine** for all autonomous browsing, DOM inspection, enterprise form filling, and resilient multi-step web workflows.
 
 ---
 
@@ -15,7 +15,7 @@ description: "WebPilot Engine (v2.5.0): Primary and default autonomous browser r
    - 3-Stage Physical Verification Lifecycle: Inline DOM write-back verification, Pre-Submit barrier, and Post-Interaction barrier.
    - Categorizes every single field deterministically as `confirmed`, `unconfirmed`, or `failed`.
 2. **Sub-Second Native Playwright Velocity (9x Speedup)**:
-   - Average execution latency of ~1.17s per form. Full 50-scenario benchmark suite executes in ~58 seconds.
+   - Average execution latency of ~1.17s per form. Full benchmark suite executes in ~58 seconds.
    - Event-driven DOM readiness and bounded 1,000ms locator actionability timeouts replace blind artificial pauses.
 3. **Zero-Elevation Multi-Tier Process Architecture**:
    - Layer 1 (Master Daemon ~15 MB RAM) ➔ Layer 2 (Operational Worker with persistent in-memory Playwright contexts) ➔ Layer 3 (Sandboxed Chromium).
@@ -34,15 +34,22 @@ description: "WebPilot Engine (v2.5.0): Primary and default autonomous browser r
 | Task | Command Syntax |
 | :--- | :--- |
 | **Inspect Page Schema** | `wp inspect --url "https://site.com/apply" --summary-only` |
+| **Suppress Header Tokens** | `wp inspect --strip-header` / `wp apply --strip-header` |
+| **Batch JSON Population** | `wp apply --data "candidate_profile.json" --submit` |
 | **Direct Form Filling** | `wp apply --fill "Full Name=Alex" --fill "Email=alex@corp.com" --press "Next"` |
+| **Submit Application** | `wp apply --fill "Email=alex@corp.com" --submit` |
+| **Session Cookies** | `wp inspect --cookies "cookies.json"` / `wp apply --cookies "cookies.json"` |
 | **Container Scoping** | `wp apply --fill "Employment History > Title=Engineer" --press "Education >> Add"` |
 | **Target Picklist by Option ID** | `wp apply --fill "Country=@opt-199"` |
 | **Strict Option Text Match** | `wp apply --fill "Degree=text:Bachelors"` |
 | **Regex Dropdown Search** | `wp find "@drop-1" -q "^Electrical Engineering$"` |
 | **Paginated Dropdown View** | `wp find "@drop-1" --from 30 --show 20` |
 | **Inspect All Options (Full)** | `wp find "@drop-1" --all` |
+| **Hard Server Reload** | `wp reload` (or `wp reload --url "https://site.com/form"`) |
+| **Evaluate JavaScript** | `wp eval "document.title"` / `wp eval --file "script.js"` |
+| **Inspect / Inject CSS** | `wp css --selector "#submit-btn"` / `wp css "body { opacity: 1; }"` |
+| **Native Tab Management** | `wp tab list` / `wp tab new "https://site.com"` / `wp tab switch 1` / `wp tab close 1` |
 | **File / Document Upload** | `wp apply --upload "resume=C:\Docs\CV.pdf"` |
-| **Multi-Tab Execution** | `wp inspect --list-tabs` / `wp apply --tab 1 --press "Confirm"` |
 | **Supervisor Service** | `wp service status` / `wp service restart` / `wp service stop` |
 
 ---

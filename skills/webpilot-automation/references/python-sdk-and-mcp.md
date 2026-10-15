@@ -36,9 +36,11 @@ print(f"Confirmed fields: {result.confirmed_fields}")
 probe = wp.find("country", options=True)
 print("Options:", probe.output_lines)
 
-# 5. Multi-Tab Control
+# 5. Native Multi-Tab Management
 tabs = wp.list_tabs()
+new_tab_info = wp.new_tab("https://example.com/secondary")
 wp.switch_tab(0)
+wp.close_tab(1)
 ```
 
 ---

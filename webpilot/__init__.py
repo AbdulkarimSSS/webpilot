@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-__version__ = "2.5.0"
+__version__ = "2.5.1"
 __author__ = "Abdulkarim Salih & WebPilot Core Team"
 __license__ = "MIT"
 
 # Programmatic Python Client Facade
 from webpilot.client import WebPilot
+
+# CLI Commands
+from cli_commands.tab_cmd import tab_cmd
 
 # Core Engine & Builder Facades
 from engine import UniversalFormEngine
@@ -50,5 +53,6 @@ __all__ = [
     "ChoiceGroup",
     "FileUploadField",
     "ActionButton",
+    "tab_cmd",
     "__version__",
 ]

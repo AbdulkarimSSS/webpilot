@@ -17,9 +17,9 @@ from supervisor.contracts import SupervisorActionResponse
 
 def test_package_exports_and_aliases():
     """Verifies that webpilot exports expected symbols and version."""
-    assert __version__ == "2.5.0"
-    assert webpilot.__version__ == "2.5.0"
-    assert webpilot_engine.__version__ == "2.5.0"
+    assert __version__ == "2.5.1"
+    assert webpilot.__version__ == "2.5.1"
+    assert webpilot_engine.__version__ == "2.5.1"
     assert WebPilotEngine is UniversalFormEngine
     assert issubclass(WebPilot, object)
 

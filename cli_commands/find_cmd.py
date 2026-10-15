@@ -103,13 +103,23 @@ def find_cmd(args: argparse.Namespace) -> None:
             print(f" ⚠️ DEPENDENCY ALERT: Field is locked/empty awaiting parent selection '{p_label}'!")
 
     ancestor_d = details.get("ancestor_depth", 0)
+    requested_d = details.get("ancestor_requested", up_val)
+    max_reached = details.get("ancestor_max_reached", False)
     if ancestor_d > 0:
         a_tag = details.get("ancestor_tag", "")
         a_id = details.get("ancestor_id", "")
         id_str = f"#{a_id}" if a_id else ""
         a_cls = details.get("ancestor_class", "")
         cls_str = f".{a_cls.replace(' ', '.')}" if a_cls else ""
-        print(f" • Ascended Up : +{ancestor_d} levels -> <{a_tag}{id_str}{cls_str}>")
+        
+        limit_note = ""
+        if max_reached:
+            if requested_d >= 9999:
+                limit_note = " (PAGE ROOT / FULL CEILING REACHED)"
+            elif requested_d > ancestor_d:
+                limit_note = f" (PAGE ROOT CEILING: Capped at <{a_tag}>, requested: +{requested_d})"
+        
+        print(f" • Ascended Up : +{ancestor_d} levels{limit_note} -> <{a_tag}{id_str}{cls_str}>")
 
     if details.get("screenshot_path"):
         bbox = details.get("bounding_box") or {}
@@ -164,6 +174,7 @@ def find_cmd(args: argparse.Namespace) -> None:
 
     outer_html = details.get("outerHTML") or details.get("html")
     if (args.html or up_val > 0) and outer_html:
-        header_lvl = f" (Level +{ancestor_d})" if ancestor_d > 0 else ""
+        max_str = " - PAGE ROOT" if max_reached else ""
+        header_lvl = f" (Level +{ancestor_d}{max_str})" if ancestor_d > 0 else ""
         print(f"\n 🌐 Outer HTML{header_lvl}:\n{outer_html}")
     print("═" * 70 + "\n")

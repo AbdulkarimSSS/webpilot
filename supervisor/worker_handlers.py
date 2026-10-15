@@ -38,7 +38,10 @@ def handle_worker_inspect(
 ) -> SupervisorActionResponse:
     """Executes full page inspection inside worker session."""
     coord = worker._ensure_session(req)
-    page = coord.page
+    if req.tab_index is not None:
+        page = coord.switch_to_tab(req.tab_index)
+    else:
+        page = coord.page
     assert page is not None
 
     lines: List[str] = []
@@ -61,18 +64,20 @@ def handle_worker_inspect(
         lifecycle_svc.bypass_job_landing_portal()
         page = coord.switch_to_latest_page()
 
-    # Automatically wait for form readiness and expand all collapsed sections
-    try:
-        lifecycle_svc.wait_for_form_ready(worker.settings.form_ready_timeout_ms)
-        lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
-    except Exception as exc:
-        err_str = str(exc).lower()
-        if "execution context was destroyed" in err_str or "navigation" in err_str:
-            try:
-                page.wait_for_load_state("domcontentloaded", timeout=4000)
-                lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
-            except Exception:
-                pass
+    # Automatically wait for form readiness and expand all collapsed sections if requested
+    do_expand = getattr(req, "auto_expand", True)
+    if do_expand:
+        try:
+            lifecycle_svc.wait_for_form_ready(worker.settings.form_ready_timeout_ms)
+            lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if "execution context was destroyed" in err_str or "navigation" in err_str:
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=4000)
+                    lifecycle_svc.expand_all_sections(worker.settings.expand_section_wait_ms)
+                except Exception:
+                    pass
 
     if worker.cached_url and worker.cached_url != page.url:
         worker.cached_schema = None

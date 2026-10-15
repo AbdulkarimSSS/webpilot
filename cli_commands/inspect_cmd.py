@@ -18,6 +18,7 @@ def inspect_cmd(args: argparse.Namespace) -> None:
     """Executes the universal inspection workflow."""
     do_reload = bool(getattr(args, "reload", False) or getattr(args, "command", "") in ("reload", "refresh"))
     strip_header = getattr(args, "strip_header", False)
+    auto_expand = getattr(args, "auto_expand", True)
     if getattr(args, "standalone", False):
         req = InspectionRequestContext(
             url=args.url,
@@ -36,6 +37,7 @@ def inspect_cmd(args: argparse.Namespace) -> None:
             timeout_minutes=args.timeout_minutes,
             reload=do_reload,
             strip_header=strip_header,
+            auto_expand=auto_expand,
         )
         FlowOrchestrator.execute_inspection_flow(req)
         return
@@ -72,6 +74,7 @@ def inspect_cmd(args: argparse.Namespace) -> None:
         timeout_minutes=args.timeout_minutes,
         reload=do_reload,
         strip_header=strip_header,
+        auto_expand=auto_expand,
     )
     resp = client.execute(req)
     print_telemetry_banner(resp, strip_header=strip_header)

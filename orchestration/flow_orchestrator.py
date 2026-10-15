@@ -104,7 +104,8 @@ class FlowOrchestrator:
 
             # 2. Form readiness & section expansion
             lifecycle_svc.wait_for_form_ready(settings.form_ready_timeout_ms)
-            lifecycle_svc.expand_all_sections(settings.expand_section_wait_ms)
+            if getattr(req, "auto_expand", True):
+                lifecycle_svc.expand_all_sections(settings.expand_section_wait_ms)
 
             # 3. Inspect page schema
             print("[*] Inspecting page components and form schema...")

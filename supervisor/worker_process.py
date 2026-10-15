@@ -35,6 +35,33 @@ from supervisor.worker_handlers import (
 )
 
 
+def _sanitize_eval_result(val: Any, seen: Optional[set] = None, depth: int = 0) -> Any:
+    """Sanitizes eval results to prevent infinite recursion on circular objects."""
+    if depth > 15:
+        return "[Max Depth]"
+    if seen is None:
+        seen = set()
+    if val is None or isinstance(val, (int, float, bool, str)):
+        return val
+    val_id = id(val)
+    if val_id in seen:
+        return "[Circular]"
+    seen.add(val_id)
+    try:
+        if isinstance(val, dict):
+            return {str(k): _sanitize_eval_result(v, seen, depth + 1) for k, v in val.items()}
+        elif isinstance(val, (list, tuple, set)):
+            return [_sanitize_eval_result(item, seen, depth + 1) for item in val]
+        elif hasattr(val, "__dict__"):
+            return _sanitize_eval_result(val.__dict__, seen, depth + 1)
+        else:
+            return str(val)
+    except (RecursionError, Exception):
+        return "[Unserializable]"
+    finally:
+        seen.discard(val_id)
+
+
 class OperationalWorker:
     """Manages active Playwright runtime and executes form/browser automation tasks."""
 
@@ -93,11 +120,17 @@ class OperationalWorker:
             if action in ("ping", "status"):
                 return self._handle_status(req)
 
-            elif action == "list_tabs":
+            elif action in ("list_tabs", "tab_list", "tabs"):
                 return self._handle_list_tabs(req)
 
-            elif action == "switch_tab":
+            elif action in ("switch_tab", "tab_switch"):
                 return self._handle_switch_tab(req)
+
+            elif action in ("new_tab", "tab_new", "open_tab"):
+                return self._handle_new_tab(req)
+
+            elif action in ("close_tab", "tab_close"):
+                return self._handle_close_tab(req)
 
             elif action in ("inspect", "reload", "refresh"):
                 if action in ("reload", "refresh"):
@@ -204,6 +237,46 @@ class OperationalWorker:
             total_tabs=len(coord.context.pages) if coord.context else 0,
         )
 
+    def _handle_new_tab(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        page = coord.create_new_tab(req.url)
+        adapter = coord.adapter
+        tabs = adapter.list_open_tabs()
+        active_idx = adapter.get_active_tab_index()
+        return SupervisorActionResponse(
+            success=True,
+            action="new_tab",
+            message=f"Opened new tab #{active_idx}: '{page.title()}' ({page.url})",
+            browser_pid=adapter.browser_pid,
+            worker_pid=os.getpid(),
+            active_tab_index=active_idx,
+            active_url=page.url,
+            active_title=page.title(),
+            total_tabs=len(tabs),
+            tabs=tabs,
+        )
+
+    def _handle_close_tab(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        target_idx = req.tab_index
+        coord.close_tab(target_idx)
+        adapter = coord.adapter
+        tabs = adapter.list_open_tabs()
+        active_idx = adapter.get_active_tab_index()
+        page = coord.page
+        return SupervisorActionResponse(
+            success=True,
+            action="close_tab",
+            message=f"Closed tab{' #' + str(target_idx) if target_idx is not None else ''}. Active is now Tab #{active_idx}.",
+            browser_pid=adapter.browser_pid,
+            worker_pid=os.getpid(),
+            active_tab_index=active_idx,
+            active_url=page.url if page else "",
+            active_title=page.title() if page else "",
+            total_tabs=len(tabs),
+            tabs=tabs,
+        )
+
     def _handle_inspect(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         return handle_worker_inspect(self, req)
 
@@ -216,15 +289,66 @@ class OperationalWorker:
     def _handle_eval(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         coord = self._ensure_session(req)
         assert coord.page is not None
+        safe_eval_wrapper = """([code, args]) => {
+            let raw;
+            try {
+                const fn = new Function('args', 'return (' + code + ')');
+                raw = fn(args);
+            } catch (e) {
+                const fn2 = new Function('args', code);
+                raw = fn2(args);
+            }
+            const seen = new Set();
+            function sanitize(val, depth) {
+                if (depth > 10) return '[Max Depth]';
+                if (val === null || val === undefined) return val;
+                if (typeof val === 'function') return '[Function ' + (val.name || 'anonymous') + ']';
+                if (typeof val === 'object') {
+                    if (typeof Window !== 'undefined' && val instanceof Window) return '[Window]';
+                    if (typeof Document !== 'undefined' && val instanceof Document) return '[Document]';
+                    if (typeof Node !== 'undefined' && val instanceof Node) return '[' + (val.nodeName || 'Node') + ']';
+                    if (seen.has(val)) return '[Circular]';
+                    seen.add(val);
+                    if (Array.isArray(val)) {
+                        return val.map(item => sanitize(item, depth + 1));
+                    }
+                    const out = {};
+                    for (const k in val) {
+                        if (Object.prototype.hasOwnProperty.call(val, k)) {
+                            try {
+                                out[k] = sanitize(val[k], depth + 1);
+                            } catch (err) {
+                                out[k] = '[Unserializable]';
+                            }
+                        }
+                    }
+                    return out;
+                }
+                return val;
+            }
+            return sanitize(raw, 0);
+        }"""
         try:
-            res = coord.page.evaluate(req.script or "", req.script_args)
+            try:
+                res = coord.page.evaluate(safe_eval_wrapper, [req.script or "", req.script_args])
+            except Exception:
+                res = coord.page.evaluate(req.script or "", req.script_args)
+            sanitized_res = _sanitize_eval_result(res)
             return SupervisorActionResponse(
                 success=True,
                 action="eval",
                 message="Evaluated successfully",
-                reactive_event={"result": res},
+                reactive_event={"result": sanitized_res},
                 active_url=coord.page.url,
                 active_title=coord.page.title(),
+            )
+        except RecursionError:
+            return SupervisorActionResponse(
+                success=False,
+                action="eval",
+                message="Evaluation resulted in maximum recursion depth exceeded (circular DOM reference)",
+                active_url=coord.page.url if coord.page else "",
+                active_title=coord.page.title() if coord.page else "",
             )
         except Exception as exc:
             return SupervisorActionResponse(
@@ -370,12 +494,26 @@ def run_worker_loop():
             req = SupervisorActionRequest.from_dict(payload)
             resp = worker.handle_request(req)
 
-            rpc_out.write(json.dumps(resp.to_dict()) + "\n")
+            try:
+                out_payload = json.dumps(resp.to_dict())
+            except RecursionError:
+                resp.reactive_event = {"result": "[Circular]"}
+                out_payload = json.dumps(resp.to_dict())
+
+            rpc_out.write(out_payload + "\n")
             rpc_out.flush()
 
             if req.action.lower().strip() in ("stop", "shutdown"):
                 break
 
+        except RecursionError:
+            err_resp = SupervisorActionResponse(
+                success=False,
+                action="error",
+                message="Worker loop fatal error: maximum recursion depth exceeded",
+            )
+            rpc_out.write(json.dumps(err_resp.to_dict()) + "\n")
+            rpc_out.flush()
         except Exception as exc:
             err_resp = SupervisorActionResponse(
                 success=False,

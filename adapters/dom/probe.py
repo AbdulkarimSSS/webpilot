@@ -178,10 +178,26 @@ _PROBE_LOGIC: Final[str] = r"""
 
     let targetEl = el;
     let currentDepth = 0;
-    const requestedUp = parseInt(upLevels, 10) || 0;
-    while (currentDepth < requestedUp && targetEl && targetEl.parentElement && targetEl.parentElement !== document.documentElement && (targetEl.parentElement.tagName || '').toLowerCase() !== 'html') {
-        targetEl = targetEl.parentElement;
+    let requestedUp = 0;
+    if (typeof upLevels === 'string' && (upLevels.toLowerCase() === 'max' || upLevels.toLowerCase() === 'full' || upLevels.toLowerCase() === 'all' || upLevels.toLowerCase() === 'root')) {
+        requestedUp = 9999;
+    } else {
+        requestedUp = parseInt(upLevels, 10) || 0;
+    }
+
+    let isMaxReached = false;
+    while (currentDepth < requestedUp && targetEl && targetEl.parentElement) {
+        const nextParent = targetEl.parentElement;
+        const pTag = (nextParent.tagName || '').toLowerCase();
+        targetEl = nextParent;
         currentDepth++;
+        if (pTag === 'html' || nextParent === document.documentElement || !nextParent.parentElement) {
+            isMaxReached = true;
+            break;
+        }
+    }
+    if (targetEl && (!targetEl.parentElement || targetEl === document.documentElement || (targetEl.tagName || '').toLowerCase() === 'html')) {
+        isMaxReached = true;
     }
 
     try {
@@ -263,6 +279,8 @@ _PROBE_LOGIC: Final[str] = r"""
         options_count: optionsList.length,
         options: optionsList,
         ancestor_depth: currentDepth,
+        ancestor_requested: requestedUp,
+        ancestor_max_reached: isMaxReached,
         ancestor_tag: targetEl ? (targetEl.tagName || '').toLowerCase() : tag,
         ancestor_id: targetEl ? (targetEl.id || '') : (el.id || ''),
         ancestor_class: targetEl ? (targetEl.className || '') : '',

@@ -129,6 +129,19 @@ class BrowserAdapter(BrowserAdapterProtocol):
         print(f"[*] Switched to Tab #{index}: '{self._page.title()}' ({self._page.url})")
         return self._page
 
+    def create_new_tab(self, url: Optional[str] = None) -> Page:
+        """Opens a new tab in BrowserContext, navigates to url if provided, and brings it to front."""
+        assert self._context is not None, "Browser context not initialized."
+        from adapters.tab_manager import TabManager
+        self._page = TabManager.create_new_tab(self._context, url)
+        return self._page
+
+    def close_tab(self, index: Optional[int] = None) -> None:
+        """Safely closes the target tab, ensuring at least one tab remains open."""
+        assert self._context is not None, "Browser context not initialized."
+        from adapters.tab_manager import TabManager
+        self._page = TabManager.close_tab(self._context, index=index, active_page=self._page)
+
     def _ensure_browser_binaries(self) -> None:
         """Verifies Chromium is installed; if not, automatically downloads it or shows a clear error."""
         needs_install = False

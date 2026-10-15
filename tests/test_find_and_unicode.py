@@ -767,3 +767,180 @@ def test_persistent_local_ids_across_mutations():
 
         browser.close()
 
+
+def test_up_levels_ceiling_cap_and_keywords(capsys):
+    from playwright.sync_api import sync_playwright
+    from adapters.dom.probe import PROBE_FIELD_DOM_SCRIPT
+    from cli_parser import build_cli_parser
+    from cli_commands.find_cmd import find_cmd
+    from unittest.mock import MagicMock, patch
+
+    # 1. Test parser keyword handling: --up max and --up 50
+    parser = build_cli_parser()
+    args_max = parser.parse_args(["find", "#deep_input", "--up", "max"])
+    assert args_max.up == 9999
+
+    args_num = parser.parse_args(["find", "#deep_input", "--up", "50"])
+    assert args_num.up == 50
+
+    # 2. Test in-browser ceiling cap
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content("""
+        <html><body>
+            <div id="container">
+                <form id="my_form">
+                    <input id="deep_input" type="text" value="hello" />
+                </form>
+            </div>
+        </body></html>
+        """)
+
+        # Element is: input -> form -> div -> body -> html (4 levels from input to html)
+        # Requesting 1 level:
+        res1 = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["#deep_input", False, "", True, 1, ""])
+        assert res1["ancestor_depth"] == 1
+        assert res1["ancestor_tag"] == "form"
+        assert res1["ancestor_max_reached"] is False
+
+        # Requesting 50 levels (exceeding available 4 levels):
+        res_capped = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["#deep_input", False, "", True, 50, ""])
+        assert res_capped["ancestor_depth"] == 4
+        assert res_capped["ancestor_tag"] == "html"
+        assert res_capped["ancestor_requested"] == 50
+        assert res_capped["ancestor_max_reached"] is True
+
+        # Requesting 'max':
+        res_max = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["#deep_input", False, "", True, "max", ""])
+        assert res_max["ancestor_depth"] == 4
+        assert res_max["ancestor_tag"] == "html"
+        assert res_max["ancestor_max_reached"] is True
+
+        browser.close()
+
+    # 3. Test CLI output announcement of ceiling cap
+    mock_resp = MagicMock()
+    mock_resp.success = True
+    mock_resp.field_details = {
+        "found": True,
+        "local_id": "@fld-1",
+        "type": "input",
+        "ancestor_depth": 4,
+        "ancestor_requested": 50,
+        "ancestor_max_reached": True,
+        "ancestor_tag": "html",
+        "html": "<html>...</html>"
+    }
+    with patch("cli_commands.find_cmd.get_supervisor_client") as mock_client:
+        mock_client.return_value.execute.return_value = mock_resp
+        find_cmd(args_num)
+        out = capsys.readouterr().out
+        assert "PAGE ROOT CEILING" in out
+        assert "Capped at <html>" in out
+        assert "requested: +50" in out
+        assert "PAGE ROOT" in out
+
+
+def test_inspect_page_dom_script_sections_and_state():
+    """Verify INSPECT_PAGE_DOM_SCRIPT extracts rich section objects, local IDs, and OPEN/COLLAPSED state."""
+    from playwright.sync_api import sync_playwright
+    from adapters.dom_scripts import INSPECT_PAGE_DOM_SCRIPT
+
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Test Job Application</title></head>
+    <body>
+        <!-- Open section: SuccessFactors style -->
+        <div class="rcmFormSection" id="sec_profile">
+            <div id="170:topBar" class="rcmFormSectionTopBar" role="button" aria-expanded="true">
+                Profile Information
+            </div>
+            <div class="sectionContent">
+                <label for="first_name">First Name</label>
+                <input type="text" id="first_name" name="first_name" value="" />
+                <label for="last_name">Last Name</label>
+                <input type="text" id="last_name" name="last_name" value="" />
+            </div>
+        </div>
+
+        <!-- Collapsed section: SuccessFactors style -->
+        <div class="rcmFormSection" id="sec_refs">
+            <div id="302:topBar" class="rcmFormSectionTopBar" role="button" aria-expanded="false">
+                References (Optional)
+            </div>
+            <div class="sectionContent sectionContentClosed" style="display: none;">
+                <label for="ref_name">Referee Name</label>
+                <input type="text" id="ref_name" name="ref_name" value="" />
+            </div>
+        </div>
+
+        <!-- HTML5 details open -->
+        <details open id="det_lang">
+            <summary>Language Skills</summary>
+            <label for="lang">Language</label>
+            <input type="text" id="lang" value="Arabic" />
+        </details>
+
+        <!-- HTML5 details collapsed -->
+        <details id="det_hobby">
+            <summary>Hobbies</summary>
+            <label for="hobby">Hobby</label>
+            <input type="text" id="hobby" value="" />
+        </details>
+
+        <button id="btn_submit" type="submit">Submit Application</button>
+    </body>
+    </html>
+    """
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content(html_content)
+
+        data = page.evaluate(INSPECT_PAGE_DOM_SCRIPT, {"puaMode": "escape"})
+
+        # Check sections
+        sections = data.get("sections", [])
+        assert len(sections) >= 4
+
+        # Profile Information: OPEN, fields_count == 2
+        sec_prof = next(s for s in sections if s["title"] == "Profile Information")
+        assert sec_prof["state"] == "OPEN"
+        assert sec_prof["local_id"].startswith("@sec-")
+        assert sec_prof["trigger_id"] == "170:topBar"
+        assert sec_prof["trigger_local_id"].startswith("@btn-")
+        assert sec_prof["fields_count"] == 2
+
+        # References (Optional): COLLAPSED, fields_count == 0
+        sec_refs = next(s for s in sections if s["title"] == "References (Optional)")
+        assert sec_refs["state"] == "COLLAPSED"
+        assert sec_refs["local_id"].startswith("@sec-")
+        assert sec_refs["trigger_id"] == "302:topBar"
+        assert sec_refs["trigger_local_id"].startswith("@btn-")
+        assert sec_refs["fields_count"] == 0
+
+        # Language Skills: OPEN
+        sec_lang = next(s for s in sections if s["title"] == "Language Skills")
+        assert sec_lang["state"] == "OPEN"
+
+        # Hobbies: COLLAPSED
+        sec_hobby = next(s for s in sections if s["title"] == "Hobbies")
+        assert sec_hobby["state"] == "COLLAPSED"
+
+        # Verify buttons: TopBars have action toggle_section, Submit Application has action submit
+        btns = data.get("buttons", [])
+        submit_btn = next(b for b in btns if b["id"] == "btn_submit")
+        assert submit_btn["action"] == "submit"
+
+        topbar_btns = [b for b in btns if b.get("action") == "toggle_section"]
+        assert len(topbar_btns) >= 2
+        assert any(b["id"] == "170:topBar" for b in topbar_btns)
+        assert any(b["id"] == "302:topBar" for b in topbar_btns)
+
+        browser.close()
+
+
+

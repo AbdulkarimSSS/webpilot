@@ -1,6 +1,6 @@
 # WebPilot CLI Subcommands & Options Reference
 
-Complete reference for all 11 CLI subcommands in WebPilot Engine (v2.4.0).
+Complete reference for all 11 CLI subcommands in WebPilot Engine (v2.5.1).
 Binary alias: `wp` or `webpilot` in global system `PATH`.
 
 ---
@@ -175,22 +175,44 @@ wp find --selector "//button[contains(text(), 'Save')]" --html
 
 ---
 
-## 5. Command 4: Multi-Tab & Window Management (`wp tab`)
+## 5. Command 4: Dedicated Tab Management (`wp tab`)
 
-Manage and coordinate multi-tab workflows, popup authentication windows, and external redirections.
+Native, first-class tab management to coordinate multi-tab workflows, popup authentication windows, external redirections, and multi-portal operations.
 
 ```powershell
+wp tab [ACTION] [TARGET] [OPTIONS]
+```
+
+### Subactions:
+- `wp tab list` (or `wp tab`): Displays formatted list of all open browser tabs with active indicator `[*ACTIVE*]`, indices, titles, and URLs.
+- `wp tab new [URL]`: Spawns a new browser tab in the active session, optionally navigating to `URL`.
+- `wp tab switch <INDEX>`: Brings Tab #INDEX to the front and sets it as the active context for subsequent commands.
+- `wp tab close [INDEX]`: Safely closes the tab at INDEX (or active tab if omitted), ensuring at least one tab or `about:blank` page remains open.
+
+### Options:
+- `--url <url>`: Target URL for `wp tab new`.
+- `--tab <index>`: Target tab index (0-based) for `switch` or `close`.
+- `--json`: Output raw JSON response containing tabs array and active index.
+- `--strip-header`: Suppress verbose telemetry banners.
+
+### Tab Management Examples:
+```powershell
 # 1. Enumerate all active tabs in the persistent session
-wp inspect --list-tabs
+wp tab list
 
-# 2. Switch context to Tab 1 to complete secondary verification
-wp apply --tab 1 --fill "otp_code=891024" --press "Verify"
+# 2. Open a new tab navigating to a login or secondary portal
+wp tab new "https://auth.example.com/login"
 
-# 3. Inspect DOM on secondary tab
-wp find "@fld-1" --tab 1 --html
+# 3. Switch active context to Tab #1 to complete secondary verification
+wp tab switch 1
+wp apply --fill "otp_code=891024" --press "Verify"
 
-# 4. Return to main window (Tab 0)
-wp apply --tab 0 --press "Finish"
+# 4. Close the secondary tab and automatically focus the remaining tab
+wp tab close 1
+
+# 5. Return to or verify main window (Tab #0)
+wp tab list
+wp apply --press "Finish"
 ```
 
 ---

@@ -7,6 +7,7 @@ from cli_commands.eval_cmd import eval_cmd
 from cli_commands.find_cmd import find_cmd
 from cli_commands.inspect_cmd import inspect_cmd
 from cli_commands.service_cmd import install_cmd, service_cmd, shell_cmd, skill_cmd
+from cli_commands.tab_cmd import tab_cmd
 
 __all__ = [
     "get_base_url",
@@ -16,6 +17,7 @@ __all__ = [
     "find_cmd",
     "eval_cmd",
     "css_cmd",
+    "tab_cmd",
     "service_cmd",
     "shell_cmd",
     "install_cmd",

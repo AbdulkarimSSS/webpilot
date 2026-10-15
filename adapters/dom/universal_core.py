@@ -180,7 +180,15 @@ function isHoneypotOrHidden(el) {
     if (el.getAttribute('tabindex') === '-1' && (name.includes('hp_') || name.includes('honeypot'))) return true;
     try {
         const rect = el.getBoundingClientRect();
-        if (rect.right < 0 || rect.bottom < 0 || rect.left < -500 || rect.top < -500) return true;
+        const scrollX = window.pageXOffset || window.scrollX || 0;
+        const scrollY = window.pageYOffset || window.scrollY || 0;
+        const docX = rect.left + scrollX;
+        const docY = rect.top + scrollY;
+
+        // An element is only a coordinate honeypot if it is genuinely placed off-canvas in the entire document:
+        if (docX < -500 || docY < -500 || (rect.right + scrollX) < 0 || (rect.bottom + scrollY) < 0) {
+            return true;
+        }
         if (rect.width === 0 && rect.height === 0 && !['radio', 'checkbox'].includes(el.type)) return true;
     } catch(e) {}
     return false;
@@ -335,16 +343,22 @@ function detectDependentParentField(el) {
 
     // Check ARIA controls reversed
     if (el.id) {
-        const controller = document.querySelector('[aria-controls*="' + el.id + '"], [data-controls*="' + el.id + '"]');
-        if (controller && controller !== el) {
-            return {
-                is_dependent: true,
-                parent_id: controller.id || '',
-                parent_label: getUniversalLabel(controller, true) || 'Parent Field',
-                parent_local_id: controller.getAttribute('data-wp-id') || null,
-                confidence: 'high',
-                mechanism: 'aria_controls'
-            };
+        try {
+            const escaped = (window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@)/g, "\\$1");
+            const parent = document.querySelector('#' + escaped);
+            const controller = document.querySelector('[aria-controls*="' + escaped + '"], [data-controls*="' + escaped + '"]');
+            if (controller && controller !== el) {
+                return {
+                    is_dependent: true,
+                    parent_id: controller.id || '',
+                    parent_label: getUniversalLabel(controller, true) || 'Parent Field',
+                    parent_local_id: controller.getAttribute('data-wp-id') || null,
+                    confidence: 'high',
+                    mechanism: 'aria_controls'
+                };
+            }
+        } catch (e) {
+            // Gracefully continue traversal without terminating field enumeration
         }
     }
 

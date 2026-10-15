@@ -15,8 +15,31 @@ class InspectionFormatterService:
         # Sections
         sections = data.get("sections", [])
         if sections:
-            lines.append(f"📁 Sections ({len(sections)}): " + ", ".join(sections))
-            lines.append("")
+            first_sec = sections[0]
+            if isinstance(first_sec, dict) or hasattr(first_sec, "state"):
+                lines.append(f"📁 Form Sections & Accordions ({len(sections)}):")
+                for sec in sections:
+                    s_dict = vars(sec) if hasattr(sec, "__dict__") and not isinstance(sec, dict) else sec
+                    lid = f" [{s_dict.get('local_id')}]" if s_dict.get("local_id") else ""
+                    name = s_dict.get("title") or s_dict.get("label") or "Section"
+                    state = str(s_dict.get("state", "OPEN")).upper()
+                    state_badge = f" [{state}]"
+                    trigger_parts = []
+                    if s_dict.get("trigger_local_id"):
+                        trigger_parts.append(f"Toggle: {s_dict['trigger_local_id']}")
+                    if s_dict.get("trigger_id"):
+                        trigger_parts.append(f"ID: {s_dict['trigger_id']}")
+                    toggle_str = f" ({' | '.join(trigger_parts)})" if trigger_parts else ""
+                    cnt = s_dict.get("fields_count", 0)
+                    if state == "COLLAPSED" and cnt == 0:
+                        field_str = " -> 0 visible fields"
+                    else:
+                        field_str = f" -> {cnt} field{'s' if cnt != 1 else ''}"
+                    lines.append(f"  •{lid} '{name}'{state_badge}{toggle_str}{field_str}")
+                lines.append("")
+            else:
+                lines.append(f"📁 Sections ({len(sections)}): " + ", ".join(str(s) for s in sections))
+                lines.append("")
 
         # Inputs
         inputs = data.get("inputs", [])
@@ -64,8 +87,9 @@ class InspectionFormatterService:
 
         # Action Buttons
         buttons = data.get("buttons", [])
-        lines.append(f"🔘 Key Action Buttons ({len(buttons)}):")
-        for btn in buttons:
+        key_buttons = [b for b in buttons if b.get("action") != "toggle_section"]
+        lines.append(f"🔘 Key Action Buttons ({len(key_buttons)}):")
+        for btn in key_buttons:
             lid = f" [{btn['local_id']}]" if btn.get("local_id") else ""
             b_text = btn.get("text") or btn.get("label") or btn.get("value") or ""
             b_id = btn.get("id") or ""
@@ -105,6 +129,33 @@ class InspectionFormatterService:
         lines = []
         lines.append(f"=== TARGETED FIELDS SUMMARY: '{data.get('title')}' ===")
         lines.append(f"URL: {data.get('url')}\n")
+
+        # Filtered sections
+        matched_sections = [
+            s for s in data.get("sections", [])
+            if (isinstance(s, dict) or hasattr(s, "__dict__")) and matches(vars(s) if hasattr(s, "__dict__") and not isinstance(s, dict) else s)
+        ]
+        if matched_sections:
+            lines.append(f"📁 Form Sections & Accordions ({len(matched_sections)}):")
+            for sec in matched_sections:
+                s_dict = vars(sec) if hasattr(sec, "__dict__") and not isinstance(sec, dict) else sec
+                lid = f" [{s_dict.get('local_id')}]" if s_dict.get("local_id") else ""
+                name = s_dict.get("title") or s_dict.get("label") or "Section"
+                state = str(s_dict.get("state", "OPEN")).upper()
+                state_badge = f" [{state}]"
+                trigger_parts = []
+                if s_dict.get("trigger_local_id"):
+                    trigger_parts.append(f"Toggle: {s_dict['trigger_local_id']}")
+                if s_dict.get("trigger_id"):
+                    trigger_parts.append(f"ID: {s_dict['trigger_id']}")
+                toggle_str = f" ({' | '.join(trigger_parts)})" if trigger_parts else ""
+                cnt = s_dict.get("fields_count", 0)
+                if state == "COLLAPSED" and cnt == 0:
+                    field_str = " -> 0 visible fields"
+                else:
+                    field_str = f" -> {cnt} field{'s' if cnt != 1 else ''}"
+                lines.append(f"  •{lid} '{name}'{state_badge}{toggle_str}{field_str}")
+            lines.append("")
 
         # Filtered inputs
         matched_inputs = [inp for inp in data.get("inputs", []) if matches(inp)]

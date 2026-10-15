@@ -76,6 +76,14 @@ class SessionCoordinator:
         """Switches active page to specified tab index."""
         return self.adapter.switch_to_tab(index)
 
+    def create_new_tab(self, url: Optional[str] = None) -> Page:
+        """Opens a new tab, navigates to url if provided, and brings to front."""
+        return self.adapter.create_new_tab(url)
+
+    def close_tab(self, index: Optional[int] = None) -> None:
+        """Safely closes the target tab, ensuring at least one tab remains open."""
+        self.adapter.close_tab(index)
+
     def switch_to_latest_page(self) -> Page:
         """Synchronizes and returns the latest opened browser tab/window."""
         ctx = self.context

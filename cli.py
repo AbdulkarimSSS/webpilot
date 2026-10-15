@@ -31,6 +31,7 @@ try:
         service_cmd,
         shell_cmd,
         skill_cmd,
+        tab_cmd,
     )
 except ImportError:
     try:
@@ -46,6 +47,7 @@ except ImportError:
             service_cmd,
             shell_cmd,
             skill_cmd,
+            tab_cmd,
         )
     except Exception:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -61,6 +63,7 @@ except ImportError:
             service_cmd,
             shell_cmd,
             skill_cmd,
+            tab_cmd,
         )
 
 DISPATCH_TABLE = {
@@ -75,6 +78,7 @@ DISPATCH_TABLE = {
     "exec": eval_cmd,
     "css": css_cmd,
     "style": css_cmd,
+    "tab": tab_cmd,
     "service": service_cmd,
     "shell": shell_cmd,
     "install": install_cmd,

@@ -167,3 +167,92 @@ def test_inspection_formatter_with_local_ids():
     assert "[@fld-1]" in summary
     assert "[@drop-1]" in summary
     assert "[@btn-1]" in summary
+
+
+def test_inspection_formatter_with_rich_sections_and_state():
+    """Verify rich section objects output with state badge, toggle trigger, and field counts."""
+    data = {
+        "title": "Career Opportunities",
+        "url": "https://career.example.com",
+        "sections": [
+            {
+                "local_id": "@sec-1",
+                "id": "170:topBar",
+                "title": "Profile Information",
+                "label": "Profile Information",
+                "state": "OPEN",
+                "is_collapsible": True,
+                "trigger_id": "170:topBar",
+                "trigger_local_id": "@btn-1",
+                "fields_count": 8,
+                "total_fields": 8,
+            },
+            {
+                "local_id": "@sec-2",
+                "id": "302:topBar",
+                "title": "References (Optional)",
+                "label": "References (Optional)",
+                "state": "COLLAPSED",
+                "is_collapsible": True,
+                "trigger_id": "302:topBar",
+                "trigger_local_id": "@btn-2",
+                "fields_count": 0,
+                "total_fields": 3,
+            },
+        ],
+        "inputs": [{"id": "fn", "label": "First Name", "local_id": "@fld-1", "value": ""}],
+        "dropdowns": [],
+        "buttons": [
+            {"id": "170:topBar", "label": "Profile Information", "action": "toggle_section", "local_id": "@btn-1"},
+            {"id": "302:topBar", "label": "References (Optional)", "action": "toggle_section", "local_id": "@btn-2"},
+            {"id": "save_btn", "label": "Save Application", "action": "save", "local_id": "@btn-3"},
+        ],
+    }
+    summary = InspectionFormatterService.format_summary(data)
+    assert "📁 Form Sections & Accordions (2):" in summary
+    assert "[@sec-1] 'Profile Information' [OPEN] (Toggle: @btn-1 | ID: 170:topBar) -> 8 fields" in summary
+    assert "[@sec-2] 'References (Optional)' [COLLAPSED] (Toggle: @btn-2 | ID: 302:topBar) -> 0 visible fields" in summary
+    # Verify section toggles are filtered out from Key Action Buttons so only Save Application remains
+    assert "🔘 Key Action Buttons (1):" in summary
+    assert "[SAVE] 'Save Application' [@btn-3] (ID: save_btn)" in summary
+    assert "toggle_section" not in summary.lower()
+
+    # Targeted summary for @sec-2
+    target_summary = InspectionFormatterService.format_targeted_summary(data, ["@sec-2"])
+    assert "📁 Form Sections & Accordions (1):" in target_summary
+    assert "References (Optional)" in target_summary
+
+
+def test_form_section_dataclass_and_inspection_result():
+    """Verify FormSection dataclass serialization and round-trip via InspectionResult."""
+    from core.models import FormSection
+
+    sec = FormSection(
+        title="Education",
+        label="Education",
+        state="COLLAPSED",
+        local_id="@sec-3",
+        id="edu_section",
+        trigger_id="edu_toggle",
+        trigger_local_id="@btn-5",
+        is_collapsible=True,
+        fields_count=0,
+        total_fields=4,
+    )
+    result = InspectionResult(
+        title="Test Form",
+        url="https://test.local",
+        sections=[sec],
+    )
+    d = result.to_dict()
+    assert len(d["sections"]) == 1
+    assert d["sections"][0]["local_id"] == "@sec-3"
+    assert d["sections"][0]["state"] == "COLLAPSED"
+
+    # Deserialization
+    reloaded = InspectionResult.from_dict(d)
+    assert len(reloaded.sections) == 1
+    assert isinstance(reloaded.sections[0], FormSection)
+    assert reloaded.sections[0].state == "COLLAPSED"
+    assert reloaded.sections[0].trigger_id == "edu_toggle"
+

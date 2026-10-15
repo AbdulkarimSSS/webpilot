@@ -5,6 +5,41 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.1] - 2026-10-15
+
+### Core DOM Fixes, Native Tab Management & Complete References Packaging
+
+#### 1. DOM Coordinate Calculation in Honeypot Pruning (Bug 1)
+- **Document vs Viewport Offsets (`adapters/dom/universal_core.py`)**: Incorporated `window.pageXOffset` / `window.pageYOffset` into `isHoneypotOrHidden(el)` to compute absolute document coordinates (`docX`, `docY`).
+- **Elimination of False Section Pruning**: Fixed critical regression where scrolling down and expanding accordion panes (`PageLifecycleService.expand_all_sections()`) gave upper sections negative viewport coordinates (`rect.bottom < 0`), falsely marking them as honeypots and pruning them from inspection schemas.
+
+#### 2. Colon-Escaped IDs in Cascading Dependency Detection (Bug 2)
+- **Defensive ID Escaping (`universal_core.py`, `inspection.py`)**: Sanitized compound IDs with colons (e.g. SAP SuccessFactors `id="57:_input"`, `id="250:_input"`) via `CSS.escape()` and defensive `try/catch` guards across all label and dependency lookups, preventing `DOMException: '<id>' is not a valid selector` from aborting field enumeration.
+
+#### 3. Navigation Context Destruction Recovery (Bug 3)
+- **Page Transition Click Resilience (`reactive_interaction_service.py`)**: Treated Playwright `Execution context was destroyed` exceptions during button clicks (`loc.first.click()`) as successful interactions (`clicked = True`), correctly acknowledging form submissions and navigation buttons without false failures.
+
+#### 4. Regex & Prefix Stripping in Readback Verification (Bug 4)
+- **Prefix Normalization (`services/dom_verifier.py`)**: Stripped option targeting prefixes (`re:`, `regex:`, `text:`, `val:`) before comparing expected values against actual DOM state in `DOMDataMatcher.match()`.
+- **Full Regex Pattern Evaluation**: Added native regex evaluation (`bool(re.search(regex_pattern, actual_value, re.IGNORECASE))`) across select dropdowns, custom picklists, text, textarea, and plain string readbacks.
+
+#### 5. Tab Index Honoring in Inspection (Bug 5)
+- **Tab Targeting (`supervisor/worker_handlers.py`)**: Added `req.tab_index` check at the start of `handle_worker_inspect`, ensuring `wp inspect --tab <index>` switches to and inspects the requested tab rather than always inspecting the default tab.
+
+#### 6. Infinite Recursion Safeguards in JavaScript Eval (Bug 6)
+- **Circular Reference Protection (`supervisor/worker_process.py`)**: Added safe evaluation wrapper and recursive Python payload sanitizer (`_sanitize_eval_result`), preventing circular objects (e.g., `Window`, DOM nodes) from triggering `Worker loop fatal error: maximum recursion depth exceeded`.
+
+#### 7. Native First-Class Tab Management (`wp tab`)
+- **CLI Subcommand (`cli_commands/tab_cmd.py`, `cli_parser.py`)**: Added `wp tab` CLI interface with `list`, `new [URL]`, `switch <INDEX>`, and `close [INDEX]`.
+- **Supervisor IPC Contracts (`supervisor/contracts.py`, `supervisor/worker_process.py`)**: Implemented IPC actions `new_tab`, `close_tab`, `list_tabs`, and `switch_tab`.
+- **Adapter Implementations (`adapters/tab_manager.py`, `adapters/browser_adapter.py`)**: Implemented `create_new_tab()` and `close_tab()` ensuring at least one tab or `about:blank` remains open to prevent browser crashes.
+- **Programmatic Python SDK (`webpilot/client.py`)**: Added `wp.new_tab()`, `wp.close_tab()`, `wp.switch_tab()`, and `wp.list_tabs()`.
+
+#### 8. Documentation Suite & Wheel Packaging (`pyproject.toml`)
+- **Complete References Suite**: Added and verified all 5 markdown reference files under `skills/webpilot-automation/references/`.
+- **Package Data Distribution**: Updated `pyproject.toml` `package-data` to bundle all skill and reference markdown files into the published wheel distribution.
+- **Self-Contained Skill Documentation**: Updated `skills/webpilot-automation/SKILL.md` with documentation for `tab`, `reload`, `eval`, `css`, `--strip-header`, `--data`, `--submit`, and `--cookies`.
+
 ## [2.5.0] - 2026-10-13
 
 ### Cascading Dependencies, Ranked Overlap Scoring & Advanced Option Pagination

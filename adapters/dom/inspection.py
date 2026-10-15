@@ -34,13 +34,16 @@ _INSPECT_LOGIC: Final[str] = r"""
         const wc = resolveWebComponent(el);
         if (wc && (wc.required || wc.getAttribute('required') !== null || wc.getAttribute('aria-required') === 'true')) return true;
         if (el.id) {
-            const root = el.getRootNode ? el.getRootNode() : document;
-            const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
-            if (l && ((l.innerText || '').includes('*') || l.querySelector('.required, .requiredField, .mandatory'))) return true;
-            if (el.id.endsWith('_datepicker') && window.juic && window.juic.Component && window.juic.Component._registry) {
-                const jc = window.juic.Component._registry[el.id.replace('_datepicker', '')];
-                if (jc && jc._isRequired) return true;
-            }
+            try {
+                const root = el.getRootNode ? el.getRootNode() : document;
+                const escId = (window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@)/g, "\\$1");
+                const l = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+                if (l && ((l.innerText || '').includes('*') || l.querySelector('.required, .requiredField, .mandatory'))) return true;
+                if (el.id.endsWith('_datepicker') && window.juic && window.juic.Component && window.juic.Component._registry) {
+                    const jc = window.juic.Component._registry[el.id.replace('_datepicker', '')];
+                    if (jc && jc._isRequired) return true;
+                }
+            } catch(e) {}
         }
         const lower = (labelText || '').toLowerCase();
         if (lower.includes('*') || lower.includes('required')) return true;
@@ -54,7 +57,7 @@ _INSPECT_LOGIC: Final[str] = r"""
     }
 
     // Scan existing DOM data-wp-id attributes to preserve IDs across dynamic mutations
-    let maxFld = 0, maxDrop = 0, maxOpt = 0, maxUp = 0, maxBtn = 0;
+    let maxFld = 0, maxDrop = 0, maxOpt = 0, maxUp = 0, maxBtn = 0, maxSec = 0;
     deepQueryAll(document, '[data-wp-id]').forEach(el => {
         const idVal = el.getAttribute('data-wp-id') || '';
         const mFld = idVal.match(/^@fld-(\d+)$/);
@@ -67,6 +70,8 @@ _INSPECT_LOGIC: Final[str] = r"""
         if (mUp) maxUp = Math.max(maxUp, parseInt(mUp[1], 10));
         const mBtn = idVal.match(/^@btn-(\d+)$/);
         if (mBtn) maxBtn = Math.max(maxBtn, parseInt(mBtn[1], 10));
+        const mSec = idVal.match(/^@sec-(\d+)$/);
+        if (mSec) maxSec = Math.max(maxSec, parseInt(mSec[1], 10));
     });
 
     const counters = {
@@ -74,7 +79,8 @@ _INSPECT_LOGIC: Final[str] = r"""
         drop: maxDrop,
         opt: maxOpt,
         file: maxUp,
-        btn: maxBtn
+        btn: maxBtn,
+        sec: maxSec
     };
     const newElementsCaptured = [];
 
@@ -91,11 +97,121 @@ _INSPECT_LOGIC: Final[str] = r"""
         return newId;
     }
 
-    // 1. Sections
-    const sectionTitles = deepQueryAll(document, '.rcmFormSectionTopBar, legend, h2, h3, [role="heading"]')
-        .map(el => clean(el.innerText || el.textContent))
-        .filter(t => t.length > 2 && t.length < 80);
-    result.sections = Array.from(new Set(sectionTitles));
+    // 1. Form Sections & Accordions
+    const sectionToggleMap = new Map();
+    const seenSectionKeys = new Set();
+    const candidateSectionNodes = deepQueryAll(document, 
+        '.rcmFormSection, [class*="rcmFormSection"]:not(.rcmFormSectionTopBar), ' +
+        '.accordion-item, [class*="accordion-item"], details, fieldset, ' +
+        '.rcmFormSectionTopBar, [id$=":topBar"], summary, button.accordion-button, ' +
+        'legend, h2, h3, [role="heading"]'
+    );
+
+    candidateSectionNodes.forEach(node => {
+        if (['SCRIPT', 'STYLE'].includes(node.tagName)) return;
+        if (isHoneypotOrHidden(node)) return;
+
+        let container = null;
+        let headerEl = null;
+
+        if (node.tagName === 'DETAILS') {
+            container = node;
+            headerEl = node.querySelector('summary') || node;
+        } else if (node.matches && node.matches('.rcmFormSectionTopBar, [id$=":topBar"], summary, button.accordion-button, legend, h2, h3, [role="heading"]')) {
+            headerEl = node;
+            container = node.closest('.rcmFormSection, [class*="rcmFormSection"]:not(.rcmFormSectionTopBar), .accordion-item, fieldset, details, section') || node.parentElement || node;
+        } else {
+            container = node;
+            headerEl = node.querySelector('.rcmFormSectionTopBar, [id$=":topBar"], summary, button.accordion-button, legend, h2, h3, [role="heading"]') || node;
+        }
+
+        if (!headerEl) return;
+        const rawTitle = clean(headerEl.innerText || headerEl.textContent || '');
+        if (!rawTitle || rawTitle.length < 2 || rawTitle.length > 90) return;
+
+        const lowerTitle = rawTitle.toLowerCase();
+        if (['options', 'menu', 'submit', 'apply', 'save', 'cancel', 'loading', 'select', 'search'].includes(lowerTitle)) return;
+
+        const secKey = (container.id || '') + '_' + lowerTitle;
+        if (seenSectionKeys.has(secKey) || seenSectionKeys.has(lowerTitle)) return;
+        seenSectionKeys.add(secKey);
+        seenSectionKeys.add(lowerTitle);
+
+        let isCollapsible = false;
+        let triggerEl = null;
+
+        if (container.tagName === 'DETAILS') {
+            isCollapsible = true;
+            triggerEl = headerEl.tagName === 'SUMMARY' ? headerEl : container;
+        } else if (headerEl.matches && headerEl.matches('button, [role="button"], .rcmFormSectionTopBar, [id$=":topBar"], .accordion-button, [aria-expanded]')) {
+            isCollapsible = true;
+            triggerEl = headerEl;
+        } else {
+            const innerBtn = headerEl.querySelector ? headerEl.querySelector('button, [role="button"], .rcmFormSectionTopBar, [id$=":topBar"], .accordion-button, [aria-expanded]') : null;
+            if (innerBtn) {
+                isCollapsible = true;
+                triggerEl = innerBtn;
+            }
+        }
+
+        let state = 'OPEN';
+        if (container.tagName === 'DETAILS') {
+            state = container.hasAttribute('open') ? 'OPEN' : 'COLLAPSED';
+        } else if (triggerEl && triggerEl.getAttribute('aria-expanded') !== null) {
+            state = triggerEl.getAttribute('aria-expanded') === 'true' ? 'OPEN' : 'COLLAPSED';
+        } else if (triggerEl && triggerEl.classList.contains('collapsed')) {
+            state = 'COLLAPSED';
+        } else {
+            const content = container.querySelector ? container.querySelector('.sectionContent, [class*="sectionContent"], .accordion-collapse, .collapse') : null;
+            if (content) {
+                if (content.classList.contains('sectionContentClosed') ||
+                    (content.classList.contains('collapse') && !content.classList.contains('show')) ||
+                    content.style.display === 'none' ||
+                    (window.getComputedStyle && window.getComputedStyle(content).display === 'none')) {
+                    state = 'COLLAPSED';
+                }
+            }
+        }
+
+        let fieldsCount = 0;
+        let totalFields = 0;
+        if (container && container !== headerEl) {
+            const secInputs = container.querySelectorAll('input:not([type="hidden"]):not([type="button"]):not([type="submit"]), select, textarea, [role="combobox"]');
+            totalFields = secInputs.length;
+            secInputs.forEach(inp => {
+                if (inp.offsetWidth > 0 || inp.offsetHeight > 0) fieldsCount++;
+            });
+            if (state === 'COLLAPSED') {
+                fieldsCount = 0;
+            }
+        }
+
+        const secLocalId = getOrCreateLocalId(container || headerEl, 'sec', 'sec');
+        if (headerEl && headerEl !== container) {
+            try { headerEl.setAttribute('data-wp-id', secLocalId); } catch(e){}
+        }
+
+        let triggerId = '';
+        let triggerLocalId = '';
+        if (triggerEl) {
+            triggerId = triggerEl.id || '';
+            triggerLocalId = getOrCreateLocalId(triggerEl, 'btn', 'btn');
+            sectionToggleMap.set(triggerEl, secLocalId);
+        }
+
+        result.sections.push({
+            local_id: secLocalId,
+            id: (container && container.id) || headerEl.id || triggerId || '',
+            title: rawTitle,
+            label: rawTitle,
+            state: state,
+            is_collapsible: isCollapsible,
+            trigger_id: triggerId,
+            trigger_local_id: triggerLocalId,
+            fields_count: fieldsCount,
+            total_fields: totalFields
+        });
+    });
 
     // 2. File Uploads
     const seenUploadLabels = new Set();
@@ -197,9 +313,12 @@ _INSPECT_LOGIC: Final[str] = r"""
         if (!q && r.name) q = r.name;
         if (!q && r.getAttribute('aria-label')) q = r.getAttribute('aria-label');
         if (!q && r.id) {
-            const root = r.getRootNode ? r.getRootNode() : document;
-            const l = (root.querySelector ? root.querySelector('label[for="' + r.id + '"]') : null) || document.querySelector('label[for="' + r.id + '"]');
-            if (l) q = clean(l.innerText);
+            try {
+                const root = r.getRootNode ? r.getRootNode() : document;
+                const escR = (window.CSS && CSS.escape) ? CSS.escape(r.id) : r.id.replace(/(:|\.|\[|\]|,|=|@)/g, "\\$1");
+                const l = (root.querySelector ? root.querySelector('label[for="' + escR + '"]') : null) || document.querySelector('label[for="' + escR + '"]');
+                if (l) q = clean(l.innerText);
+            } catch(e) {}
         }
         if (!q && r.getAttribute('role') === 'switch') q = clean(r.innerText || r.textContent);
         if (!q) return;
@@ -275,14 +394,17 @@ _INSPECT_LOGIC: Final[str] = r"""
             if (['select', 'button', 'a', 'form', 'style', 'script'].includes(tag)) return;
             candidateInputs.push(el);
         } else if (el.id) {
-            const root = el.getRootNode ? el.getRootNode() : document;
-            const hasLabel = !!((root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]'));
-            if (hasLabel && !isHoneypotOrHidden(el)) {
-                const tag = (el.tagName || '').toLowerCase();
-                if (!['input', 'textarea', 'select', 'button', 'a', 'label'].includes(tag)) {
-                    candidateInputs.push(el);
+            try {
+                const root = el.getRootNode ? el.getRootNode() : document;
+                const escId = (window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@)/g, "\\$1");
+                const hasLabel = !!((root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]'));
+                if (hasLabel && !isHoneypotOrHidden(el)) {
+                    const tag = (el.tagName || '').toLowerCase();
+                    if (!['input', 'textarea', 'select', 'button', 'a', 'label'].includes(tag)) {
+                        candidateInputs.push(el);
+                    }
                 }
-            }
+            } catch(e) {}
         }
     });
 
@@ -357,9 +479,11 @@ _INSPECT_LOGIC: Final[str] = r"""
         const text = clean(btn.innerText || btn.value || btn.title);
         if (!text || text.length < 2 || text === 'Options' || text === 'Menu') return;
 
+        const isSecToggle = sectionToggleMap.has(btn) || (id && id.endsWith(':topBar')) || btn.classList.contains('rcmFormSectionTopBar') || btn.classList.contains('accordion-button');
         const lower = text.toLowerCase();
         let action = 'action';
-        if (lower.includes('submit') || lower.includes('apply')) action = 'submit';
+        if (isSecToggle) action = 'toggle_section';
+        else if (lower.includes('submit') || lower.includes('apply')) action = 'submit';
         else if (lower.includes('sign in') || lower.includes('log in') || lower.includes('login')) action = 'login';
         else if (lower.includes('start') || lower.includes('begin')) action = 'start';
         else if (lower.includes('save') || lower.includes('draft')) action = 'save';
@@ -381,7 +505,8 @@ _INSPECT_LOGIC: Final[str] = r"""
             local_id: localId,
             id: id,
             label: text,
-            action: action
+            action: action,
+            ...(isSecToggle ? { section_local_id: sectionToggleMap.get(btn) || '' } : {})
         });
     });
 

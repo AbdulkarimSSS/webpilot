@@ -24,7 +24,35 @@ class DOMDataMatcher:
         if actual is None:
             return False
 
-        expected_str = str(expected).strip().lower() if expected is not None else ""
+        expected_raw = str(expected).strip() if expected is not None else ""
+        raw_lower = expected_raw.lower()
+        is_regex = False
+        regex_pattern = ""
+
+        if raw_lower.startswith("regex:"):
+            is_regex = True
+            regex_pattern = expected_raw[6:].strip()
+            expected_str = regex_pattern.lower()
+        elif raw_lower.startswith("re:"):
+            is_regex = True
+            regex_pattern = expected_raw[3:].strip()
+            expected_str = regex_pattern.lower()
+        elif raw_lower.startswith("text:"):
+            expected_raw = expected_raw[5:].strip()
+            expected_str = expected_raw.lower()
+        elif raw_lower.startswith("val:"):
+            expected_raw = expected_raw[4:].strip()
+            expected_str = expected_raw.lower()
+        else:
+            expected_str = raw_lower
+
+        def _test_regex(val_str: Any) -> bool:
+            if not is_regex or val_str is None:
+                return False
+            try:
+                return bool(re.search(regex_pattern, str(val_str), re.IGNORECASE))
+            except Exception:
+                return False
 
         if isinstance(actual, dict):
             if actual.get("is_invalid") is True:
@@ -34,6 +62,8 @@ class DOMDataMatcher:
             # Checkbox / Toggle switch
             if ctype == "checkbox":
                 is_checked = bool(actual.get("checked", False))
+                if is_regex:
+                    return _test_regex("true" if is_checked else "false")
                 if isinstance(expected, bool):
                     return is_checked is expected
                 if expected_str in ("true", "yes", "1", "checked", "on"):
@@ -47,6 +77,8 @@ class DOMDataMatcher:
                 is_checked = bool(actual.get("checked", False))
                 val = str(actual.get("value", "")).strip().lower()
                 if is_checked:
+                    if is_regex:
+                        return _test_regex(actual.get("value", ""))
                     if not expected_str or expected_str in ("true", "checked", "yes", "1"):
                         return True
                     return expected_str == val or expected_str in val or val in expected_str
@@ -57,6 +89,8 @@ class DOMDataMatcher:
                 val = str(actual.get("value", "")).strip().lower()
                 if not val or val in cls.JUNK_VALUES:
                     return False
+                if is_regex:
+                    return _test_regex(actual.get("value", ""))
                 return expected_str in val or val in expected_str
 
             # Checkbox group (multiple checkboxes)
@@ -64,6 +98,8 @@ class DOMDataMatcher:
                 val = str(actual.get("value", "")).strip().lower()
                 if not val:
                     return False
+                if is_regex:
+                    return _test_regex(actual.get("value", ""))
                 if "," in expected_str or "," in val:
                     exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
                     val_parts = set(x.strip() for x in val.split(",") if x.strip())
@@ -78,6 +114,8 @@ class DOMDataMatcher:
                     return False
                 if val in cls.JUNK_VALUES and text in cls.JUNK_VALUES:
                     return False
+                if is_regex:
+                    return _test_regex(actual.get("value", "")) or _test_regex(actual.get("text", ""))
                 if expected_str.startswith(("@opt-", "index:", "#")):
                     return True
                 # Comma-separated multi-select comparison
@@ -112,6 +150,8 @@ class DOMDataMatcher:
                 target_str = sel_text if sel_text and sel_text not in cls.JUNK_VALUES else val
                 if not target_str or target_str in cls.JUNK_VALUES:
                     return False
+                if is_regex:
+                    return _test_regex(actual.get("selected_text", "")) or _test_regex(actual.get("value", ""))
                 if expected_str.startswith(("@opt-", "index:", "#")):
                     return True
                 if expected_str == target_str or expected_str in target_str or target_str in expected_str:
@@ -123,6 +163,8 @@ class DOMDataMatcher:
             # Standard text / textarea / date
             val = str(actual.get("value", "")).strip()
             val_lower = val.lower()
+            if is_regex:
+                return _test_regex(val)
             if not val:
                 return expected_str == ""
             if expected_str == val_lower:
@@ -161,9 +203,12 @@ class DOMDataMatcher:
             return False
 
         # Fallback for plain string readback
-        actual_lower = str(actual).strip().lower()
+        actual_str = str(actual).strip()
+        actual_lower = actual_str.lower()
         if actual_lower in cls.JUNK_VALUES:
             return False
+        if is_regex:
+            return _test_regex(actual_str)
         if expected_str == actual_lower:
             return True
         if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", actual_lower).strip():

@@ -3,6 +3,20 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
+
+
+def _parse_up_levels(val: Any) -> int:
+    """Parses --up arguments supporting integers and keywords like 'max', 'full', 'all'."""
+    if val is None:
+        return 0
+    val_s = str(val).strip().lower()
+    if val_s in ("max", "full", "all", "root"):
+        return 9999
+    try:
+        return int(val_s)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Invalid --up level '{val}'; must be an integer or 'max'/'full'.")
 
 
 def build_cli_parser() -> argparse.ArgumentParser:
@@ -93,6 +107,19 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "--refresh",
         action="store_true",
         help="Hard-reload active page from server before inspecting",
+    )
+    p_inspect.add_argument(
+        "--expand",
+        dest="auto_expand",
+        action="store_true",
+        default=True,
+        help="Automatically expand all collapsed accordion sections (default: True)",
+    )
+    p_inspect.add_argument(
+        "--no-expand",
+        dest="auto_expand",
+        action="store_false",
+        help="Do not auto-expand collapsed sections, inspect current DOM state as-is",
     )
     p_inspect.add_argument(
         "--standalone",
@@ -324,9 +351,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "--ascend",
         "--ancestor",
         dest="up",
-        type=int,
+        type=_parse_up_levels,
         default=0,
-        help="Ascend N levels up the DOM hierarchy (e.g. --up 1 for parent wrapper, --up 2 for outer section/card) to inspect ancestor HTML",
+        help="Ascend N levels up the DOM hierarchy (e.g. --up 1, --up 2, or --up max/full to reach page root ceiling)",
     )
     p_find.add_argument(
         "--screenshot",
@@ -454,5 +481,55 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_css.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_css.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_css.add_argument("--token", help="Explicit Master Supervisor authentication token")
+
+    # 11. Tab Management Subcommand
+    p_tab = subparsers.add_parser(
+        "tab",
+        aliases=["tabs"],
+        help="Manage browser tabs (list, new, switch, close)",
+    )
+    p_tab.add_argument(
+        "tab_action",
+        nargs="?",
+        default="list",
+        choices=["list", "new", "switch", "close"],
+        help="Tab action: list (default), new, switch, close",
+    )
+    p_tab.add_argument(
+        "tab_target",
+        nargs="?",
+        default=None,
+        help="Target URL for 'new' or Tab Index for 'switch'/'close'",
+    )
+    p_tab.add_argument(
+        "--url",
+        help="Target URL when creating a new tab (e.g. wp tab new https://example.com)",
+    )
+    p_tab.add_argument(
+        "--tab",
+        dest="tab_index",
+        type=int,
+        default=None,
+        help="Target tab index (0-based) for switch or close",
+    )
+    p_tab.add_argument(
+        "--json",
+        action="store_true",
+        help="Output raw JSON instead of formatted text",
+    )
+    p_tab.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
+    )
+    p_tab.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_tab.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_tab.add_argument("--token", help="Explicit Master Supervisor authentication token")
 
     return parser

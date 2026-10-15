@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class SupervisorActionRequest:
     """Action payload sent from CLI or Shell to the Master Supervisor."""
-    action: str  # 'apply', 'inspect', 'list_tabs', 'switch_tab', 'restart_worker', 'status', 'stop'
+    action: str  # 'apply', 'inspect', 'list_tabs', 'switch_tab', 'new_tab', 'close_tab', 'restart_worker', 'status', 'stop'
     url: Optional[str] = None
     data_path: Optional[str] = None
     fill_arguments: List[str] = field(default_factory=list)
@@ -34,6 +34,7 @@ class SupervisorActionRequest:
     selector: Optional[str] = None
     script: Optional[str] = None
     script_args: Optional[Any] = None
+    auto_expand: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

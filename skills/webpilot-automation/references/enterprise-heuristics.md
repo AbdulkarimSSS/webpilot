@@ -52,7 +52,8 @@ When a click is intercepted by a backdrop, loading mask, or sticky banner, WebPi
 ## 4. Anti-Bot & Honeypot Detection Shield (`isHoneypotOrHidden`)
 
 To prevent agent disqualification or IP bans:
-- Automatically detects hidden honeypot traps (`hp_`, `honeypot`, `tabindex="-1"`, `opacity: 0`, negative off-screen positioning `left: -500px`).
+- Automatically detects hidden honeypot traps (`hp_`, `honeypot`, `tabindex="-1"`, `opacity: 0`).
+- **Document vs Viewport Coordinates**: Incorporates document scroll offsets (`scrollX = window.pageXOffset`, `scrollY = window.pageYOffset`) to compute absolute document position (`docX = rect.left + scrollX`, `docY = rect.top + scrollY`). An element is only classified as an off-canvas coordinate honeypot if placed genuinely outside the document boundaries (`docX < -500 || docY < -500 || (rect.right + scrollX) < 0 || (rect.bottom + scrollY) < 0`). This ensures that when accordion panes are expanded and the page scrolls down, legitimate upper fields (e.g., Profile Information) are not falsely pruned.
 - Excludes honeypots from schema inspection and form population routines.
 
 ---

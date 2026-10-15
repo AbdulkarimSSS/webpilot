@@ -12,8 +12,15 @@ class InspectionService:
     def __init__(self, page: Page):
         self.page = page
 
-    def inspect(self, unpack_options: bool = True, pua_mode: Optional[str] = None) -> Dict[str, Any]:
+    def inspect(self, unpack_options: bool = True, pua_mode: Optional[str] = None, auto_expand: bool = True) -> Dict[str, Any]:
         """Deep inspection of the active page. Extracts form components, inputs, buttons, and uploads."""
+        if auto_expand:
+            try:
+                from services.page_lifecycle_service import PageLifecycleService
+                PageLifecycleService(self.page).expand_all_sections()
+            except Exception:
+                pass
+
         try:
             from config.settings import get_settings
             effective_pua_mode = pua_mode or get_settings().pua_mode

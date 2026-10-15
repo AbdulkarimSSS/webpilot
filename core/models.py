@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, is_dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 from core.exceptions import ValidationError
 
@@ -166,11 +166,40 @@ class ActionButton:
 
 
 @dataclass
+class FormSection:
+    """Inspected form section or accordion."""
+    title: str = ""
+    label: str = ""
+    state: str = "OPEN"
+    local_id: str = ""
+    id: str = ""
+    trigger_id: str = ""
+    trigger_local_id: str = ""
+    is_collapsible: bool = False
+    fields_count: int = 0
+    total_fields: int = 0
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "label": self.label,
+            "state": self.state,
+            "local_id": self.local_id,
+            "id": self.id,
+            "trigger_id": self.trigger_id,
+            "trigger_local_id": self.trigger_local_id,
+            "is_collapsible": self.is_collapsible,
+            "fields_count": self.fields_count,
+            "total_fields": self.total_fields,
+        }
+
+
+@dataclass
 class InspectionResult:
     """Consolidated form inspection schema."""
     title: str = ""
     url: str = ""
-    sections: List[str] = field(default_factory=list)
+    sections: List[Union[str, FormSection, Dict[str, Any]]] = field(default_factory=list)
     inputs: List[InputField] = field(default_factory=list)
     dropdowns: List[DropdownField] = field(default_factory=list)
     choices: List[ChoiceGroup] = field(default_factory=list)
@@ -180,10 +209,18 @@ class InspectionResult:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to JSON-serializable dictionary matching legacy schema format."""
+        sec_list = []
+        for s in self.sections:
+            if hasattr(s, "to_dict"):
+                sec_list.append(s.to_dict())
+            elif is_dataclass(s):
+                sec_list.append(asdict(s))
+            else:
+                sec_list.append(s)
         return {
             "title": self.title,
             "url": self.url,
-            "sections": self.sections,
+            "sections": sec_list,
             "inputs": [vars(i) for i in self.inputs],
             "dropdowns": [vars(d) for d in self.dropdowns],
             "choices": [vars(c) for c in self.choices],
@@ -195,10 +232,30 @@ class InspectionResult:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "InspectionResult":
         """Instantiate DTO from raw inspection dictionary."""
+        raw_sections = data.get("sections", [])
+        parsed_sections = []
+        for s in raw_sections:
+            if isinstance(s, dict):
+                parsed_sections.append(
+                    FormSection(
+                        title=s.get("title", s.get("label", "")),
+                        label=s.get("label", s.get("title", "")),
+                        state=s.get("state", "OPEN"),
+                        local_id=s.get("local_id", ""),
+                        id=s.get("id", ""),
+                        trigger_id=s.get("trigger_id", ""),
+                        trigger_local_id=s.get("trigger_local_id", ""),
+                        is_collapsible=s.get("is_collapsible", False),
+                        fields_count=s.get("fields_count", 0),
+                        total_fields=s.get("total_fields", 0),
+                    )
+                )
+            else:
+                parsed_sections.append(s)
         return cls(
             title=data.get("title", ""),
             url=data.get("url", ""),
-            sections=list(data.get("sections", [])),
+            sections=parsed_sections,
             inputs=[InputField(**i) if isinstance(i, dict) else i for i in data.get("inputs", [])],
             dropdowns=[DropdownField(**d) if isinstance(d, dict) else d for d in data.get("dropdowns", [])],
             choices=[ChoiceGroup(**c) if isinstance(c, dict) else c for c in data.get("choices", [])],

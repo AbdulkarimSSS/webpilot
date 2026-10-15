@@ -211,16 +211,37 @@ class WebPilot:
         )
         return self.client.execute(req)
 
+    def new_tab(self, url: Optional[str] = None) -> Dict[str, Any]:
+        """Spawns a new browser tab in the active session, optionally navigating to url."""
+        req = SupervisorActionRequest(action="new_tab", url=url)
+        resp = self.client.execute(req)
+        if not resp.success:
+            raise RuntimeError(f"Failed to create new tab: {resp.message}")
+        return {
+            "index": resp.active_tab_index,
+            "url": resp.active_url,
+            "title": resp.active_title,
+            "total_tabs": resp.total_tabs,
+            "tabs": resp.tabs,
+        }
+
+    def close_tab(self, index: Optional[int] = None) -> bool:
+        """Closes the tab at index (or active tab if omitted)."""
+        req = SupervisorActionRequest(action="close_tab", tab_index=index)
+        resp = self.client.execute(req)
+        return bool(resp.success)
+
+    def switch_tab(self, index: int) -> bool:
+        """Switches the active tab context by 0-based index."""
+        req = SupervisorActionRequest(action="switch_tab", tab_index=index)
+        resp = self.client.execute(req)
+        return bool(resp.success)
+
     def list_tabs(self) -> List[Dict[str, Any]]:
         """Returns list of open browser tabs in the active session."""
         req = SupervisorActionRequest(action="list_tabs")
         resp = self.client.execute(req)
         return resp.tabs
-
-    def switch_tab(self, index: int) -> SupervisorActionResponse:
-        """Switches the active tab context by 0-based index."""
-        req = SupervisorActionRequest(action="switch_tab", tab_index=index)
-        return self.client.execute(req)
 
     def service_status(self) -> Dict[str, Any]:
         """Queries the status of Layer 1 Supervisor and Layer 2 Worker."""

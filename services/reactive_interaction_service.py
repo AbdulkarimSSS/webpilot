@@ -43,6 +43,10 @@ class ReactiveInteractionService:
 
         is_scoped = ">>" in target
 
+        def _is_nav_exc(exc: Exception) -> bool:
+            err = str(exc).lower()
+            return "execution context was destroyed" in err or "navigation" in err or "navigating" in err
+
         # Strategy 0: Arbitrary selector (css=..., xpath=..., //..., selector:...)
         clean_sel = target.strip()
         if clean_sel.startswith(("selector:", "selector=")):
@@ -56,10 +60,15 @@ class ReactiveInteractionService:
                 loc = self.page.locator(clean_sel)
                 if loc.count() > 0 and loc.first.is_visible(timeout=400):
                     loc.first.scroll_into_view_if_needed()
-                    loc.first.click(timeout=1500)
+                    try:
+                        loc.first.click(timeout=1500)
+                        clicked = True
+                    except Exception as exc:
+                        if _is_nav_exc(exc):
+                            clicked = True
+            except Exception as exc:
+                if _is_nav_exc(exc):
                     clicked = True
-            except Exception:
-                pass
 
         # Strategy A: LocalID (@btn-N) or Native ID ([id="..."])
         if not is_scoped and not clicked and target.startswith("@"):
@@ -67,10 +76,15 @@ class ReactiveInteractionService:
                 loc = self.page.locator(f'[data-wp-id="{target}"]')
                 if loc.count() > 0 and loc.first.is_visible(timeout=400):
                     loc.first.scroll_into_view_if_needed()
-                    loc.first.click(timeout=1500)
+                    try:
+                        loc.first.click(timeout=1500)
+                        clicked = True
+                    except Exception as exc:
+                        if _is_nav_exc(exc):
+                            clicked = True
+            except Exception as exc:
+                if _is_nav_exc(exc):
                     clicked = True
-            except Exception:
-                pass
 
         if not is_scoped and not clicked:
             clean_id = target.lstrip("#")
@@ -79,11 +93,17 @@ class ReactiveInteractionService:
                     loc = self.page.locator(id_sel)
                     if loc.count() > 0 and loc.first.is_visible(timeout=400):
                         loc.first.scroll_into_view_if_needed()
-                        loc.first.click(timeout=1500)
-                        clicked = True
-                        break
-            except Exception:
-                pass
+                        try:
+                            loc.first.click(timeout=1500)
+                            clicked = True
+                            break
+                        except Exception as exc:
+                            if _is_nav_exc(exc):
+                                clicked = True
+                                break
+            except Exception as exc:
+                if _is_nav_exc(exc):
+                    clicked = True
 
         # Strategy B1: Exact Native Text / Role match first (prevents 'Save' matching 'Saved Applications')
         if not is_scoped and not clicked:
@@ -100,11 +120,17 @@ class ReactiveInteractionService:
                     cand = self.page.locator(selector)
                     if cand.count() > 0 and cand.first.is_visible(timeout=400):
                         cand.first.scroll_into_view_if_needed()
-                        cand.first.click(timeout=1500)
-                        clicked = True
-                        break
-            except Exception:
-                pass
+                        try:
+                            cand.first.click(timeout=1500)
+                            clicked = True
+                            break
+                        except Exception as exc:
+                            if _is_nav_exc(exc):
+                                clicked = True
+                                break
+            except Exception as exc:
+                if _is_nav_exc(exc):
+                    clicked = True
 
         # Strategy B2: Substring Native Text / Role fallback
         if not is_scoped and not clicked:
@@ -122,12 +148,17 @@ class ReactiveInteractionService:
                     cand = self.page.locator(selector)
                     if cand.count() > 0 and cand.first.is_visible(timeout=400):
                         cand.first.scroll_into_view_if_needed()
-                        cand.first.click(timeout=1500)
-                        clicked = True
-                        break
-            except Exception:
-                pass
-
+                        try:
+                            cand.first.click(timeout=1500)
+                            clicked = True
+                            break
+                        except Exception as exc:
+                            if _is_nav_exc(exc):
+                                clicked = True
+                                break
+            except Exception as exc:
+                if _is_nav_exc(exc):
+                    clicked = True
 
         # Strategy C: JavaScript fallback
         if not clicked:
@@ -135,9 +166,10 @@ class ReactiveInteractionService:
                 clicked = self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
             except Exception as exc:
                 err_str = str(exc).lower()
-                if "execution context was destroyed" in err_str or "navigation" in err_str:
+                if "execution context was destroyed" in err_str or "navigation" in err_str or "navigating" in err_str:
                     clicked = True
                 else:
+                    pass
                     pass
 
         # Strategy D: Modal Dismiss / Escape fallback
@@ -155,7 +187,7 @@ class ReactiveInteractionService:
                     clicked = self.page.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
                 except Exception as exc:
                     err_str = str(exc).lower()
-                    if "execution context was destroyed" in err_str or "navigation" in err_str:
+                    if "execution context was destroyed" in err_str or "navigation" in err_str or "navigating" in err_str:
                         clicked = True
                     else:
                         pass

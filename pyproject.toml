@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "webpilot-engine"
-version = "2.5.0"
+version = "2.5.1"
 description = "WebPilot: Enterprise Autonomous Browser Engine, Universal Form Inspector & AI Agent Web Runtime"
 readme = "README.md"
 authors = [
@@ -79,8 +79,9 @@ where = ["."]
 include = ["adapters*", "cli_commands*", "common*", "config*", "constants*", "core*", "orchestration*", "services*", "supervisor*", "validators*", "skills*", "webpilot*", "webpilot_engine*"]
 
 [tool.setuptools.package-data]
+"*" = ["*.md", "references/*.md", "*.json"]
 config = ["*.json"]
-skills = ["*/*"]
+skills = ["*/*", "*/*/*", "*/*/*/*"]
 
 
 [tool.pytest.ini_options]
