@@ -493,7 +493,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                         const hName = (h.name || '').toLowerCase();
                         const hId = (h.id || '').toLowerCase();
                         const tLower = lowerTarget.toLowerCase();
-                        if (hName === tLower || hId === tLower || (hiddenInputs.length === 1 && !hName.includes('csrf') && !hName.includes('token'))) {
+                        if (hName === tLower || hId === tLower || (hName && tLower && (hName.includes(tLower) || tLower.includes(hName)))) {
                             h.value = toSet;
                             h.dispatchEvent(new Event('input', { bubbles: true }));
                             h.dispatchEvent(new Event('change', { bubbles: true }));

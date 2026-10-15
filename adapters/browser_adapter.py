@@ -68,6 +68,17 @@ class BrowserAdapter(BrowserAdapterProtocol):
     @page.setter
     def page(self, p: Page) -> None:
         self._page = p
+        if p:
+            self._attach_default_dialog_handler(p)
+
+    def _attach_default_dialog_handler(self, target_page: Page) -> None:
+        """Auto-accepts browser modal dialogs (alert, confirm, prompt) preventing headless freeze or unhandled actions."""
+        if not target_page:
+            return
+        try:
+            target_page.on("dialog", lambda d: d.accept() if hasattr(d, "accept") else None)
+        except Exception:
+            pass
 
     def print_browser_telemetry(self) -> None:
         """Prints a structured telemetry card for the browser process."""
@@ -281,6 +292,12 @@ class BrowserAdapter(BrowserAdapterProtocol):
 
         # Stealth evasions & Closed Shadow DOM hook (WP-007, WP-015)
         if self._context:
+            try:
+                self._context.on("page", self._attach_default_dialog_handler)
+                if self._page:
+                    self._attach_default_dialog_handler(self._page)
+            except Exception:
+                pass
             try:
                 self._context.add_init_script("""
                     // Evasion 1: webdriver
