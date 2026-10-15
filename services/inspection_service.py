@@ -43,13 +43,63 @@ class InspectionService:
                         "buttons": [], "dropdowns": [], "inputs": [], "choices": [],
                         "file_uploads": [], "sections": [], "already_uploaded_files": []
                     }
-            else:
                 raw = {
                     "title": self.page.title() if self.page else "",
                     "url": self.page.url if self.page else "",
                     "buttons": [], "dropdowns": [], "inputs": [], "choices": [],
                     "file_uploads": [], "sections": [], "already_uploaded_files": []
                 }
+
+        # Traversal across child iframes (WP-006)
+        if hasattr(self.page, "frames") and len(self.page.frames) > 1:
+            for frame in self.page.frames[1:]:
+                try:
+                    frame_raw = frame.evaluate(INSPECT_PAGE_DOM_SCRIPT, dom_args)
+                    if frame_raw:
+                        for key in ("inputs", "buttons", "dropdowns", "choices", "file_uploads"):
+                            if frame_raw.get(key):
+                                raw.setdefault(key, []).extend(frame_raw[key])
+                except Exception:
+                    pass
+
+        # Piercing closed shadow roots via Chrome DevTools Protocol (WP-007)
+        try:
+            cdp = self.page.context.new_cdp_session(self.page)
+            doc = cdp.send("DOM.getDocument", {"depth": -1, "pierce": True})
+            existing_ids = {str(inp.get("id")) for inp in raw.get("inputs", []) if inp.get("id")}
+            existing_names = {str(inp.get("name")) for inp in raw.get("inputs", []) if inp.get("name")}
+
+            def _walk_cdp(node):
+                node_name = node.get("nodeName", "").lower()
+                if node_name in ("input", "select", "textarea"):
+                    attrs = node.get("attributes", [])
+                    attr_dict = dict(zip(attrs[0::2], attrs[1::2]))
+                    nid = attr_dict.get("id", "")
+                    nname = attr_dict.get("name", "")
+                    if (nid and nid not in existing_ids) or (nname and nname not in existing_names):
+                        ntype = attr_dict.get("type", "text")
+                        raw.setdefault("inputs", []).append({
+                            "tag": node_name,
+                            "id": nid,
+                            "name": nname,
+                            "type": ntype,
+                            "value": attr_dict.get("value", ""),
+                            "label": attr_dict.get("aria-label", "") or nname or nid,
+                            "local_id": f"input_{len(raw.get('inputs', [])) + 1}",
+                        })
+                        if nid:
+                            existing_ids.add(nid)
+                        if nname:
+                            existing_names.add(nname)
+                for child in node.get("children", []):
+                    _walk_cdp(child)
+                for sroot in node.get("shadowRoots", []):
+                    _walk_cdp(sroot)
+
+            _walk_cdp(doc.get("root", {}))
+            cdp.detach()
+        except Exception:
+            pass
 
         if unpack_options:
             print("[*] Probing picklist samples (unpack_options=True)...")

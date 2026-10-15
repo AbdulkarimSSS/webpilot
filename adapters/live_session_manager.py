@@ -19,7 +19,17 @@ import urllib.request
 from typing import Any, Dict, Optional, Tuple
 
 PROJECT_ROOT: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SESSION_FILE: str = os.path.join(PROJECT_ROOT, ".live_session.json")
+
+# Store runtime state and browser profiles in user data directory (WP-014)
+USER_DATA_DIR: str = os.path.expanduser("~/.local/share/webpilot")
+try:
+    os.makedirs(USER_DATA_DIR, exist_ok=True)
+except Exception:
+    import tempfile
+    USER_DATA_DIR = os.path.join(tempfile.gettempdir(), "webpilot")
+    os.makedirs(USER_DATA_DIR, exist_ok=True)
+
+SESSION_FILE: str = os.path.join(USER_DATA_DIR, ".live_session.json")
 DEFAULT_CDP_PORT: int = 9222
 DEFAULT_INACTIVITY_TIMEOUT_SECONDS: int = 1800  # 30 minutes
 
@@ -153,7 +163,7 @@ class LiveSessionManager:
             cls.touch_session()
             return existing["pid"], existing["port"]
 
-        user_data_dir = os.path.join(PROJECT_ROOT, ".live_browser_profile")
+        user_data_dir = os.path.join(USER_DATA_DIR, ".live_browser_profile")
         os.makedirs(user_data_dir, exist_ok=True)
 
         args = [

@@ -409,7 +409,8 @@ def test_probe_field_by_arbitrary_selectors():
     from services.field_interaction_service import FieldInteractionService
 
     fixture_path = pathlib.Path(__file__).parent / "fixtures" / "enterprise_portal.html"
-    file_url = f"file:///{str(fixture_path).replace('\\', '/')}"
+    clean_path = str(fixture_path).replace("\\", "/")
+    file_url = f"file:///{clean_path}"
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)

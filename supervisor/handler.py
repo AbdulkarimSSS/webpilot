@@ -32,20 +32,36 @@ def create_supervisor_handler(supervisor: MasterSupervisor) -> Type[BaseHTTPRequ
             self.wfile.write(body)
 
         def _check_host(self) -> bool:
-            """WP-011: Validates incoming Host header to protect against DNS rebinding attacks."""
-            host = self.headers.get("Host")
+            """Validates incoming Host header to protect against DNS rebinding attacks."""
+            headers = getattr(self, "headers", None)
+            host = headers.get("Host") if headers is not None else None
             if not host:
-                return True
+                if hasattr(self, "_send_json") and hasattr(self, "wfile"):
+                    try:
+                        self._send_json(
+                            400,
+                            {
+                                "success": False,
+                                "error": "Bad Request: Missing Host header.",
+                            },
+                        )
+                    except Exception:
+                        pass
+                return False
             host_clean = host.split(":")[0].strip().lower()
             if host_clean in ("127.0.0.1", "localhost", "::1"):
                 return True
-            self._send_json(
-                403,
-                {
-                    "success": False,
-                    "error": f"Forbidden: Host '{host}' is rejected by DNS rebinding defense.",
-                },
-            )
+            if hasattr(self, "_send_json") and hasattr(self, "wfile"):
+                try:
+                    self._send_json(
+                        403,
+                        {
+                            "success": False,
+                            "error": f"Forbidden: Host '{host}' is rejected by DNS rebinding defense.",
+                        },
+                    )
+                except Exception:
+                    pass
             return False
 
         def _authenticate(self) -> bool:

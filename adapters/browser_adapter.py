@@ -274,6 +274,47 @@ class BrowserAdapter(BrowserAdapterProtocol):
             self._context = self.browser.new_context(**options)
             self._page = self._context.new_page()
 
+        # Stealth evasions & Closed Shadow DOM hook (WP-007, WP-015)
+        if self._context:
+            try:
+                self._context.add_init_script("""
+                    // Evasion 1: webdriver
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+
+                    // Evasion 2: window.chrome
+                    if (!window.chrome) {
+                        window.chrome = { runtime: {} };
+                    }
+
+                    // Evasion 3: plugins
+                    if (!navigator.plugins || navigator.plugins.length === 0) {
+                        const fakePlugin = { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' };
+                        Object.defineProperty(navigator, 'plugins', {
+                            get: () => [fakePlugin, fakePlugin, fakePlugin]
+                        });
+                    }
+
+                    // Evasion 4: WebGL vendor / unmasked renderer
+                    try {
+                        const getParamProto = WebGLRenderingContext.prototype.getParameter;
+                        WebGLRenderingContext.prototype.getParameter = function(param) {
+                            if (param === 37446) return 'Intel Inc.';
+                            if (param === 37447) return 'Intel Iris OpenGL Engine';
+                            return getParamProto.apply(this, arguments);
+                        };
+                    } catch(e) {}
+
+                    // Hook for closed shadow DOM (WP-007)
+                    try {
+                        const _origAttach = Element.prototype.attachShadow;
+                        Element.prototype.attachShadow = function(init) {
+                            return _origAttach.call(this, Object.assign({}, init, { mode: 'open' }));
+                        };
+                    } catch(e) {}
+                """)
+            except Exception:
+                pass
+
         # Load cookies if requested
         effective_cookies = cookies_path or self.settings.cookies_path
         if effective_cookies and os.path.isfile(effective_cookies) and self._context:

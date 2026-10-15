@@ -177,8 +177,33 @@ class MasterSupervisor:
                 worker.stdin.write(req_line)
                 worker.stdin.flush()
 
+                import select
+                rpc_timeout_seconds = 60.0
                 data = None
+                start_t = time.time()
                 while True:
+                    elapsed = time.time() - start_t
+                    remaining_timeout = max(0.1, rpc_timeout_seconds - elapsed)
+                    if elapsed >= rpc_timeout_seconds:
+                        log_daemon(f"Worker RPC call timed out after {rpc_timeout_seconds}s")
+                        self.terminate_worker()
+                        return SupervisorActionResponse(
+                            success=False,
+                            action=req.action,
+                            message=f"Operational Worker RPC timed out after {rpc_timeout_seconds}s.",
+                        )
+
+                    if hasattr(select, "select") and sys.platform != "win32":
+                        r, _, _ = select.select([worker.stdout], [], [], remaining_timeout)
+                        if not r:
+                            log_daemon(f"Worker RPC call timed out after {rpc_timeout_seconds}s")
+                            self.terminate_worker()
+                            return SupervisorActionResponse(
+                                success=False,
+                                action=req.action,
+                                message=f"Operational Worker RPC timed out after {rpc_timeout_seconds}s.",
+                            )
+
                     line = worker.stdout.readline()
                     if not line:
                         break

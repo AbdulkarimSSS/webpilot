@@ -294,6 +294,11 @@ def handle_worker_apply(
         res = reactive_svc.click_button("apply")
         if not res.get("success"):
             res = reactive_svc.click_button("submit")
+        if not res.get("success"):
+            for kw in ("register", "save", "continue", "create account", "send", "confirm"):
+                res = reactive_svc.click_button(kw)
+                if res.get("success"):
+                    break
         if res.get("success"):
             lines.append("  [✓] Form submitted successfully.")
             page = coord.switch_to_latest_page()

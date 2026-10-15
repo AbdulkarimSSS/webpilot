@@ -27,13 +27,20 @@ class TabManager:
 
         tabs_info = []
         for i, p in enumerate(context.pages):
-            is_active = (p == active_page)
-            tabs_info.append({
-                "index": i,
-                "title": p.title() or "Untitled",
-                "url": p.url,
-                "is_active": is_active,
-            })
+            try:
+                if hasattr(p, "is_closed") and p.is_closed():
+                    continue
+                title = p.title() or "Untitled"
+                url = p.url
+                is_active = (p == active_page)
+                tabs_info.append({
+                    "index": i,
+                    "title": title,
+                    "url": url,
+                    "is_active": is_active,
+                })
+            except Exception:
+                continue
         return tabs_info
 
     @staticmethod

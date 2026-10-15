@@ -164,6 +164,38 @@ class ReactiveInteractionService:
                 if _is_nav_exc(exc):
                     clicked = True
 
+        # Strategy B3: Semantic Submit / Synonym Match (WP-009)
+        if not is_scoped and not clicked and target.lower().strip() in ("submit", "apply"):
+            try:
+                for selector in [
+                    "button[type='submit']",
+                    "input[type='submit']",
+                    "form button:not([type='button']):not([type='reset'])",
+                    "button:has-text('Register')",
+                    "button:has-text('Save')",
+                    "button:has-text('Continue')",
+                    "button:has-text('Create Account')",
+                    "button:has-text('Send')",
+                    "button:has-text('Sign Up')",
+                    "button:has-text('Confirm')",
+                    "[role='button']:has-text('Register')",
+                    "[role='button']:has-text('Save')",
+                    "[role='button']:has-text('Continue')",
+                ]:
+                    cand = self.page.locator(selector)
+                    if cand.count() > 0:
+                        try:
+                            cand.first.click(timeout=1000)
+                            clicked = True
+                            break
+                        except Exception as exc:
+                            if _is_nav_exc(exc):
+                                clicked = True
+                                break
+            except Exception as exc:
+                if _is_nav_exc(exc):
+                    clicked = True
+
         # Strategy C: JavaScript fallback
         if not clicked:
             try:

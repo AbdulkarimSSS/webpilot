@@ -185,9 +185,14 @@ function isHoneypotOrHidden(el) {
         const docX = rect.left + scrollX;
         const docY = rect.top + scrollY;
 
-        // An element is only a coordinate honeypot if it is genuinely placed off-canvas in the entire document:
-        if (docX < -500 || docY < -500 || (rect.right + scrollX) < 0 || (rect.bottom + scrollY) < 0) {
+        // An element is a coordinate honeypot if placed off-canvas in ANY direction or clipped:
+        if (docX < -500 || docY < -500 || docX > 5000 || docY > 50000 || (rect.right + scrollX) < 0 || (rect.bottom + scrollY) < 0) {
             return true;
+        }
+        const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+        if (style) {
+            if (style.clip === 'rect(0px, 0px, 0px, 0px)' || style.clip === 'rect(0, 0, 0, 0)') return true;
+            if (style.clipPath && (style.clipPath.includes('inset(50%)') || style.clipPath.includes('inset(100%)'))) return true;
         }
         if (rect.width === 0 && rect.height === 0 && !['radio', 'checkbox'].includes(el.type)) return true;
     } catch(e) {}

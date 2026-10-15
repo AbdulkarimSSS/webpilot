@@ -81,7 +81,7 @@ class DOMDataMatcher:
                         return _test_regex(actual.get("value", ""))
                     if not expected_str or expected_str in ("true", "checked", "yes", "1"):
                         return True
-                    return expected_str == val or expected_str in val or val in expected_str
+                    return expected_str == val or expected_str in val
                 return False
 
             # Radio group
@@ -91,7 +91,7 @@ class DOMDataMatcher:
                     return False
                 if is_regex:
                     return _test_regex(actual.get("value", ""))
-                return expected_str in val or val in expected_str
+                return expected_str == val or expected_str in val
 
             # Checkbox group (multiple checkboxes)
             if ctype == "checkbox_group":
@@ -116,8 +116,19 @@ class DOMDataMatcher:
                     return False
                 if is_regex:
                     return _test_regex(actual.get("value", "")) or _test_regex(actual.get("text", ""))
-                if expected_str.startswith(("@opt-", "index:", "#")):
-                    return True
+                if expected_str.startswith("index:"):
+                    sel_idx = actual.get("selected_index")
+                    if sel_idx is not None and str(sel_idx) == expected_str.split(":", 1)[1].strip():
+                        return True
+                    return False
+                if expected_str.startswith(("@opt-", "#")):
+                    sel_opt_id = str(actual.get("selected_option_id", "")).lower()
+                    clean_exp = expected_str.lstrip("#@").lower()
+                    if sel_opt_id and (sel_opt_id == clean_exp or clean_exp in sel_opt_id):
+                        return True
+                    if val == clean_exp or val == expected_str:
+                        return True
+                    return False
                 # Comma-separated multi-select comparison
                 if "," in expected_str or "," in val or "," in text:
                     exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
@@ -132,14 +143,9 @@ class DOMDataMatcher:
                         return True
                 if expected_str == val or expected_str == text:
                     return True
-                if expected_str and (
-                    expected_str in text
-                    or expected_str in val
-                    or val in expected_str
-                    or text in expected_str
-                ):
+                if expected_str and (expected_str in text or expected_str in val):
                     return True
-                if len(val) == 2 and len(expected_str) > 2 and (expected_str.startswith(val) or val in expected_str):
+                if len(val) == 2 and len(expected_str) > 2 and expected_str.startswith(val):
                     return True
                 return False
 
@@ -152,9 +158,20 @@ class DOMDataMatcher:
                     return False
                 if is_regex:
                     return _test_regex(actual.get("selected_text", "")) or _test_regex(actual.get("value", ""))
-                if expected_str.startswith(("@opt-", "index:", "#")):
-                    return True
-                if expected_str == target_str or expected_str in target_str or target_str in expected_str:
+                if expected_str.startswith("index:"):
+                    sel_idx = actual.get("selected_index")
+                    if sel_idx is not None and str(sel_idx) == expected_str.split(":", 1)[1].strip():
+                        return True
+                    return False
+                if expected_str.startswith(("@opt-", "#")):
+                    sel_opt_id = str(actual.get("selected_option_id", "")).lower()
+                    clean_exp = expected_str.lstrip("#@").lower()
+                    if sel_opt_id and (sel_opt_id == clean_exp or clean_exp in sel_opt_id):
+                        return True
+                    if target_str == clean_exp or target_str == expected_str:
+                        return True
+                    return False
+                if expected_str == target_str or expected_str in target_str:
                     return True
                 if len(target_str) == 2 and len(expected_str) > 2 and expected_str.startswith(target_str):
                     return True
@@ -190,16 +207,24 @@ class DOMDataMatcher:
             # Whitespace normalized comparison
             if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", val_lower).strip():
                 return True
-            # Phone / digits normalization
-            digits_exp = re.sub(r"\D", "", expected_str)
-            digits_val = re.sub(r"\D", "", val_lower)
-            if digits_exp and digits_val and digits_exp == digits_val:
-                return True
+            # Phone / digits normalization (strictly restricted to tel fields or pure phone/numeric formats)
+            is_tel = actual.get("type") in ("tel", "phone") or any(
+                k in str(actual.get(attr, "")).lower()
+                for attr in ("name", "id", "aria_label", "label")
+                for k in ("phone", "tel", "mobile")
+            )
+            is_pure_numeric = bool(re.match(r"^[\d\s\(\)\-\+\.]+$", expected_str)) and bool(re.match(r"^[\d\s\(\)\-\+\.]+$", val_lower))
+            if is_tel or is_pure_numeric:
+                digits_exp = re.sub(r"\D", "", expected_str)
+                digits_val = re.sub(r"\D", "", val_lower)
+                if digits_exp and digits_val and digits_exp == digits_val:
+                    return True
             # Currency / numeric normalization (e.g. "$1,234.56" vs "1234.56")
-            clean_exp = re.sub(r"[^\d.]", "", expected_str)
-            clean_val = re.sub(r"[^\d.]", "", val_lower)
-            if clean_exp and clean_val and clean_exp == clean_val:
-                return True
+            if is_pure_numeric:
+                clean_exp = re.sub(r"[^\d.]", "", expected_str)
+                clean_val = re.sub(r"[^\d.]", "", val_lower)
+                if clean_exp and clean_val and clean_exp == clean_val:
+                    return True
             return False
 
         # Fallback for plain string readback
@@ -213,12 +238,14 @@ class DOMDataMatcher:
             return True
         if re.sub(r"\s+", " ", expected_str).strip() == re.sub(r"\s+", " ", actual_lower).strip():
             return True
-        digits_exp = re.sub(r"\D", "", expected_str)
-        digits_val = re.sub(r"\D", "", actual_lower)
-        if digits_exp and digits_val and digits_exp == digits_val:
-            return True
-        clean_exp = re.sub(r"[^\d.]", "", expected_str)
-        clean_val = re.sub(r"[^\d.]", "", actual_lower)
-        if clean_exp and clean_val and clean_exp == clean_val:
-            return True
+        is_pure_numeric_fb = bool(re.match(r"^[\d\s\(\)\-\+\.]+$", expected_str)) and bool(re.match(r"^[\d\s\(\)\-\+\.]+$", actual_lower))
+        if is_pure_numeric_fb:
+            digits_exp = re.sub(r"\D", "", expected_str)
+            digits_val = re.sub(r"\D", "", actual_lower)
+            if digits_exp and digits_val and digits_exp == digits_val:
+                return True
+            clean_exp = re.sub(r"[^\d.]", "", expected_str)
+            clean_val = re.sub(r"[^\d.]", "", actual_lower)
+            if clean_exp and clean_val and clean_exp == clean_val:
+                return True
         return False

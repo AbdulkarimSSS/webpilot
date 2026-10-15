@@ -25,7 +25,7 @@ class UploadAdapter(UploadAdapterProtocol):
         # 1. Native input[type="file"]
         file_inputs = self.page.locator("input[type='file']").all()
         if file_inputs:
-            target_fi = file_inputs[-1]
+            target_fi = file_inputs[0]
             if document_type_keyword:
                 for fi in file_inputs:
                     lbl = self.page.evaluate(
@@ -43,19 +43,24 @@ class UploadAdapter(UploadAdapterProtocol):
         # 2. Custom ARIA / ATS Trigger Button
         custom_trigger = self.page.evaluate("""(kw) => {
             const triggers = Array.from(document.querySelectorAll(
-                '[id*="attach"], [id*="upload"], [id*="Add"], [title*="Add"], button, a'
+                '[id*="attach"], [id*="upload"], [id*="Add"], [title*="Add"], button, a, [role="button"]'
             )).filter(el => {
-                const t = (el.innerText || el.title || el.id || '').toLowerCase();
+                const t = (el.innerText || el.textContent || el.title || el.id || '').toLowerCase();
                 if (kw && !t.includes(kw.toLowerCase())) return false;
                 return t.includes('add a document') || t.includes('attach') || t.includes('upload');
             });
-            return triggers[0] ? triggers[0].id : null;
+            if (!triggers[0]) return null;
+            if (!triggers[0].id) {
+                triggers[0].setAttribute('data-wp-upload-trigger', '1');
+                return '[data-wp-upload-trigger="1"]';
+            }
+            return '#' + CSS.escape(triggers[0].id);
         }""", document_type_keyword)
 
         if custom_trigger:
-            print(f"Triggering upload via custom button ID: {custom_trigger}...")
+            print(f"Triggering upload via custom button selector: {custom_trigger}...")
             with self.page.expect_file_chooser(timeout=10000) as fc_info:
-                self.page.locator(f'[id="{custom_trigger}"]').click(force=True)
+                self.page.locator(custom_trigger).first.click(force=True)
             file_chooser = fc_info.value
             file_chooser.set_files(file_path)
             self.page.wait_for_timeout(PAUSE_UPLOAD_CHOOSER_MS)
