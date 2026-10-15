@@ -51,6 +51,9 @@ def inspect_cmd(args: argparse.Namespace) -> None:
 
     if args.list_tabs:
         resp = client.execute(SupervisorActionRequest(action="list_tabs"))
+        if not resp.success:
+            print(f"[!] Error listing tabs: {resp.message}", file=sys.stderr)
+            sys.exit(1)
         print("\n" + "═" * 70)
         print(" 📑 OPEN BROWSER TABS")
         print("═" * 70)

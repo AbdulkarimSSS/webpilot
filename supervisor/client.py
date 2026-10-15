@@ -27,12 +27,22 @@ from common.process_manager import get_process_manager
 DEFAULT_SUPERVISOR_URL: str = "http://127.0.0.1:9333"
 
 
+def _client_log(msg: str) -> None:
+    """Logs client status messages to stderr when in non-tty or MCP stdio mode to preserve stdout purity."""
+    if os.environ.get("WEBPILOT_NO_STDIN") == "1" or not sys.stdout.isatty():
+        sys.stderr.write(f"{msg}\n")
+        sys.stderr.flush()
+    else:
+        print(msg)
+
+
 class SupervisorClient:
     """Thin client for interacting with the Master Supervisor daemon."""
 
     def __init__(self, base_url: str = DEFAULT_SUPERVISOR_URL, token: Optional[str] = None):
         self.base_url = base_url.rstrip("/")
         self.token = token or load_supervisor_token()
+        self._last_auth_error = False
 
     def _get_headers(self, extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
         """Assembles headers including current authentication credentials."""
@@ -50,6 +60,7 @@ class SupervisorClient:
 
     def is_running(self) -> bool:
         """Pings the supervisor health endpoint with authentication."""
+        self._last_auth_error = False
         try:
             req = urllib.request.Request(f"{self.base_url}/ping", headers=self._get_headers())
             with urllib.request.urlopen(req, timeout=2.5) as resp:
@@ -65,8 +76,13 @@ class SupervisorClient:
                         retry_req = urllib.request.Request(f"{self.base_url}/ping", headers=self._get_headers())
                         with urllib.request.urlopen(retry_req, timeout=2.5) as retry_resp:
                             return retry_resp.status == 200
+                    except urllib.error.HTTPError as retry_err:
+                        if retry_err.code == 401:
+                            self._last_auth_error = True
                     except Exception:
                         pass
+                else:
+                    self._last_auth_error = True
             return False
         except Exception:
             return False
@@ -111,33 +127,39 @@ class SupervisorClient:
             except Exception:
                 pass
 
-        # WP-006: Stale daemon port recovery if port is blocked by dead/unauthenticated daemon
+        if getattr(self, "_last_auth_error", False):
+            raise RuntimeError(
+                f"Master Supervisor is actively running on port {port}, but authentication failed (HTTP 401 Unauthorized). "
+                f"Please verify supervisor token or restart the supervisor service explicitly."
+            )
+
+        # WP-006 & M1: Stale daemon port recovery if port is blocked by dead/unauthenticated daemon
         stale_pid = self._find_pid_by_port(port)
         if stale_pid:
-            # Verify that stale_pid is indeed a Python / webpilot process before terminating
+            # Verify that stale_pid is strictly a webpilot master_daemon process before terminating
             is_webpilot_proc = False
             try:
                 if sys.platform == "win32":
-                    out = subprocess.check_output(f'tasklist /FI "PID eq {stale_pid}" /FO CSV /NH', shell=True, text=True, stderr=subprocess.DEVNULL)
-                    proc_name = out.strip().lower()
-                    if "python" in proc_name or "webpilot" in proc_name:
+                    ps_cmd = f'powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter \\"ProcessId = {stale_pid}\\").CommandLine"'
+                    out = subprocess.check_output(ps_cmd, shell=True, text=True, stderr=subprocess.DEVNULL).lower()
+                    if any(marker in out for marker in ("master_daemon", "webpilot", "universal_web_applier")):
                         is_webpilot_proc = True
                 else:
                     cmdline_file = f"/proc/{stale_pid}/cmdline"
                     if os.path.isfile(cmdline_file):
                         with open(cmdline_file, "r", errors="ignore") as f:
                             cmdline = f.read().lower()
-                        if "python" in cmdline or "webpilot" in cmdline or "master_daemon" in cmdline:
+                        if any(marker in cmdline for marker in ("master_daemon", "webpilot", "supervisor.master_daemon")):
                             is_webpilot_proc = True
                     else:
-                        out = subprocess.check_output(["ps", "-p", str(stale_pid), "-o", "comm="], text=True, stderr=subprocess.DEVNULL)
-                        if "python" in out.lower() or "webpilot" in out.lower():
+                        out = subprocess.check_output(["ps", "-p", str(stale_pid), "-o", "args="], text=True, stderr=subprocess.DEVNULL).lower()
+                        if any(marker in out for marker in ("master_daemon", "webpilot", "supervisor.master_daemon")):
                             is_webpilot_proc = True
             except Exception:
                 pass
 
             if is_webpilot_proc:
-                print(f"[!] Detected stale unauthenticated daemon holding port {port} (PID: {stale_pid}). Terminating...")
+                _client_log(f"[!] Detected stale unauthenticated daemon holding port {port} (PID: {stale_pid}). Terminating...")
                 get_process_manager().kill_process_tree(stale_pid, force=True)
                 time.sleep(0.5)
             else:
@@ -146,18 +168,19 @@ class SupervisorClient:
                     f"Please terminate that process or configure a different supervisor port."
                 )
 
-        print("[*] Master Supervisor (Layer 1) not running. Auto-spawning background host...")
+        _client_log("[*] Master Supervisor (Layer 1) not running. Auto-spawning background host...")
         script_path = os.path.join(PROJECT_ROOT, "supervisor", "master_daemon.py")
         py_exe = sys.executable
 
         if getattr(sys, "frozen", False):
             cwd = os.path.dirname(py_exe)
-            cmd = [py_exe, "--run-daemon"]
+            cmd = [py_exe, "--run-daemon", "--port", str(port)]
         else:
             cwd = PROJECT_ROOT
-            cmd = [py_exe, script_path]
+            cmd = [py_exe, script_path, "--port", str(port)]
 
         spawn_env = os.environ.copy()
+        spawn_env["WEBPILOT_SUPERVISOR_PORT"] = str(port)
         if self.token:
             spawn_env["WEBPILOT_SUPERVISOR_TOKEN"] = self.token
 
@@ -169,7 +192,7 @@ class SupervisorClient:
             if not self.token:
                 self.token = load_supervisor_token()
             if self.is_running():
-                print("[✓] Master Supervisor is ready and active.")
+                _client_log("[✓] Master Supervisor is ready and active.")
                 return
             time.sleep(0.2)
 

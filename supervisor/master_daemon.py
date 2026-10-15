@@ -341,5 +341,10 @@ __all__ = [
 
 
 if __name__ == "__main__":
-    run_master_daemon()
+    import argparse
+    parser = argparse.ArgumentParser(description="WebPilot Master Daemon (Layer 1)")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("WEBPILOT_SUPERVISOR_PORT", DEFAULT_SUPERVISOR_PORT)))
+    parser.add_argument("--token", type=str, default=os.environ.get("WEBPILOT_SUPERVISOR_TOKEN", None))
+    args, _ = parser.parse_known_args()
+    run_master_daemon(port=args.port, token=args.token)
 

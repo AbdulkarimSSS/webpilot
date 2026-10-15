@@ -60,7 +60,9 @@ def apply_cmd(args: argparse.Namespace) -> None:
             reload=bool(getattr(args, "reload", False)),
             strip_header=strip_header,
         )
-        FlowOrchestrator.execute_apply_flow(req)
+        res = FlowOrchestrator.execute_apply_flow(req)
+        if not getattr(res, "overall_success", False):
+            sys.exit(1)
         return
 
     client = get_supervisor_client(args)

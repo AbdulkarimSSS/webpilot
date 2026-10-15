@@ -25,7 +25,12 @@ def tab_cmd(args: argparse.Namespace) -> None:
         resp = client.execute(req)
         if getattr(args, "json", False):
             print(json.dumps(resp.to_dict(), indent=2, ensure_ascii=False))
+            if not resp.success:
+                sys.exit(1)
             return
+        if not resp.success:
+            print(f"[!] Error listing tabs: {resp.message}", file=sys.stderr)
+            sys.exit(1)
         print("\n" + "═" * 70)
         print(" 📑 OPEN BROWSER TABS")
         print("═" * 70)

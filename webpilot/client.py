@@ -186,6 +186,8 @@ class WebPilot:
             timeout_minutes=self.timeout_minutes,
         )
         resp = self.client.execute(req)
+        if not resp.success:
+            raise RuntimeError(f"JavaScript evaluation failed: {resp.message}")
         return (resp.reactive_event or {}).get("result")
 
     def js(self, script: str, **kwargs: Any) -> Any:
@@ -255,10 +257,11 @@ class WebPilot:
 
     def close(self) -> bool:
         """Terminates active browser session cleanly."""
-        return self.client.restart_worker()
+        res = self.client.restart_worker()
+        return bool(getattr(res, "success", res))
 
     def __enter__(self) -> WebPilot:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        pass
+        self.close()

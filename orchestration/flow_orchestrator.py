@@ -342,7 +342,7 @@ class FlowOrchestrator:
                     print("\n[✓] Zero validation errors detected!")
             except Exception as exc:
                 print(f"[!] Notice during validation check: {exc}")
-                validation_errors = []
+                validation_errors = [f"Validation check failure: {exc}"]
 
             # 10. Auto-inspect form after submission/filling
             if req.auto_inspect:

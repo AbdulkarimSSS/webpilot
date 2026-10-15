@@ -222,8 +222,11 @@ function getUniversalLabel(el, sanitizePua) {
     
     if (el.id) {
         const root = el.getRootNode ? el.getRootNode() : document;
-        const lbl = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
-        if (lbl && lbl.innerText) return clean(lbl.innerText);
+        try {
+            const escId = (window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+            const lbl = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+            if (lbl && lbl.innerText) return clean(lbl.innerText);
+        } catch(e) {}
     }
     
     const wc = resolveWebComponent(el);

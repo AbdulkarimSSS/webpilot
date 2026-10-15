@@ -38,8 +38,8 @@ def resolve_secret_value(value: Any, prompt_label: Optional[str] = None) -> Any:
             )
         return env_val
 
-    # 2. Standard Input Reference (@stdin or pure '-')
-    if trimmed in ("@stdin", "-"):
+    # 2. Standard Input Reference (@stdin)
+    if trimmed == "@stdin":
         if os.environ.get("WEBPILOT_WORKER_PROCESS") == "1" or os.environ.get("WEBPILOT_NO_STDIN") == "1":
             raise ConfigurationError(
                 "Cannot read secret from stdin in this process: stdin is reserved for JSON-RPC IPC / MCP transport. "
@@ -132,8 +132,6 @@ def parse_and_resolve_fill_args(fill_args: Optional[List[str]]) -> List[Tuple[st
                     for k, v in pairs:
                         k_clean = decode_unicode_escapes(str(k).strip())
                         v_res = resolve_secret_value(v, prompt_label=k_clean)
-                        if isinstance(v_res, str):
-                            v_res = decode_unicode_escapes(v_res)
                         results.append((k_clean, v_res))
                     continue
             except Exception:
@@ -159,8 +157,6 @@ def parse_and_resolve_fill_args(fill_args: Optional[List[str]]) -> List[Tuple[st
 
         from common.text import decode_unicode_escapes
         resolved_val = resolve_secret_value(raw_val, prompt_label=key)
-        if isinstance(resolved_val, str):
-            resolved_val = decode_unicode_escapes(resolved_val)
         key = decode_unicode_escapes(key)
         results.append((key, resolved_val))
 

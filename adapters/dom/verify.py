@@ -54,8 +54,11 @@ _VERIFY_LOGIC: Final[str] = r"""
         }
         if (el.id) {
             const root = el.getRootNode ? el.getRootNode() : document;
-            const lbl = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
-            if (lbl && lbl.innerText && lbl.innerText.toLowerCase().includes(lower)) return true;
+            try {
+                const escId = (window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+                const lbl = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+                if (lbl && lbl.innerText && lbl.innerText.toLowerCase().includes(lower)) return true;
+            } catch(e) {}
         }
         const parentLbl = el.closest ? el.closest('label') : null;
         if (parentLbl && parentLbl.innerText && parentLbl.innerText.toLowerCase().includes(lower)) return true;
@@ -271,7 +274,11 @@ _VERIFY_LOGIC: Final[str] = r"""
         if (i.classList && (i.classList.contains('datePicker') || (i.id && i.id.includes('datepicker')))) return true;
         if (i.id) {
             const root = i.getRootNode ? i.getRootNode() : document;
-            const hasLbl = !!((root.querySelector ? root.querySelector('label[for="' + i.id + '"]') : null) || document.querySelector('label[for="' + i.id + '"]'));
+            let hasLbl = false;
+            try {
+                const escId = (window.CSS && CSS.escape) ? CSS.escape(i.id) : i.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+                hasLbl = !!((root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]'));
+            } catch(e) {}
             if (hasLbl && !['select', 'button', 'a', 'label'].includes(tag)) return true;
         }
         return false;

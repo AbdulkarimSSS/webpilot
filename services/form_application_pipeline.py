@@ -189,7 +189,16 @@ class FormApplicationPipeline:
                     display_val = "***REDACTED***" if is_sensitive_key(k) else str(v)
                     failed.append((k, v))
                     lines.append(f"  [~] Failed '{k}' -> '{display_val}' | Reason: {reason}")
+                remaining_queue.clear()
                 break
+
+        # Flush any remaining unresolved fields if the loop terminated because max_passes was reached
+        if remaining_queue:
+            for k, v in remaining_queue:
+                display_val = "***REDACTED***" if is_sensitive_key(k) else str(v)
+                failed.append((k, v))
+                lines.append(f"  [~] Failed '{k}' -> '{display_val}' | Reason: Maximum cascading passes reached ({max_passes})")
+            remaining_queue.clear()
 
         lines.append(
             f"[*] Fields summary: {len(confirmed)} confirmed | {len(unconfirmed)} unconfirmed | {len(failed)} skipped/failed."

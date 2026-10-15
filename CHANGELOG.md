@@ -5,6 +5,33 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.4] - 2026-10-15
+
+### Adversarial Defect Remediation & Protocol Truth Barrier Hardening (M1 - M19, H4.1, H4.2)
+
+#### 1. Supervisor Client & Process Tree Isolation (M1, M2, M3, M4, M17)
+- **Strict Process Discrimination (M1)**: Eliminated naive `python` substring checks when evaluating occupied ports; requires authenticated `master_daemon` or `webpilot` signatures before killing stale processes. Unrelated development servers (e.g. `python -m http.server`) are never killed.
+- **MCP Stdio Stream Purity (M2)**: Routed auto-spawn client status logs to `sys.stderr` when executing under `WEBPILOT_NO_STDIN=1` or non-tty contexts, preventing corruption of JSON-RPC protocol frames.
+- **Authentication Error Isolation (M3, M17)**: Isolated HTTP 401 Unauthorized errors during supervisor health pings; strictly prohibited killing live running supervisors due to credential desynchronization.
+- **Dynamic Port Propagation (M4)**: Added CLI argument parsing for `--port` and `--token` in `supervisor/master_daemon.py`, propagating configured ports from `client.py` and environment variables.
+
+#### 2. Validation Checks & Cascading Fill Truth Integrity (M6, M7, M9, M10)
+- **Validation Exception Tracking (M6)**: Prohibited clearing `validation_errors` on exception; exceptions during validation checks are explicitly captured and fail the truth contract.
+- **Cascading Unresolved Field Retention (M7)**: Ensured fields remaining unresolved after `max_passes` in `form_application_pipeline.py` are unconditionally flushed to the `failed` fields list, preventing false successes.
+- **CLI Exit Code Propagation (M9, M10)**: Propagated failure exit codes (`sys.exit(1)`) on standalone apply failures and tab listing errors across `apply_cmd.py`, `tab_cmd.py`, and `inspect_cmd.py`.
+- **Honesty Contract (`ApplyExecutionResult`)**: Added `overall_success` property requiring zero failed fields, zero unconfirmed fields, and zero validation errors.
+
+#### 3. Security, Input Secrets & Cross-Platform Path Confinement (M8, M11, M19, H4.1, H4.2)
+- **Hyphen Secret Disambiguation (M8)**: Restricted stdin secret ingestion strictly to `@stdin`; literal `-` in form field values is preserved as literal text.
+- **Unicode Escape Preservation (M8)**: Prevented `decode_unicode_escapes()` from mangling literal form field values containing backslashes or paths.
+- **Extended Credential Store Denylist (M11)**: Blocked access and traversal to `~/.webpilot`, `.aws`, `.gnupg`, and `/etc/passwd` with cross-platform slash normalization.
+- **HTTP Payload Validation (M19)**: Enforced strict JSON object validation on HTTP POST endpoints in `supervisor/handler.py`, returning HTTP 400 Bad Request on invalid payloads.
+- **DOM Selector Escaping (H4.1, H4.2)**: Safely wrapped dynamic element IDs with `CSS.escape()` across `universal_core.py`, `verify.py`, `set_field.py`, and `probe.py`.
+
+#### 4. SDK & MCP Protocol Alignment (M13, M14)
+- **MCP Structured Inspect Errors (M13)**: Ensured `execute_inspect()` returns structured JSON with `"success": false` and `"status": "error"` on failure.
+- **SDK JavaScript Evaluation & Lifecycle (M14)**: Raised `RuntimeError` on failed `wp.eval()` calls, updated `wp.close()` to return boolean status, and enabled context manager auto-cleanup (`__exit__`).
+
 ## [2.5.3] - 2026-10-15
 
 ### Security Hardening, IPC Channel Isolation & Protocol Robustness (H1 - H37)

@@ -358,7 +358,7 @@ def handle_worker_apply(
             lines.append("[✓] Zero validation errors detected!")
     except Exception as exc:
         lines.append(f"  [!] Notice during form validation check: {exc}")
-        validation_errors = []
+        validation_errors = [f"Validation check failure: {exc}"]
 
     if getattr(req, "reload", False):
         if (validation_errors or failed or unconfirmed) and (req.press_buttons or req.submit):

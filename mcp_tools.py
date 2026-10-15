@@ -27,9 +27,19 @@ def execute_inspect(
     )
     resp = client.execute(req)
     if not resp.success:
-        return f"Error inspecting page: {resp.message}"
+        return json.dumps(
+            {
+                "success": False,
+                "status": "error",
+                "error": resp.message,
+                "message": f"Error inspecting page: {resp.message}",
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
 
     output = {
+        "success": True,
         "status": "success",
         "active_url": resp.active_url,
         "active_title": resp.active_title,

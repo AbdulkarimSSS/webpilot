@@ -117,8 +117,12 @@ def create_supervisor_handler(supervisor: MasterSupervisor) -> Type[BaseHTTPRequ
 
             try:
                 data = json.loads(raw_body)
-            except Exception:
-                data = {}
+                if not isinstance(data, dict):
+                    self._send_json(400, {"error": "Malformed JSON payload: body must be a JSON object"})
+                    return
+            except Exception as exc:
+                self._send_json(400, {"error": f"Malformed JSON payload: {exc}"})
+                return
 
             if self.path == "/execute":
                 req = SupervisorActionRequest.from_dict(data)

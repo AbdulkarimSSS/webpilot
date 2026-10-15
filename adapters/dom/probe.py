@@ -54,8 +54,11 @@ _PROBE_LOGIC: Final[str] = r"""
         }
         if (el.id) {
             const root = el.getRootNode ? el.getRootNode() : document;
-            const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
-            if (l && l.innerText && l.innerText.toLowerCase().includes(lowerTarget)) return true;
+            try {
+                const escId = (window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+                const l = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+                if (l && l.innerText && l.innerText.toLowerCase().includes(lowerTarget)) return true;
+            } catch(e) {}
         }
         const container = el.closest ? el.closest('tr, .rcmFormField, .form-group, .field, td, fieldset') : null;
         if (container && container.innerText && container.innerText.toLowerCase().includes(lowerTarget)) return true;

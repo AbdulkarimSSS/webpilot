@@ -322,9 +322,19 @@ class ApplyExecutionResult:
     submitted: bool = False
     confirmation_screenshot: Optional[str] = None
 
+    @property
+    def overall_success(self) -> bool:
+        """Physical honesty contract: success requires zero failed fields, zero unconfirmed fields, and zero validation errors."""
+        return (
+            len(self.failed_fields) == 0
+            and len(self.unconfirmed_fields) == 0
+            and len(self.validation_errors) == 0
+        )
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary matching standard serialization."""
         return {
+            "overall_success": self.overall_success,
             "confirmed_fields": list(self.confirmed_fields),
             "unconfirmed_fields": list(self.unconfirmed_fields),
             "failed_fields": list(self.failed_fields),
