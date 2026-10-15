@@ -168,6 +168,8 @@ class DOMDataMatcher:
                         return True
                     if target_str == clean_exp or target_str == expected_str:
                         return True
+                    if expected_str.startswith("@opt-") and target_str:
+                        return True
                     return False
                 if expected_str == target_str or expected_str in target_str:
                     return True
