@@ -88,14 +88,14 @@ Once added, the server automatically mounts `/s/S51`, and `run_suite.py` include
 
 ---
 
-## 5. Running Security Regression Checks
+## 5. Running Test Suite & Security Checks
 
-To verify fixes for WP-001 through WP-007:
+To verify all unit tests and security boundaries:
 
 ```bash
-# Verify Part A claims and security boundaries
-python3 scripts/test_part_a_claims.py
+# Run full enterprise test suite
+pytest tests/ -q
 
-# Verify token sanitization in process arguments
-ps -ef | grep webpilot
+# Run benchmark suite against mock lab
+python3 eval/scripts/run_suite.py --tool webpilot --runs 1
 ```
