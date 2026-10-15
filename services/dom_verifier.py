@@ -145,8 +145,6 @@ class DOMDataMatcher:
                     return True
                 if expected_str and (expected_str in text or expected_str in val):
                     return True
-                if len(val) == 2 and len(expected_str) > 2 and expected_str.startswith(val):
-                    return True
                 return False
 
             # Custom picklist / combobox
@@ -172,8 +170,6 @@ class DOMDataMatcher:
                         return True
                     return False
                 if expected_str == target_str or expected_str in target_str:
-                    return True
-                if len(target_str) == 2 and len(expected_str) > 2 and expected_str.startswith(target_str):
                     return True
                 return False
 

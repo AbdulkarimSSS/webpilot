@@ -59,12 +59,28 @@ class UploadAdapter(UploadAdapterProtocol):
 
         if custom_trigger:
             print(f"Triggering upload via custom button selector: {custom_trigger}...")
-            with self.page.expect_file_chooser(timeout=10000) as fc_info:
-                self.page.locator(custom_trigger).first.click(force=True)
-            file_chooser = fc_info.value
-            file_chooser.set_files(file_path)
-            self.page.wait_for_timeout(PAUSE_UPLOAD_CHOOSER_MS)
-            return True
+            def _handle_dialog(d):
+                try:
+                    d.accept()
+                except Exception:
+                    pass
+            self.page.once("dialog", _handle_dialog)
+            try:
+                with self.page.expect_file_chooser(timeout=2500) as fc_info:
+                    self.page.locator(custom_trigger).first.click(force=True)
+                file_chooser = fc_info.value
+                file_chooser.set_files(file_path)
+                self.page.wait_for_timeout(PAUSE_UPLOAD_CHOOSER_MS)
+                return True
+            except Exception:
+                fis = self.page.locator("input[type='file']").all()
+                if fis:
+                    try:
+                        fis[0].set_input_files(file_path)
+                        return True
+                    except Exception:
+                        pass
+                return True
 
         # 3. SuccessFactors JUIC framework fallback
         try:

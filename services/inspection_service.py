@@ -69,7 +69,7 @@ class InspectionService:
             existing_ids = {str(inp.get("id")) for inp in raw.get("inputs", []) if inp.get("id")}
             existing_names = {str(inp.get("name")) for inp in raw.get("inputs", []) if inp.get("name")}
 
-            def _walk_cdp(node):
+            def _extract_inputs_from_shadow(node):
                 node_name = node.get("nodeName", "").lower()
                 if node_name in ("input", "select", "textarea"):
                     attrs = node.get("attributes", [])
@@ -92,11 +92,15 @@ class InspectionService:
                         if nname:
                             existing_names.add(nname)
                 for child in node.get("children", []):
-                    _walk_cdp(child)
-                for sroot in node.get("shadowRoots", []):
-                    _walk_cdp(sroot)
+                    _extract_inputs_from_shadow(child)
 
-            _walk_cdp(doc.get("root", {}))
+            def _find_shadow_roots(node):
+                for sroot in node.get("shadowRoots", []):
+                    _extract_inputs_from_shadow(sroot)
+                for child in node.get("children", []):
+                    _find_shadow_roots(child)
+
+            _find_shadow_roots(doc.get("root", {}))
             cdp.detach()
         except Exception:
             pass

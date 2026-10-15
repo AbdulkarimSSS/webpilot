@@ -489,7 +489,8 @@ def test_eval_and_css_execution_live():
     from adapters.dom.universal_core import UNIVERSAL_DOM_CORE_JS
 
     fixture_path = pathlib.Path(__file__).parent / "fixtures" / "enterprise_portal.html"
-    file_url = f"file:///{str(fixture_path).replace('\\', '/')}"
+    clean_path = str(fixture_path).replace("\\", "/")
+    file_url = f"file:///{clean_path}"
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=True)
