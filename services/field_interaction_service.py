@@ -108,6 +108,17 @@ class FieldInteractionService:
         type_hint, clean_target, scoped_parent = self.parse_target_descriptor(target_identifier)
 
         res = self.page.evaluate(SET_FIELD_DOM_SCRIPT, [clean_target, value, type_hint, scoped_parent])
+        # Check child iframes if not found in top-level document (WP-006)
+        if not res.get("success") and hasattr(self.page, "frames") and len(self.page.frames) > 1:
+            for frame in self.page.frames[1:]:
+                try:
+                    f_res = frame.evaluate(SET_FIELD_DOM_SCRIPT, [clean_target, value, type_hint, scoped_parent])
+                    if f_res.get("success"):
+                        res = f_res
+                        break
+                except Exception:
+                    pass
+
         self.last_failure_reason = res.get("reason") or "No matching element found"
         if debug_lines is not None:
             debug_lines.append(f"    [debug] target='{clean_target}' (hint={type_hint}, scope={scoped_parent}), res={res}")
@@ -306,6 +317,16 @@ class FieldInteractionService:
         expected_str = str(expected).strip().lower() if expected is not None else ""
         try:
             actual = self.page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [target, expected_str])
+            if not actual or not actual.get("found"):
+                if hasattr(self.page, "frames") and len(self.page.frames) > 1:
+                    for frame in self.page.frames[1:]:
+                        try:
+                            f_act = frame.evaluate(VERIFY_FIELD_DOM_SCRIPT, [target, expected_str])
+                            if f_act and f_act.get("found"):
+                                actual = f_act
+                                break
+                        except Exception:
+                            pass
             if actual and actual.get("found"):
                 if self._match_actual_dom_data(actual, expected):
                     return True

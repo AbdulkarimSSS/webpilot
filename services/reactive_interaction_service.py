@@ -228,6 +228,26 @@ class ReactiveInteractionService:
                     else:
                         pass
 
+        # Strategy F: Frame Traversal fallback (WP-006)
+        if not clicked and hasattr(self.page, "frames") and len(self.page.frames) > 1:
+            for frame in self.page.frames[1:]:
+                try:
+                    f_clicked = frame.evaluate(CLICK_BUTTON_DOM_SCRIPT, target)
+                    if f_clicked:
+                        clicked = True
+                        break
+                    cand = frame.locator(
+                        f"button:has-text('{target}'), a:has-text('{target}'), [role='button']:has-text('{target}'), input[value*='{target}']"
+                    )
+                    if cand.count() > 0:
+                        cand.first.click(timeout=1000)
+                        clicked = True
+                        break
+                except Exception as exc:
+                    if _is_nav_exc(exc):
+                        clicked = True
+                        break
+
         if not clicked:
             return {"success": False, "target": target}
 
