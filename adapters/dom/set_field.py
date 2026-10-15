@@ -243,20 +243,23 @@ _SET_FIELD_LOGIC: Final[str] = r"""
 
     // 2. Picklist / Combobox
     if (!hint || hint === 'picklist' || hint === 'combobox' || hint === 'dropdown') {
-        const picklistInputs = deepQueryAll(parentScope, 'input').filter(i => 
-            i.id.endsWith(':_input') || i.getAttribute('role') === 'combobox' || (i.getAttribute('data-wp-id') && i.getAttribute('data-wp-id').startsWith('@drop-'))
+        const picklistInputs = deepQueryAll(parentScope, 'input, [role="combobox"], [aria-haspopup="listbox"]').filter(i => 
+            (i.id && i.id.endsWith(':_input')) || i.getAttribute('role') === 'combobox' || (i.getAttribute('data-wp-id') && i.getAttribute('data-wp-id').startsWith('@drop-'))
         );
         const targetPicklist = (exactEl && picklistInputs.includes(exactEl)) ? exactEl : picklistInputs.find(matchElement);
         if (targetPicklist) {
             if (targetPicklist.disabled || targetPicklist.getAttribute('aria-disabled') === 'true') {
                 return { success: false, type: 'picklist', id: targetPicklist.id, reason: 'Picklist is disabled (awaiting dependency)' };
             }
-            const baseId = targetPicklist.id.replace(':_input', '');
+            const baseId = targetPicklist.id ? targetPicklist.id.replace(':_input', '') : '';
             const root = targetPicklist.getRootNode ? targetPicklist.getRootNode() : document;
-            let btn = (root.getElementById ? root.getElementById(baseId + ':_selectButton') : null) || document.getElementById(baseId + ':_selectButton');
+            let btn = (baseId && root.getElementById ? root.getElementById(baseId + ':_selectButton') : null) || (baseId ? document.getElementById(baseId + ':_selectButton') : null);
             if (!btn) {
                 btn = (targetPicklist.parentElement ? targetPicklist.parentElement.querySelector('button, [aria-haspopup="listbox"], .picklist-btn') : null)
                    || (targetPicklist.nextElementSibling && targetPicklist.nextElementSibling.tagName === 'BUTTON' ? targetPicklist.nextElementSibling : null);
+            }
+            if (!btn && targetPicklist.tagName && targetPicklist.tagName.toLowerCase() !== 'input') {
+                btn = targetPicklist;
             }
             return { success: false, type: 'picklist', id: targetPicklist.id, trigger_button: btn ? btn.id : null };
         }

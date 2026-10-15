@@ -259,6 +259,11 @@ class ReactiveInteractionService:
             pass
 
         try:
+            self.page.wait_for_load_state("networkidle", timeout=3500)
+        except Exception:
+            pass
+
+        try:
             self._wait_for_loading_dissolution()
         except Exception:
             pass

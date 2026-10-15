@@ -263,8 +263,8 @@ _INSPECT_LOGIC: Final[str] = r"""
         });
     });
 
-    const picklistInputs = deepQueryAll(document, 'input').filter(inp => 
-        inp.id.endsWith(':_input') || inp.getAttribute('role') === 'combobox' || (inp.getAttribute('aria-haspopup') === 'listbox')
+    const picklistInputs = deepQueryAll(document, 'input, [role="combobox"], [aria-haspopup="listbox"]').filter(inp => 
+        (inp.id && inp.id.endsWith(':_input')) || inp.getAttribute('role') === 'combobox' || (inp.getAttribute('aria-haspopup') === 'listbox')
     );
     picklistInputs.forEach(pi => {
         if (isHoneypotOrHidden(pi)) return;
@@ -281,14 +281,14 @@ _INSPECT_LOGIC: Final[str] = r"""
         result.dropdowns.push({
             local_id: localId,
             id: pi.id,
-            trigger_id: btn ? btn.id : '',
+            trigger_id: btn ? btn.id : (pi.tagName && pi.tagName.toLowerCase() !== 'input' ? pi.id : ''),
             owns_id: pi.getAttribute('aria-owns') || pi.getAttribute('aria-controls') || '',
             label: lbl,
             type: 'picklist',
             required: isRequired(pi, lbl),
             disabled: Boolean(pi.disabled || pi.getAttribute('aria-disabled') === 'true'),
             dependency: dep,
-            value: clean(pi.value)
+            value: clean(pi.value !== undefined ? pi.value : (pi.innerText || ''))
         });
     });
 
