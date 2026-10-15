@@ -216,7 +216,8 @@ class DOMDataMatcher:
                 if digits_exp and digits_val and digits_exp == digits_val:
                     return True
             # Currency / numeric normalization (e.g. "$1,234.56" vs "1234.56")
-            if is_pure_numeric:
+            is_currency_or_num = bool(re.match(r"^[\$\€\£\¥\d\s\(\)\-\+\.,]+$", expected_str)) and bool(re.match(r"^[\$\€\£\¥\d\s\(\)\-\+\.,]+$", val_lower))
+            if is_currency_or_num:
                 clean_exp = re.sub(r"[^\d.]", "", expected_str)
                 clean_val = re.sub(r"[^\d.]", "", val_lower)
                 if clean_exp and clean_val and clean_exp == clean_val:
