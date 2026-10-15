@@ -267,6 +267,22 @@ class FieldInteractionService:
         # If an input has an isTrusted check or synthetic event rejection,
         # the JS write will be immediately wiped, so we fall through to Playwright native interaction.
         if res.get("success") and res.get("type") not in ("picklist",):
+            # Check for async typeahead suggestion container (e.g. S03, S24)
+            try:
+                has_sug = self.page.evaluate("() => !!document.querySelector('#sug, .sug, [role=\"listbox\"], .tt-menu, .autocomplete-suggestions')")
+                if has_sug:
+                    sug_loc = self.page.locator('#sug div, .sug div, [role="listbox"] [role="option"], .tt-suggestion, .autocomplete-suggestion').filter(has_text=str(value))
+                    try:
+                        sug_loc.first.wait_for(state="visible", timeout=1500)
+                    except Exception:
+                        pass
+                    if sug_loc.count() > 0 and sug_loc.first.is_visible():
+                        sug_loc.first.click(force=True)
+                        if debug_lines is not None:
+                            debug_lines.append(f"    [debug] Clicked typeahead suggestion for '{value}'")
+            except Exception:
+                pass
+
             verify_target = res.get("id") if (scoped_parent and res.get("id")) else clean_target
             if self.verify_field_value(verify_target, value, settle_delay_ms=20):
                 self.last_failure_reason = ""

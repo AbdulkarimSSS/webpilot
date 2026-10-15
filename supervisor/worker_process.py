@@ -76,8 +76,8 @@ class OperationalWorker:
         """Performs a smart delta merge of two schemas from the same URL, preserving LocalIDs."""
         return SchemaMerger.merge(old_schema, new_schema)
 
-    @staticmethod
     def _reverify_fields(
+        self,
         field_svc: FieldInteractionService,
         confirmed: List[Tuple[str, Any]],
         unconfirmed: List[Tuple[str, Any]],
@@ -85,7 +85,9 @@ class OperationalWorker:
         stage_name: str,
     ) -> List[Tuple[str, Any]]:
         """Re-verifies that previously confirmed fields have not been wiped or reverted."""
-        return FormApplicationPipeline.reverify_fields(field_svc, confirmed, unconfirmed, lines, stage_name)
+        return FormApplicationPipeline.reverify_fields(
+            field_svc, confirmed, unconfirmed, lines, stage_name, cached_schema=self.cached_schema
+        )
 
     def _ensure_session(self, req: SupervisorActionRequest) -> SessionCoordinator:
         """Initializes or returns active SessionCoordinator."""

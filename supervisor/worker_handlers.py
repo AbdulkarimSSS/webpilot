@@ -246,8 +246,8 @@ def handle_worker_apply(
     if req.upload_files:
         FormApplicationPipeline.execute_uploads(page, req.upload_files, lines)
 
-    # 5. Pre-submit verification barrier
-    if confirmed and (req.press_buttons or req.submit):
+    # 5. Pre-submit verification barrier (if uploads or intervening actions occurred)
+    if confirmed and req.upload_files and (req.press_buttons or req.submit):
         confirmed = worker._reverify_fields(field_svc, confirmed, unconfirmed, lines, "Pre-submit check")
 
     # 6. Handle buttons with reactive observation

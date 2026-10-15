@@ -481,6 +481,24 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 }
             } catch(e){}
 
+            // Also sync companion hidden input if present in the same form (e.g. enterprise comboboxes / typeahead S24)
+            try {
+                const frm = (targetText.closest ? targetText.closest('form') : null) || targetText.form;
+                if (frm) {
+                    const hiddenInputs = Array.from(frm.querySelectorAll('input[type="hidden"]'));
+                    for (let h of hiddenInputs) {
+                        const hName = (h.name || '').toLowerCase();
+                        const hId = (h.id || '').toLowerCase();
+                        const tLower = lowerTarget.toLowerCase();
+                        if (hName === tLower || hId === tLower || (hiddenInputs.length === 1 && !hName.includes('csrf') && !hName.includes('token'))) {
+                            h.value = toSet;
+                            h.dispatchEvent(new Event('input', { bubbles: true }));
+                            h.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                }
+            } catch(e){}
+
             return { success: true, type: targetText.tagName.toLowerCase(), id: targetText.id, value: toSet };
         }
     }

@@ -57,8 +57,14 @@ def reap_supervisors():
     """Harness mitigation for the auto-spawn/token-desync defect: ensure a clean
     daemon per scenario so the benchmark measures fill behaviour, not the
     supervisor's startup race. Documented in REPORT.md (mitigation, not a fix)."""
-    subprocess.run(["pkill", "-f", "supervisor/master_daemon.py"], capture_output=True)
-    subprocess.run(["pkill", "-f", "supervisor.worker_process"], capture_output=True)
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/IM", "python.exe", "/FI", "WINDOWTITLE eq *master_daemon*"], capture_output=True)
+        else:
+            subprocess.run(["pkill", "-f", "supervisor/master_daemon.py"], capture_output=True)
+            subprocess.run(["pkill", "-f", "supervisor.worker_process"], capture_output=True)
+    except Exception:
+        pass
     for _ in range(50):
         if not port_in_use(9333):
             break
@@ -129,7 +135,16 @@ def run_webpilot(sid, url, run, out, wp, run_id, env=None):
 
     schema = None
     schema_tokens = 0
-    insp = sh([wp, "inspect", "--url", url, "--output", os.path.join(out, "schema.json"), "--timeout-minutes", "0"])
+    if not wp:
+        wp_prefix = [sys.executable, os.path.abspath("cli.py")]
+    elif isinstance(wp, (list, tuple)):
+        wp_prefix = list(wp)
+    elif isinstance(wp, str) and (" " in wp.strip()):
+        wp_prefix = wp.strip().split()
+    else:
+        wp_prefix = [str(wp)]
+
+    insp = sh(wp_prefix + ["inspect", "--url", url, "--output", os.path.join(out, "schema.json"), "--timeout-minutes", "0"])
     steps += 1
     sp = os.path.join(out, "schema.json")
     if os.path.exists(sp):
@@ -146,7 +161,7 @@ def run_webpilot(sid, url, run, out, wp, run_id, env=None):
         data = dict(exp)
         data_path = os.path.join(out, "data.json")
         json.dump(data, open(data_path, "w"), ensure_ascii=False)
-        cmd = [wp, "apply", "--url", url, "--data", data_path, "--timeout-minutes", "0"]
+        cmd = wp_prefix + ["apply", "--url", url, "--data", data_path, "--timeout-minutes", "0"]
         if sc.get("submit"):
             if sid == "S12":
                 cmd += ["--press", "Next", "--press", "Submit"]

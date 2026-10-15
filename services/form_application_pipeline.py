@@ -45,19 +45,30 @@ class FormApplicationPipeline:
                     return item["local_id"]
         return key
 
-    @staticmethod
+    @classmethod
     def reverify_fields(
+        cls,
         field_svc: FieldInteractionService,
         confirmed: List[Tuple[str, Any]],
         unconfirmed: List[Tuple[str, Any]],
         lines: List[str],
         stage_name: str,
+        cached_schema: Optional[Dict[str, Any]] = None,
     ) -> List[Tuple[str, Any]]:
         """Re-verifies that previously confirmed fields have not been wiped or reverted."""
         still_confirmed = []
         for key, val in confirmed:
             display_val = "***REDACTED***" if is_sensitive_key(key) else str(val)
-            if field_svc.verify_field_value(key, val):
+            type_hint, clean_key, scoped_p = TargetDescriptorParser.parse(key).to_tuple()
+            verify_key = key if scoped_p else clean_key
+            verified = field_svc.verify_field_value(verify_key, val)
+            if not verified and verify_key != key:
+                verified = field_svc.verify_field_value(key, val)
+            if not verified and cached_schema:
+                effective_key = cls.resolve_effective_key(key, cached_schema)
+                if effective_key != key:
+                    verified = field_svc.verify_field_value(effective_key, val)
+            if verified:
                 still_confirmed.append((key, val))
             else:
                 unconfirmed.append((key, val))

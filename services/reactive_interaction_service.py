@@ -36,8 +36,13 @@ class ReactiveInteractionService:
         # 1. Baseline state
         pre_url = self.page.url
         pre_tabs_count = len(self.context.pages)
-        pre_inputs_count = self.page.locator("input, select, textarea").count()
-        pre_modals_count = self.page.locator(SELECTOR_MODAL_DIALOGS).count()
+        try:
+            baseline_counts = self.page.evaluate(
+                f"() => [document.querySelectorAll('input, select, textarea').length, document.querySelectorAll('{SELECTOR_MODAL_DIALOGS}').length]"
+            )
+            pre_inputs_count, pre_modals_count = baseline_counts[0], baseline_counts[1]
+        except Exception:
+            pre_inputs_count, pre_modals_count = 0, 0
 
         clicked = False
 
@@ -118,10 +123,9 @@ class ReactiveInteractionService:
                     f"input[type='button'][value='{target}']",
                 ]:
                     cand = self.page.locator(selector)
-                    if cand.count() > 0 and cand.first.is_visible(timeout=400):
-                        cand.first.scroll_into_view_if_needed()
+                    if cand.count() > 0:
                         try:
-                            cand.first.click(timeout=1500)
+                            cand.first.click(timeout=1000)
                             clicked = True
                             break
                         except Exception as exc:

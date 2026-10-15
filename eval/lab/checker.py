@@ -89,6 +89,7 @@ def score(sid, attempt, state):
             "scenario": sid, "tool": attempt.get("tool"), "run": attempt.get("run"),
             "mode": "extraction", "precision": ex["precision"], "recall": ex["recall"],
             "extraction_detail": ex,
+            "form_pass": (ex["recall"] >= 0.9 and ex["precision"] >= 0.9),
             "reported_success": attempt.get("reported_success"),
             "false_success": bool(attempt.get("reported_success")) and ex["recall"] < 0.9,
             "steps": attempt.get("steps"), "wall_time_s": attempt.get("wall_time_s"),
