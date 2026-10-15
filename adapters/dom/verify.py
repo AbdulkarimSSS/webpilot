@@ -95,6 +95,10 @@ _VERIFY_LOGIC: Final[str] = r"""
             exactEl = deepQuerySelector(parentScope, rawTarget);
         } catch(e) {}
     }
+    const NON_FIELD_TAGS = ['html', 'head', 'body', 'title', 'style', 'script', 'meta', 'link'];
+    if (exactEl && NON_FIELD_TAGS.includes((exactEl.tagName || '').toLowerCase())) {
+        exactEl = null;
+    }
 
     function checkValidity(el) {
         if (!el) return true;
