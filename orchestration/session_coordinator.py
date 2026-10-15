@@ -8,6 +8,7 @@ from playwright.sync_api import BrowserContext, Page
 from adapters.browser_adapter import BrowserAdapter
 from common.cookies import save_cookies
 from common.logging import log_event
+from core.exceptions import AutomationError
 from orchestration.context import SessionContext
 
 
@@ -87,10 +88,12 @@ class SessionCoordinator:
     def switch_to_latest_page(self) -> Page:
         """Synchronizes and returns the latest opened browser tab/window."""
         ctx = self.context
-        assert ctx is not None, "Browser context is not initialized."
+        if ctx is None:
+            raise AutomationError("Browser context is not initialized.")
         if len(ctx.pages) > 0:
             latest = ctx.pages[-1]
             self.adapter.page = latest
             return latest
-        assert self.page is not None
+        if self.page is None:
+            raise AutomationError("No active page available.")
         return self.page

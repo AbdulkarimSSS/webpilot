@@ -2,7 +2,7 @@
 
 from typing import Final
 
-PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
+PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = r"""async ([inpId, target]) => {
     const input = inpId ? document.getElementById(inpId) : null;
     let list = null;
     const owns = input ? (input.getAttribute('aria-owns') || input.getAttribute('aria-controls')) : null;
@@ -28,10 +28,10 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
     let rawTarget = String(target).trim();
     if (rawTarget.startsWith('@opt-')) { mode = 'index'; rawTarget = rawTarget.replace('@opt-', '').trim(); }
     else if (rawTarget.startsWith('text:')) { mode = 'text'; rawTarget = rawTarget.slice(5).trim(); }
-    else if (rawTarget.startsWith('val:') || rawTarget.startsWith('value:')) { mode = 'value'; rawTarget = rawTarget.split(':', 2)[1].trim(); }
+    else if (rawTarget.startsWith('val:') || rawTarget.startsWith('value:')) { mode = 'value'; rawTarget = rawTarget.slice(rawTarget.indexOf(':') + 1).trim(); }
     else if (rawTarget.startsWith('id:')) { mode = 'id'; rawTarget = rawTarget.slice(3).trim(); }
     else if (rawTarget.startsWith('index:') || rawTarget.startsWith('#')) { mode = 'index'; rawTarget = rawTarget.replace(/^(index:|#)/, '').trim(); }
-    else if (rawTarget.startsWith('re:') || rawTarget.startsWith('regex:')) { mode = 'regex'; rawTarget = rawTarget.split(':', 2)[1].trim(); }
+    else if (rawTarget.startsWith('re:') || rawTarget.startsWith('regex:')) { mode = 'regex'; rawTarget = rawTarget.slice(rawTarget.indexOf(':') + 1).trim(); }
 
     const targetLower = rawTarget.toLowerCase();
     let targetRegex = null;
@@ -62,8 +62,12 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = """async ([inpId, target]) => {
         let match = null;
 
         if (mode === 'index') {
-            if (targetIdx !== null && targetIdx > 0 && items.length >= targetIdx) {
-                match = items[targetIdx - 1];
+            if (targetIdx !== null && targetIdx >= 0 && items.length > 0) {
+                if (targetIdx === 0) {
+                    match = items[0];
+                } else if (items.length >= targetIdx) {
+                    match = items[targetIdx - 1];
+                }
             }
         } else if (mode === 'value') {
             match = items.find(el => {

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -83,6 +84,7 @@ class MasterSupervisor:
             save_supervisor_token(self.token)
 
         self.worker_process: Optional[subprocess.Popen] = None
+        self.worker_response_queue: Optional[queue.Queue] = None
         self.last_active_time: float = time.time()
         self.lock = threading.Lock()
         self.rpc_lock = threading.Lock()
@@ -123,6 +125,24 @@ class MasterSupervisor:
 
         proc = subprocess.Popen(worker_cmd, **popen_kwargs)
 
+        resp_queue: queue.Queue = queue.Queue()
+        self.worker_response_queue = resp_queue
+
+        def _drain_stdout(pipe, q):
+            try:
+                for line in iter(pipe.readline, ""):
+                    if not line:
+                        break
+                    q.put(line)
+            except Exception:
+                pass
+            finally:
+                q.put(None)
+                try:
+                    pipe.close()
+                except Exception:
+                    pass
+
         def _drain_stderr(pipe):
             try:
                 for line in iter(pipe.readline, ""):
@@ -139,6 +159,8 @@ class MasterSupervisor:
                 except Exception:
                     pass
 
+        if getattr(proc, "stdout", None):
+            threading.Thread(target=_drain_stdout, args=(proc.stdout, resp_queue), daemon=True).start()
         if getattr(proc, "stderr", None):
             threading.Thread(target=_drain_stderr, args=(proc.stderr,), daemon=True).start()
 
@@ -170,14 +192,14 @@ class MasterSupervisor:
 
         with self.rpc_lock:
             worker = self._ensure_worker()
-            assert worker.stdin is not None and worker.stdout is not None
+            if worker.stdin is None or self.worker_response_queue is None:
+                raise RuntimeError("Worker process stdin or response queue is not initialized.")
 
             req_line = json.dumps(req.to_dict()) + "\n"
             try:
                 worker.stdin.write(req_line)
                 worker.stdin.flush()
 
-                import select
                 rpc_timeout_seconds = 60.0
                 data = None
                 start_t = time.time()
@@ -193,19 +215,19 @@ class MasterSupervisor:
                             message=f"Operational Worker RPC timed out after {rpc_timeout_seconds}s.",
                         )
 
-                    if hasattr(select, "select") and sys.platform != "win32":
-                        r, _, _ = select.select([worker.stdout], [], [], remaining_timeout)
-                        if not r:
-                            log_daemon(f"Worker RPC call timed out after {rpc_timeout_seconds}s")
-                            self.terminate_worker()
-                            return SupervisorActionResponse(
-                                success=False,
-                                action=req.action,
-                                message=f"Operational Worker RPC timed out after {rpc_timeout_seconds}s.",
-                            )
+                    try:
+                        line = self.worker_response_queue.get(timeout=remaining_timeout)
+                    except queue.Empty:
+                        log_daemon(f"Worker RPC call timed out after {rpc_timeout_seconds}s")
+                        self.terminate_worker()
+                        return SupervisorActionResponse(
+                            success=False,
+                            action=req.action,
+                            message=f"Operational Worker RPC timed out after {rpc_timeout_seconds}s.",
+                        )
 
-                    line = worker.stdout.readline()
-                    if not line:
+                    if line is None:
+                        # Worker closed pipe
                         break
                     line_str = line.strip()
                     if not line_str:

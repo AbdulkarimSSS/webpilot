@@ -206,15 +206,21 @@ class ReactiveInteractionService:
                     clicked = True
                 else:
                     pass
-                    pass
 
         # Strategy D: Modal Dismiss / Escape fallback
-        if not clicked and target.lower().strip() in ("close", "dismiss", "cancel", "escape"):
-            try:
-                self.page.keyboard.press("Escape")
-                clicked = True
-            except Exception:
-                pass
+        if not clicked:
+            if target.lower().strip() == "escape":
+                try:
+                    self.page.keyboard.press("Escape")
+                    clicked = True
+                except Exception:
+                    pass
+            elif target.lower().strip() in ("close", "dismiss", "cancel"):
+                try:
+                    if self.dismiss_blocking_overlays():
+                        clicked = True
+                except Exception:
+                    pass
 
         # Strategy E: Dismiss blocking modal/backdrop and retry
         if not clicked:

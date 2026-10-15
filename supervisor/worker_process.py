@@ -290,7 +290,8 @@ class OperationalWorker:
 
     def _handle_eval(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         coord = self._ensure_session(req)
-        assert coord.page is not None
+        if coord.page is None:
+            raise RuntimeError("Worker page is not available.")
         safe_eval_wrapper = """([code, args]) => {
             let raw;
             try {
@@ -363,7 +364,16 @@ class OperationalWorker:
 
     def _handle_eval_py(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         coord = self._ensure_session(req)
-        assert coord.page is not None
+        if coord.page is None:
+            raise RuntimeError("Worker page is not available.")
+        if os.environ.get("WEBPILOT_ENABLE_EVAL_PY") != "1":
+            return SupervisorActionResponse(
+                success=False,
+                action="eval_py",
+                message="Security restriction: eval_py action is disabled by default. Set environment variable WEBPILOT_ENABLE_EVAL_PY=1 to enable.",
+                active_url=coord.page.url if coord.page else "",
+                active_title=coord.page.title() if coord.page else "",
+            )
         local_vars = {"page": coord.page, "context": coord.context, "coord": coord, "worker": self}
         try:
             exec(req.script or "", {}, local_vars)
@@ -389,7 +399,8 @@ class OperationalWorker:
 
     def _handle_css(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         coord = self._ensure_session(req)
-        assert coord.page is not None
+        if coord.page is None:
+            raise RuntimeError("Worker page is not available.")
         if req.url:
             coord.adapter.navigate(req.url)
         css_content = (req.script or req.target_field or "").strip()
@@ -476,6 +487,7 @@ class OperationalWorker:
 
 def run_worker_loop():
     """Reads JSON requests from stdin, executes, writes JSON response to stdout."""
+    os.environ["WEBPILOT_WORKER_PROCESS"] = "1"
     rpc_out = sys.stdout
     # Redirect all print/logging to stderr to keep JSON-RPC channel strictly pure
     sys.stdout = sys.stderr

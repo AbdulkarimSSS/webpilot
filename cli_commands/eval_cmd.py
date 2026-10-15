@@ -16,7 +16,10 @@ def eval_cmd(args: argparse.Namespace) -> None:
     """Executes arbitrary JavaScript expression in the active page."""
     script = (getattr(args, "script", None) or getattr(args, "code", None) or "").strip()
     file_path = getattr(args, "file", None)
-    if file_path and os.path.isfile(file_path):
+    if file_path:
+        if not os.path.isfile(file_path):
+            print(f"[!] Error: Script file not found: '{file_path}'", file=sys.stderr)
+            sys.exit(1)
         with open(file_path, "r", encoding="utf-8") as f:
             script = f.read().strip()
 

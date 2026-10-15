@@ -46,9 +46,9 @@ class InspectionFormatterService:
         lines.append(f"📝 Text & Numeric Input Fields ({len(inputs)}):")
         for inp in inputs:
             req_flag = " [REQUIRED]" if inp.get("required") else ""
-            cur = f" = '{inp['value']}'" if inp.get("value") else ""
-            lid = f" [{inp['local_id']}]" if inp.get("local_id") else ""
-            lines.append(f"  • Label: '{inp['label']}'{lid} (ID: {inp['id']}){req_flag}{cur}")
+            cur = f" = '{inp.get('value', '')}'" if inp.get("value") else ""
+            lid = f" [{inp.get('local_id', '')}]" if inp.get("local_id") else ""
+            lines.append(f"  • Label: '{inp.get('label', '')}'{lid} (ID: {inp.get('id', '')}){req_flag}{cur}")
         lines.append("")
 
         # Dropdowns
@@ -56,11 +56,11 @@ class InspectionFormatterService:
         lines.append(f"🔽 Dropdowns & Picklists ({len(dropdowns)}):")
         for dd in dropdowns:
             req_flag = " [REQUIRED]" if dd.get("required") else ""
-            cur = f" = '{dd['value']}'" if dd.get("value") else ""
+            cur = f" = '{dd.get('value', '')}'" if dd.get("value") else ""
             opts = dd.get("sample_options") or []
             sample_str = f" [Sample: {', '.join(opts[:4])}]" if opts else ""
-            lid = f" [{dd['local_id']}]" if dd.get("local_id") else ""
-            lines.append(f"  • Label: '{dd['label']}'{lid} (ID: {dd['id']}){req_flag}{cur}{sample_str}")
+            lid = f" [{dd.get('local_id', '')}]" if dd.get("local_id") else ""
+            lines.append(f"  • Label: '{dd.get('label', '')}'{lid} (ID: {dd.get('id', '')}){req_flag}{cur}{sample_str}")
         lines.append("")
 
         # Choices
@@ -69,9 +69,9 @@ class InspectionFormatterService:
         for ch in choices:
             req_flag = " [REQUIRED]" if ch.get("required") else ""
             opts_str = ", ".join(ch.get("options", []))
-            sel = f" [Selected: {ch['selected']}]" if ch.get("selected") else ""
-            lid = f" [{ch['local_id']}]" if ch.get("local_id") else ""
-            lines.append(f"  • Question: '{ch['question']}'{lid}{req_flag} -> [{opts_str}]{sel}")
+            sel = f" [Selected: {ch.get('selected', '')}]" if ch.get("selected") else ""
+            lid = f" [{ch.get('local_id', '')}]" if ch.get("local_id") else ""
+            lines.append(f"  • Question: '{ch.get('question', '')}'{lid}{req_flag} -> [{opts_str}]{sel}")
         lines.append("")
 
         # File Uploads
@@ -79,8 +79,8 @@ class InspectionFormatterService:
         lines.append(f"📎 File Upload Areas ({len(uploads)}):")
         for up in uploads:
             req_flag = " [REQUIRED]" if up.get("required") else ""
-            lid = f" [{up['local_id']}]" if up.get("local_id") else ""
-            lines.append(f"  • Label: '{up['label']}'{lid} (ID: {up['id']}){req_flag}")
+            lid = f" [{up.get('local_id', '')}]" if up.get("local_id") else ""
+            lines.append(f"  • Label: '{up.get('label', '')}'{lid} (ID: {up.get('id', '')}){req_flag}")
         if data.get("already_uploaded_files"):
             lines.append(f"    Already attached: {data['already_uploaded_files']}")
         lines.append("")

@@ -43,6 +43,7 @@ class InspectionService:
                         "buttons": [], "dropdowns": [], "inputs": [], "choices": [],
                         "file_uploads": [], "sections": [], "already_uploaded_files": []
                     }
+            else:
                 raw = {
                     "title": self.page.title() if self.page else "",
                     "url": self.page.url if self.page else "",

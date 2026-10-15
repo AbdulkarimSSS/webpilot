@@ -80,7 +80,6 @@ class UploadAdapter(UploadAdapterProtocol):
                         return True
                     except Exception:
                         pass
-                return True
 
         # 3. SuccessFactors JUIC framework fallback
         try:

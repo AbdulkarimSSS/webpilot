@@ -94,8 +94,10 @@ class WebPilot:
         """
         fill_args: List[str] = []
         if fields:
+            from common.secrets import resolve_secret_value
             for k, v in fields.items():
-                fill_args.append(f"{k}={v}")
+                resolved_v = resolve_secret_value(v, prompt_label=str(k))
+                fill_args.append(f"{k}={resolved_v}")
 
         press_args: List[str] = []
         if press:

@@ -11,13 +11,13 @@ class TabManager:
 
     @staticmethod
     def get_active_tab_index(context: Optional[BrowserContext], active_page: Optional[Page]) -> int:
-        """Returns the 0-based index of the currently active page in context.pages."""
+        """Returns the 0-based index of the currently active page in context.pages, or -1 if unknown."""
         if not context or not active_page:
-            return 0
+            return -1
         try:
             return context.pages.index(active_page)
-        except ValueError:
-            return 0
+        except (ValueError, Exception):
+            return -1
 
     @staticmethod
     def list_open_tabs(context: Optional[BrowserContext], active_page: Optional[Page]) -> List[Dict[str, Any]]:

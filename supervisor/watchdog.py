@@ -39,10 +39,17 @@ class InactivityWatchdog:
 
     def _loop(self) -> None:
         while self._is_running:
-            time.sleep(self.interval_seconds)
-            worker = self.get_worker_process()
-            if worker and worker.poll() is None:
-                idle = time.time() - self.get_last_active_time()
-                if idle > self.timeout_seconds:
-                    print(f"[*] Inactivity watchdog triggered ({idle:.0f}s idle). Terminating Worker to release RAM.")
-                    self.terminate_worker()
+            try:
+                time.sleep(self.interval_seconds)
+                if not self._is_running:
+                    break
+                worker = self.get_worker_process()
+                if worker and worker.poll() is None:
+                    idle = time.time() - self.get_last_active_time()
+                    if idle > self.timeout_seconds:
+                        print(f"[*] Inactivity watchdog triggered ({idle:.0f}s idle). Terminating Worker to release RAM.")
+                        self.terminate_worker()
+            except Exception as exc:
+                import logging
+                logging.debug("InactivityWatchdog check suppressed error: %s", exc)
+                time.sleep(self.interval_seconds)

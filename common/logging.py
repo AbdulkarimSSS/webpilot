@@ -15,6 +15,15 @@ SENSITIVE_KEY_PATTERNS: Set[str] = {
     "credentials",
     "auth",
     "cookie",
+    "pwd",
+    "pass",
+    "pin",
+    "otp",
+    "passcode",
+    "cvv",
+    "cvc",
+    "card_number",
+    "credit_card",
 }
 
 

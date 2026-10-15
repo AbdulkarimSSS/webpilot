@@ -6,7 +6,7 @@ from adapters.dom.universal_core import UNIVERSAL_DOM_CORE_JS
 _PROBE_LOGIC: Final[str] = r"""
     let rawTarget = (target || '').trim();
     if (/^(text|picklist|select|combobox|radio|checkbox|choice|input|textarea|date|datepicker|switch|contenteditable):/i.test(rawTarget)) {
-        rawTarget = rawTarget.split(':', 2)[1].trim();
+        rawTarget = rawTarget.slice(rawTarget.indexOf(':') + 1).trim();
     }
     let scopedParent = null;
     if (rawTarget.includes('>>')) {

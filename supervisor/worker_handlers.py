@@ -42,7 +42,8 @@ def handle_worker_inspect(
         page = coord.switch_to_tab(req.tab_index)
     else:
         page = coord.page
-    assert page is not None
+    if page is None:
+        raise RuntimeError("Worker page is not available.")
 
     lines: List[str] = []
     if req.url:
@@ -116,7 +117,8 @@ def handle_worker_probe(
     """Probes a specific field or element in the live DOM."""
     coord = worker._ensure_session(req)
     page = coord.page
-    assert page is not None
+    if page is None:
+        raise RuntimeError("Worker page is not available.")
 
     if req.url:
         coord.adapter.navigate(req.url)
@@ -182,7 +184,8 @@ def handle_worker_apply(
     coord = worker._ensure_session(req)
     page = coord.page
     ctx = coord.context
-    assert page is not None and ctx is not None
+    if page is None or ctx is None:
+        raise RuntimeError("Worker page or context is not available.")
 
     lines: List[str] = []
 
@@ -222,8 +225,13 @@ def handle_worker_apply(
 
     # 3. Assemble fields to set
     fields_to_set = []
-    if req.data_path and os.path.isfile(req.data_path):
-        fields_to_set.extend(FormPayloadBuilder.load_from_file(req.data_path))
+    failed: List[Tuple[str, Any]] = []
+    if req.data_path:
+        if os.path.isfile(req.data_path):
+            fields_to_set.extend(FormPayloadBuilder.load_from_file(req.data_path))
+        else:
+            lines.append(f"[!] Data payload file not found: '{req.data_path}'")
+            failed.append(("@data_file", req.data_path))
     if req.fill_arguments:
         fields_to_set.extend(FormPayloadBuilder.parse_cli_fill_arguments(req.fill_arguments))
 
@@ -231,20 +239,25 @@ def handle_worker_apply(
     field_svc = field_cls(page)
     confirmed: List[Tuple[str, Any]] = []
     unconfirmed: List[Tuple[str, Any]] = []
-    failed: List[Tuple[str, Any]] = []
 
     if fields_to_set:
-        confirmed, unconfirmed, failed = FormApplicationPipeline.execute_cascading_fill(
+        c, u, f = FormApplicationPipeline.execute_cascading_fill(
             page=page,
             field_svc=field_svc,
             fields_to_set=fields_to_set,
             cached_schema=worker.cached_schema,
             lines=lines,
         )
+        confirmed.extend(c)
+        unconfirmed.extend(u)
+        failed.extend(f)
 
     # 4. Handle uploads
+    upload_failed = False
     if req.upload_files:
-        FormApplicationPipeline.execute_uploads(page, req.upload_files, lines)
+        upload_ok = FormApplicationPipeline.execute_uploads(page, req.upload_files, lines)
+        if not upload_ok:
+            upload_failed = True
 
     # 5. Pre-submit verification barrier (if uploads or intervening actions occurred)
     if confirmed and req.upload_files and (req.press_buttons or req.submit):
@@ -339,13 +352,13 @@ def handle_worker_apply(
     # 10. Validation checks
     try:
         validation_errors = validator.get_validation_errors()
-    except Exception:
+        if validation_errors:
+            lines.append(f"[!] Validation Notices: {validation_errors}")
+        else:
+            lines.append("[✓] Zero validation errors detected!")
+    except Exception as exc:
+        lines.append(f"  [!] Notice during form validation check: {exc}")
         validation_errors = []
-
-    if validation_errors:
-        lines.append(f"[!] Validation Notices: {validation_errors}")
-    else:
-        lines.append("[✓] Zero validation errors detected!")
 
     if getattr(req, "reload", False):
         if (validation_errors or failed or unconfirmed) and (req.press_buttons or req.submit):
@@ -378,12 +391,23 @@ def handle_worker_apply(
             schema = None
 
 
-    # Honesty contract: success requires zero failed fields, zero unconfirmed fields, and all requested button presses succeeding
-    overall_success = (len(failed) == 0 and len(unconfirmed) == 0 and not press_failed and not submit_failed)
+    # Honesty contract: success requires zero failed fields, zero unconfirmed fields, zero validation errors, and all requested button presses and uploads succeeding
+    overall_success = (
+        len(failed) == 0
+        and len(unconfirmed) == 0
+        and not press_failed
+        and not submit_failed
+        and not upload_failed
+        and len(validation_errors) == 0
+    )
     if press_failed:
         action_msg = "Form action completed but one or more requested button presses failed."
     elif submit_failed:
         action_msg = "Form action completed but submission button click failed."
+    elif upload_failed:
+        action_msg = "Form action completed but one or more file uploads failed."
+    elif len(validation_errors) > 0:
+        action_msg = f"Form action completed but {len(validation_errors)} validation error(s) detected: {validation_errors[0]}"
     elif overall_success:
         action_msg = "Form action executed successfully."
     else:

@@ -157,6 +157,7 @@ def webpilot_service_restart() -> str:
 
 def main():
     """Main entrypoint for running the MCP server."""
+    os.environ["WEBPILOT_NO_STDIN"] = "1"
     mcp.run()
 
 

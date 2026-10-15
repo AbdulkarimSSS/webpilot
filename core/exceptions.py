@@ -31,3 +31,7 @@ class DocumentUploadError(AutomationError):
 class AuthenticationError(AutomationError):
     """Raised when login or credential submission fails."""
     pass
+
+class NavigationError(AutomationError):
+    """Raised when navigation to a URL fails completely (e.g. DNS failure, connection refused, or invalid URL)."""
+    pass

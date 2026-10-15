@@ -114,9 +114,37 @@ class SupervisorClient:
         # WP-006: Stale daemon port recovery if port is blocked by dead/unauthenticated daemon
         stale_pid = self._find_pid_by_port(port)
         if stale_pid:
-            print(f"[!] Detected stale unauthenticated daemon holding port {port} (PID: {stale_pid}). Terminating...")
-            get_process_manager().kill_process_tree(stale_pid, force=True)
-            time.sleep(0.5)
+            # Verify that stale_pid is indeed a Python / webpilot process before terminating
+            is_webpilot_proc = False
+            try:
+                if sys.platform == "win32":
+                    out = subprocess.check_output(f'tasklist /FI "PID eq {stale_pid}" /FO CSV /NH', shell=True, text=True, stderr=subprocess.DEVNULL)
+                    proc_name = out.strip().lower()
+                    if "python" in proc_name or "webpilot" in proc_name:
+                        is_webpilot_proc = True
+                else:
+                    cmdline_file = f"/proc/{stale_pid}/cmdline"
+                    if os.path.isfile(cmdline_file):
+                        with open(cmdline_file, "r", errors="ignore") as f:
+                            cmdline = f.read().lower()
+                        if "python" in cmdline or "webpilot" in cmdline or "master_daemon" in cmdline:
+                            is_webpilot_proc = True
+                    else:
+                        out = subprocess.check_output(["ps", "-p", str(stale_pid), "-o", "comm="], text=True, stderr=subprocess.DEVNULL)
+                        if "python" in out.lower() or "webpilot" in out.lower():
+                            is_webpilot_proc = True
+            except Exception:
+                pass
+
+            if is_webpilot_proc:
+                print(f"[!] Detected stale unauthenticated daemon holding port {port} (PID: {stale_pid}). Terminating...")
+                get_process_manager().kill_process_tree(stale_pid, force=True)
+                time.sleep(0.5)
+            else:
+                raise RuntimeError(
+                    f"Port {port} is occupied by an unrelated process (PID: {stale_pid}). "
+                    f"Please terminate that process or configure a different supervisor port."
+                )
 
         print("[*] Master Supervisor (Layer 1) not running. Auto-spawning background host...")
         script_path = os.path.join(PROJECT_ROOT, "supervisor", "master_daemon.py")

@@ -30,7 +30,14 @@ def build_cli_parser() -> argparse.ArgumentParser:
     parser.add_argument("--env-file", help="Path to custom .env file")
     parser.add_argument("--host", default="127.0.0.1", help="Supervisor host address (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=9333, help="Supervisor port (default: 9333)")
-    parser.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    parser.add_argument(
+        "--token",
+        help="Explicit Master Supervisor authentication token (Note: use --token-file or WEBPILOT_SUPERVISOR_TOKEN env var to avoid exposing secrets in process list)",
+    )
+    parser.add_argument(
+        "--token-file",
+        help="Path to file containing supervisor authentication token (avoids leaking token via process list)",
+    )
     parser.add_argument(
         "--strip-header",
         "--strip-headers",

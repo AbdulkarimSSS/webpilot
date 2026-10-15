@@ -169,6 +169,7 @@ class LiveSessionManager:
         args = [
             executable_path,
             f"--remote-debugging-port={port}",
+            "--remote-debugging-address=127.0.0.1",
             f"--user-data-dir={user_data_dir}",
             f"--window-size={viewport_width},{viewport_height}",
             "--no-first-run",

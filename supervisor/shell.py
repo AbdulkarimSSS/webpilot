@@ -92,7 +92,12 @@ def run_interactive_shell(host: str = "127.0.0.1", port: int = 9333, token: Opti
             if not arg:
                 print("[!] Error: field mapping required, e.g. fill username=user@mail.com")
                 continue
-            fill_args = [a.strip() for a in arg.split(" ") if "=" in a]
+            import shlex
+            try:
+                fill_tokens = shlex.split(arg)
+            except Exception:
+                fill_tokens = arg.split(" ")
+            fill_args = [a.strip() for a in fill_tokens if "=" in a]
             if not fill_args:
                 fill_args = [arg.strip()]
             req = SupervisorActionRequest(action="apply", fill_arguments=fill_args)

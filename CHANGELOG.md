@@ -5,6 +5,38 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3] - 2026-10-15
+
+### Security Hardening, IPC Channel Isolation & Protocol Robustness (H1 - H37)
+
+#### 1. IPC & Subprocess Security Gates (H1, H3, H4, H31)
+- **Local RCE Protection (`eval_py`) (H1)**: Gated arbitrary Python execution behind explicit environment opt-in `WEBPILOT_ENABLE_EVAL_PY=1`, completely preventing unauthorized execution via local HTTP endpoints.
+- **JSON-RPC Stdin Hijack Elimination (H3, H31)**: Enforced `WEBPILOT_WORKER_PROCESS` and `WEBPILOT_NO_STDIN` guardrails across `common/secrets.py` and `mcp_server.py`; prohibited `@stdin` or `-` secret resolution from consuming protocol frames over internal worker pipes and MCP stdio streams.
+- **Loopback CDP Binding (H4)**: Bound Chromium CDP explicitly to loopback (`--remote-debugging-address=127.0.0.1`), eliminating exposure of browser debugging interfaces to local or external network interfaces.
+
+#### 2. Filesystem Confinement & Safe Path Verification (H6, H7, H25)
+- **Unified Path Confinement (`common/paths.py`)**: Implemented `validate_safe_path()` to block directory traversal and write attempts targeting sensitive files (`.ssh`, `/etc/shadow`, `/etc/sudoers`, Windows `system32`).
+- **Protected File Operations**: Enforced safe path validation across `capture_screenshot()`, `save_cookies()`, and `@file:` payload references.
+
+#### 3. Deterministic IPC Pipe Reader & Deadlock Resolution (H11)
+- **Queue-Based Reader Thread (`supervisor/master_daemon.py`)**: Replaced `select.select()` on `TextIOWrapper` buffered pipes with a dedicated reader thread and thread-safe `queue.Queue`, eliminating 60s timeout hangs and spurious worker process terminations.
+
+#### 4. Navigation Integrity & Strict Truth Barrier (H5, H8, H9, H10, H20)
+- **Fatal Navigation Error Propagation (H5)**: Introduced `NavigationError` in `core/exceptions.py`; ensured network, DNS, and `about:blank` navigation aborts immediately bubble up rather than operating on stale/incorrect origins.
+- **Upload & Validation Truth Contract (H8, H9)**: Removed false-success fallbacks (`return True`) on missing or rejected file uploads in `upload_adapter.py` and `form_application_pipeline.py`. Form completion strictly requires zero validation errors and zero upload failures.
+- **Token-Boundary DOM Verification (H10)**: Replaced substring inclusion (`expected_str in val`) with boundary-aware matching (`_boundary_match`) in `services/dom_verifier.py`, eliminating false-positive matches (e.g. matching `US` against `Austria`).
+- **Reactive Modal Escape Verification (H20)**: Ensured pressing Escape only registers as successful dismissal if an active modal or overlay was actually present and dismissed.
+
+#### 5. Production Reliability & Operational Hardening (H12 - H35)
+- **Elimination of Production Assertions (H12, H34)**: Replaced all 27 `assert` statements across engine, adapters, supervisor, and orchestrator with deterministic `AutomationError` and `RuntimeError` exceptions, guaranteeing predictable behavior under `python -O`.
+- **Inactivity Watchdog Liveness (H13)**: Hardened `InactivityWatchdog` exception handling with structured debug logging and interval backoff, preventing high-CPU busy loops or silent thread termination.
+- **Stale Port 9333 Disambiguation (H14)**: Verified executable path and command arguments before killing stale processes on port 9333.
+- **HTTP Header & Payload Defense (H15)**: Added defensive `ValueError` exception guards and a 10MB payload size limit on supervisor HTTP headers.
+- **DOM Selector Colons & Picklists (H18, H19)**: Corrected prefix parsing for colons (`indexOf(':') + 1`) and fixed off-by-one index selection in `adapters/dom/picklist.py`.
+- **Inspection Retry State (H21)**: Preserved discovered schema during dynamic section retry loops in `services/inspection_service.py`.
+- **Telemetry & Logging Redaction (H22, H23, H32, H33)**: Added defensive `.get()` indexing to prevent formatter KeyErrors, expanded sensitive log redaction patterns (passwords, PINs, OTPs, card numbers), and introduced `--token-file` to prevent exposing tokens in process listings.
+- **MCP Stdio Transport Protection (H31)**: Enforced `WEBPILOT_NO_STDIN` guardrail during MCP server execution.
+
 ## [2.5.2] - 2026-10-15
 
 ### 0.0% False Success Truth Barrier, Full Defect Fixes (WP-001 - WP-015), IFrame Penetration & Sub-3s Execution

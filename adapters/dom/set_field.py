@@ -7,9 +7,9 @@ _SET_FIELD_LOGIC: Final[str] = r"""
     let mode = 'contains';
     let rawTarget = (target || '').trim();
     if (rawTarget.startsWith('exact:')) { mode = 'exact'; rawTarget = rawTarget.slice(6).trim(); }
-    else if (rawTarget.startsWith('re:') || rawTarget.startsWith('regex:')) { mode = 'regex'; rawTarget = rawTarget.split(':', 2)[1].trim(); }
-    else if (rawTarget.startsWith('starts:') || rawTarget.startsWith('prefix:')) { mode = 'starts'; rawTarget = rawTarget.split(':', 2)[1].trim(); }
-    else if (rawTarget.startsWith('ends:') || rawTarget.startsWith('suffix:')) { mode = 'ends'; rawTarget = rawTarget.split(':', 2)[1].trim(); }
+    else if (rawTarget.startsWith('re:') || rawTarget.startsWith('regex:')) { mode = 'regex'; rawTarget = rawTarget.slice(rawTarget.indexOf(':') + 1).trim(); }
+    else if (rawTarget.startsWith('starts:') || rawTarget.startsWith('prefix:')) { mode = 'starts'; rawTarget = rawTarget.slice(rawTarget.indexOf(':') + 1).trim(); }
+    else if (rawTarget.startsWith('ends:') || rawTarget.startsWith('suffix:')) { mode = 'ends'; rawTarget = rawTarget.slice(rawTarget.indexOf(':') + 1).trim(); }
     else if (rawTarget.startsWith('contains:')) { mode = 'contains'; rawTarget = rawTarget.slice(9).trim(); }
 
     const lowerTarget = rawTarget.toLowerCase();

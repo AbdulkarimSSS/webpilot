@@ -40,6 +40,11 @@ def resolve_secret_value(value: Any, prompt_label: Optional[str] = None) -> Any:
 
     # 2. Standard Input Reference (@stdin or pure '-')
     if trimmed in ("@stdin", "-"):
+        if os.environ.get("WEBPILOT_WORKER_PROCESS") == "1" or os.environ.get("WEBPILOT_NO_STDIN") == "1":
+            raise ConfigurationError(
+                "Cannot read secret from stdin in this process: stdin is reserved for JSON-RPC IPC / MCP transport. "
+                "Secrets from stdin must be resolved client-side before dispatching to the supervisor or MCP tools."
+            )
         if sys.stdin.isatty():
             # Interactive terminal: prompt securely without terminal echo
             label = prompt_label or "secret value"
@@ -56,10 +61,12 @@ def resolve_secret_value(value: Any, prompt_label: Optional[str] = None) -> Any:
     # 3. Secure File Reference (@file:PATH)
     if trimmed.startswith("@file:"):
         file_path = trimmed[6:].strip()
-        if not os.path.isfile(file_path):
+        from common.paths import validate_safe_path
+        safe_path = validate_safe_path(file_path, for_write=False)
+        if not os.path.isfile(safe_path):
             raise ConfigurationError(f"Referenced secret file not found: {file_path}")
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(safe_path, "r", encoding="utf-8") as f:
                 return f.read().rstrip("\r\n")
         except Exception as exc:
             raise ConfigurationError(f"Failed to read secret file '{file_path}': {exc}") from exc
@@ -95,6 +102,11 @@ def parse_and_resolve_fill_args(fill_args: Optional[List[str]]) -> List[Tuple[st
 
         # Check for batch stdin ingestion
         if trimmed in ("-", "@stdin"):
+            if os.environ.get("WEBPILOT_WORKER_PROCESS") == "1" or os.environ.get("WEBPILOT_NO_STDIN") == "1":
+                raise ConfigurationError(
+                    "Cannot read batch secrets from stdin in this process: stdin is reserved for JSON-RPC IPC / MCP transport. "
+                    "Batch secrets must be resolved client-side before dispatching to the supervisor or MCP tools."
+                )
             if not sys.stdin.isatty():
                 # Read all lines from pipe: each line expected to be key=value
                 for line in sys.stdin:
@@ -110,16 +122,20 @@ def parse_and_resolve_fill_args(fill_args: Optional[List[str]]) -> List[Tuple[st
             import json
             try:
                 parsed_json = json.loads(trimmed)
-                from builder import FormPayloadBuilder
-                from common.text import decode_unicode_escapes
-                pairs = FormPayloadBuilder.normalize_payload(parsed_json)
-                for k, v in pairs:
-                    k_clean = decode_unicode_escapes(str(k).strip())
-                    v_res = resolve_secret_value(v, prompt_label=k_clean)
-                    if isinstance(v_res, str):
-                        v_res = decode_unicode_escapes(v_res)
-                    results.append((k_clean, v_res))
-                continue
+                if isinstance(parsed_json, dict) or (
+                    isinstance(parsed_json, list)
+                    and all(isinstance(x, (dict, list, tuple)) for x in parsed_json)
+                ):
+                    from builder import FormPayloadBuilder
+                    from common.text import decode_unicode_escapes
+                    pairs = FormPayloadBuilder.normalize_payload(parsed_json)
+                    for k, v in pairs:
+                        k_clean = decode_unicode_escapes(str(k).strip())
+                        v_res = resolve_secret_value(v, prompt_label=k_clean)
+                        if isinstance(v_res, str):
+                            v_res = decode_unicode_escapes(v_res)
+                        results.append((k_clean, v_res))
+                    continue
             except Exception:
                 pass
 

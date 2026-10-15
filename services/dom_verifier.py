@@ -19,6 +19,16 @@ class DOMDataMatcher:
     }
 
     @classmethod
+    def _boundary_match(cls, expected: str, actual_val: str) -> bool:
+        """Matches expected value against actual string using whole token/word boundaries to prevent false positives."""
+        if not expected or not actual_val:
+            return False
+        if expected == actual_val:
+            return True
+        pattern = r"(?:^|[\s,;/\-_\(\)])" + re.escape(expected) + r"(?:$|[\s,;/\-_\(\)])"
+        return bool(re.search(pattern, actual_val))
+
+    @classmethod
     def match(cls, actual: Any, expected: Any) -> bool:
         """Matches actual DOM readback against expected value."""
         if actual is None:
@@ -81,7 +91,7 @@ class DOMDataMatcher:
                         return _test_regex(actual.get("value", ""))
                     if not expected_str or expected_str in ("true", "checked", "yes", "1"):
                         return True
-                    return expected_str == val or expected_str in val
+                    return cls._boundary_match(expected_str, val)
                 return False
 
             # Radio group
@@ -91,7 +101,7 @@ class DOMDataMatcher:
                     return False
                 if is_regex:
                     return _test_regex(actual.get("value", ""))
-                return expected_str == val or expected_str in val
+                return cls._boundary_match(expected_str, val)
 
             # Checkbox group (multiple checkboxes)
             if ctype == "checkbox_group":
@@ -104,7 +114,7 @@ class DOMDataMatcher:
                     exp_parts = set(x.strip() for x in expected_str.split(",") if x.strip())
                     val_parts = set(x.strip() for x in val.split(",") if x.strip())
                     return exp_parts == val_parts or exp_parts.issubset(val_parts)
-                return expected_str == val or expected_str in val
+                return cls._boundary_match(expected_str, val)
 
             # Native <select>
             if ctype == "select":
@@ -143,7 +153,7 @@ class DOMDataMatcher:
                         return True
                 if expected_str == val or expected_str == text:
                     return True
-                if expected_str and (expected_str in text or expected_str in val):
+                if expected_str and (cls._boundary_match(expected_str, text) or cls._boundary_match(expected_str, val)):
                     return True
                 return False
 
@@ -164,14 +174,24 @@ class DOMDataMatcher:
                 if expected_str.startswith(("@opt-", "#")):
                     sel_opt_id = str(actual.get("selected_option_id", "")).lower()
                     clean_exp = expected_str.lstrip("#@").lower()
-                    if sel_opt_id and (sel_opt_id == clean_exp or clean_exp in sel_opt_id):
-                        return True
+                    if sel_opt_id:
+                        return sel_opt_id == clean_exp or clean_exp in sel_opt_id
                     if target_str == clean_exp or target_str == expected_str:
                         return True
-                    if expected_str.startswith("@opt-") and target_str:
-                        return True
+                    opt_match = re.match(r"^@?opt-(\d+)$", expected_str)
+                    if opt_match:
+                        opt_idx = int(opt_match.group(1))
+                        sel_idx = actual.get("selected_index")
+                        if sel_idx is not None:
+                            try:
+                                s_idx = int(sel_idx)
+                                return s_idx == opt_idx or s_idx == (opt_idx - 1)
+                            except (ValueError, TypeError):
+                                pass
+                        if target_str and target_str not in cls.JUNK_VALUES:
+                            return True
                     return False
-                if expected_str == target_str or expected_str in target_str:
+                if cls._boundary_match(expected_str, target_str):
                     return True
                 return False
 

@@ -43,6 +43,8 @@ def load_and_sanitize_cookies(filepath: str) -> List[Dict[str, Any]]:
 
 def save_cookies(filepath: str, cookies: List[Dict[str, Any]]) -> None:
     """Persists cookie objects to disk formatted cleanly."""
-    os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
-    with open(filepath, "w", encoding="utf-8") as f:
+    from common.paths import validate_safe_path
+    safe_path = validate_safe_path(filepath, for_write=True)
+    os.makedirs(os.path.dirname(os.path.abspath(safe_path)), exist_ok=True)
+    with open(safe_path, "w", encoding="utf-8") as f:
         json.dump(cookies, f, indent=2, ensure_ascii=False)

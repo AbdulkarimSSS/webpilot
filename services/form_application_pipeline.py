@@ -202,11 +202,12 @@ class FormApplicationPipeline:
         page: Page,
         upload_files: List[str],
         lines: List[str],
-    ) -> None:
-        """Executes file attachments via UploadAdapter."""
+    ) -> bool:
+        """Executes file attachments via UploadAdapter. Returns True if all uploads succeeded."""
         if not upload_files:
-            return
+            return True
 
+        all_ok = True
         upload_adapter = UploadAdapter(page)
         for up in upload_files:
             if "=" in up:
@@ -216,6 +217,13 @@ class FormApplicationPipeline:
                 kw, path = "", up.strip()
             if os.path.isfile(path):
                 lines.append(f"[*] Uploading '{path}' (Keyword: '{kw}')...")
-                upload_adapter.upload_document(path, kw)
+                ok = upload_adapter.upload_document(path, kw)
+                if not ok:
+                    all_ok = False
+                    lines.append(f"[!] Upload failed for: '{path}' (Keyword: '{kw}')")
+                else:
+                    lines.append(f"[✓] Upload succeeded for: '{path}'")
             else:
+                all_ok = False
                 lines.append(f"[!] Upload target file not found: '{path}'")
+        return all_ok

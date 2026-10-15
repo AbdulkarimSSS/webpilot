@@ -37,7 +37,7 @@ class FlowOrchestrator:
                 print("[✓] Successfully terminated live browser session and killed process.")
             else:
                 print("[*] No active live browser session was found to terminate.")
-            return {}
+            return {"status": "closed", "terminated": terminated}
 
         settings = get_settings(
             env_file=req.env_file,
@@ -80,7 +80,8 @@ class FlowOrchestrator:
 
             page = coordinator.page
             ctx = coordinator.context
-            assert page is not None and ctx is not None
+            if page is None or ctx is None:
+                raise AutomationError("Browser page or context is not initialized.")
 
             if req.tab_index is not None:
                 page = coordinator.switch_to_tab(req.tab_index)
@@ -194,7 +195,8 @@ class FlowOrchestrator:
 
             page = coordinator.page
             ctx = coordinator.context
-            assert page is not None and ctx is not None
+            if page is None or ctx is None:
+                raise AutomationError("Browser page or context is not initialized.")
 
             if req.tab_index is not None:
                 page = coordinator.switch_to_tab(req.tab_index)
@@ -228,40 +230,47 @@ class FlowOrchestrator:
 
             # 3. Assemble fields to set
             fields_to_set = []
+            confirmed = []
+            unconfirmed = []
+            failed = []
+
             if req.data_path:
                 if os.path.isfile(req.data_path):
                     print(f"[*] Loading form payload from: {req.data_path}")
                     fields_to_set.extend(FormPayloadBuilder.load_from_file(req.data_path))
                 else:
-                    print(f"[!] Warning: Specified data file not found: {req.data_path}")
+                    print(f"[!] Error: Specified data file not found: {req.data_path}")
+                    failed.append(("@data_file", req.data_path))
 
             if req.fill_arguments:
                 fields_to_set.extend(FormPayloadBuilder.parse_cli_fill_arguments(req.fill_arguments))
 
             field_svc = FieldInteractionService(page)
-            confirmed = []
-            unconfirmed = []
-            failed = []
 
             # 4. Populate fields dynamically using unified cascading pipeline
             if fields_to_set:
                 fill_lines: List[str] = []
-                confirmed, unconfirmed, failed = FormApplicationPipeline.execute_cascading_fill(
+                c, u, f = FormApplicationPipeline.execute_cascading_fill(
                     page=page,
                     field_svc=field_svc,
                     fields_to_set=fields_to_set,
                     cached_schema=None,
                     lines=fill_lines,
                 )
+                confirmed.extend(c)
+                unconfirmed.extend(u)
+                failed.extend(f)
                 for l in fill_lines:
                     print(l)
 
             # 5. Handle document uploads
             if req.upload_files:
                 upload_lines: List[str] = []
-                FormApplicationPipeline.execute_uploads(page, req.upload_files, upload_lines)
+                upload_ok = FormApplicationPipeline.execute_uploads(page, req.upload_files, upload_lines)
                 for l in upload_lines:
                     print(l)
+                if not upload_ok:
+                    failed.append(("@upload", "one or more file uploads failed"))
 
             # 6. Handle custom button presses with reactive observation
             inspection_svc = InspectionService(page)
@@ -325,15 +334,15 @@ class FlowOrchestrator:
             # 9. Validation checks
             try:
                 validation_errors = validator.get_validation_errors()
-            except Exception:
+                if validation_errors:
+                    print("\n[!] Form Validation Notices / Field Errors:")
+                    for err in validation_errors:
+                        print(f"    - {err}")
+                else:
+                    print("\n[✓] Zero validation errors detected!")
+            except Exception as exc:
+                print(f"[!] Notice during validation check: {exc}")
                 validation_errors = []
-
-            if validation_errors:
-                print("\n[!] Form Validation Notices / Field Errors:")
-                for err in validation_errors:
-                    print(f"    - {err}")
-            else:
-                print("\n[✓] Zero validation errors detected!")
 
             # 10. Auto-inspect form after submission/filling
             if req.auto_inspect:

@@ -102,7 +102,17 @@ def create_supervisor_handler(supervisor: MasterSupervisor) -> Type[BaseHTTPRequ
             if not self._authenticate():
                 return
 
-            content_length = int(self.headers.get("Content-Length", 0))
+            MAX_BODY_BYTES = 10 * 1024 * 1024  # 10 MB limit
+            try:
+                content_length = int(self.headers.get("Content-Length", 0))
+            except (ValueError, TypeError):
+                self._send_json(400, {"error": "Invalid Content-Length header"})
+                return
+
+            if content_length < 0 or content_length > MAX_BODY_BYTES:
+                self._send_json(413, {"error": f"Payload Too Large or invalid (max {MAX_BODY_BYTES} bytes)"})
+                return
+
             raw_body = self.rfile.read(content_length).decode("utf-8") if content_length > 0 else "{}"
 
             try:

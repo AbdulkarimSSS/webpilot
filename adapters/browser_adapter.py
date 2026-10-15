@@ -19,6 +19,7 @@ from common.cookies import load_and_sanitize_cookies
 from common.logging import log_event
 from config.settings import Settings, get_settings, load_device_profile
 from constants.timeouts import PAUSE_DOM_CONTENT_LOADED_MS
+from core.exceptions import AutomationError, NavigationError
 from core.models import DeviceProfile
 
 
@@ -106,7 +107,8 @@ class BrowserAdapter(BrowserAdapterProtocol):
 
         print(" 📄 ACTIVE PAGE & TAB TELEMETRY")
         print("─" * 70)
-        print(f" • Active Tab Index  : #{active_idx} (Total Open Tabs: {total_tabs})")
+        idx_str = f"#{active_idx}" if active_idx >= 0 else "N/A"
+        print(f" • Active Tab Index  : {idx_str} (Total Open Tabs: {total_tabs})")
         print(f" • Page Title        : {title}")
         print(f" • Active URL        : {url}")
         print("═" * 70 + "\n")
@@ -123,7 +125,8 @@ class BrowserAdapter(BrowserAdapterProtocol):
 
     def switch_to_tab(self, index: int) -> Page:
         """Switches active page to the specified tab index."""
-        assert self._context is not None, "Browser context not initialized."
+        if self._context is None:
+            raise AutomationError("Browser context not initialized.")
         from adapters.tab_manager import TabManager
         self._page = TabManager.switch_to_tab(self._context, index)
         print(f"[*] Switched to Tab #{index}: '{self._page.title()}' ({self._page.url})")
@@ -131,14 +134,16 @@ class BrowserAdapter(BrowserAdapterProtocol):
 
     def create_new_tab(self, url: Optional[str] = None) -> Page:
         """Opens a new tab in BrowserContext, navigates to url if provided, and brings it to front."""
-        assert self._context is not None, "Browser context not initialized."
+        if self._context is None:
+            raise AutomationError("Browser context not initialized.")
         from adapters.tab_manager import TabManager
         self._page = TabManager.create_new_tab(self._context, url)
         return self._page
 
     def close_tab(self, index: Optional[int] = None) -> None:
         """Safely closes the target tab, ensuring at least one tab remains open."""
-        assert self._context is not None, "Browser context not initialized."
+        if self._context is None:
+            raise AutomationError("Browser context not initialized.")
         from adapters.tab_manager import TabManager
         self._page = TabManager.close_tab(self._context, index=index, active_page=self._page)
 
@@ -365,7 +370,8 @@ class BrowserAdapter(BrowserAdapterProtocol):
 
     def navigate(self, url: str, wait_timeout: Optional[int] = None) -> None:
         """Navigates to URL and waits for DOM content loaded."""
-        assert self._page is not None, "Browser not started. Call start() first."
+        if self._page is None:
+            raise AutomationError("Browser not started. Call start() first.")
         if self._page.url == url:
             print(f"[*] Page is already on target URL: {url}")
             self.print_page_telemetry()
@@ -374,12 +380,29 @@ class BrowserAdapter(BrowserAdapterProtocol):
         try:
             self._page.goto(url, timeout=timeout, wait_until="domcontentloaded")
         except Exception as exc:
+            err_msg = str(exc).lower()
+            fatal_indicators = (
+                "err_name_not_resolved",
+                "err_connection_refused",
+                "err_address_unreachable",
+                "err_connection_reset",
+                "err_invalid_url",
+                "cannot navigate to invalid url",
+                "net::err_",
+            )
+            if any(ind in err_msg for ind in fatal_indicators) or (
+                self._page.url in ("", "about:blank") and url not in ("", "about:blank")
+            ):
+                raise NavigationError(f"Navigation to '{url}' failed: {exc}") from exc
             print(f"[!] Notice: Navigation event delayed by tracker/network: {exc}. Continuing with page state...")
         self._page.wait_for_timeout(PAUSE_DOM_CONTENT_LOADED_MS)
         self.print_page_telemetry()
 
     def capture_screenshot(self, output_path: str, full_page: bool = False) -> None:
         """Captures a screenshot to the specified disk path."""
-        assert self._page is not None, "Browser not started."
-        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
-        self._page.screenshot(path=output_path, full_page=full_page)
+        if self._page is None:
+            raise AutomationError("Browser not started.")
+        from common.paths import validate_safe_path
+        safe_path = validate_safe_path(output_path, for_write=True)
+        os.makedirs(os.path.dirname(os.path.abspath(safe_path)), exist_ok=True)
+        self._page.screenshot(path=safe_path, full_page=full_page)

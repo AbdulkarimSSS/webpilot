@@ -12,6 +12,7 @@ from playwright.sync_api import Browser, BrowserContext, Page
 from adapters.browser_adapter import BrowserAdapter
 from adapters.upload_adapter import UploadAdapter
 from config.settings import Settings, get_settings, load_device_profile
+from core.exceptions import AutomationError
 from core.models import DeviceProfile
 from services.page_lifecycle_service import PageLifecycleService
 from services.field_interaction_service import FieldInteractionService
@@ -93,7 +94,8 @@ class UniversalFormEngine:
     def _bind_services(self, active_page: Page) -> None:
         """Binds active page to services and adapters."""
         ctx = self.context
-        assert ctx is not None
+        if ctx is None:
+            raise AutomationError("Browser context is not initialized.")
         self.lifecycle_service = PageLifecycleService(active_page, ctx)
         self.inspection_service = InspectionService(active_page)
         self.field_service = FieldInteractionService(active_page)
@@ -115,7 +117,8 @@ class UniversalFormEngine:
     def start(self, cookies_path: Optional[str] = None) -> None:
         """Starts Playwright browser instance, initializes context, and prepares services."""
         self.browser_adapter.start(cookies_path=cookies_path)
-        assert self.page is not None
+        if self.page is None:
+            raise AutomationError("Browser failed to provide active page.")
         self._bind_services(self.page)
 
     def stop(self) -> None:
@@ -128,23 +131,27 @@ class UniversalFormEngine:
 
     def wait_for_form_ready(self, timeout_ms: Optional[int] = None) -> None:
         """Waits for form elements to be rendered in DOM, dismissing 'Loading...' state."""
-        assert self.lifecycle_service is not None, "Engine not started."
+        if self.lifecycle_service is None:
+            raise AutomationError("Engine not started.")
         effective_timeout = timeout_ms if timeout_ms is not None else self.settings.form_ready_timeout_ms
         self.lifecycle_service.wait_for_form_ready(timeout_ms=effective_timeout)
 
     def expand_all_sections(self) -> int:
         """Safely expands any collapsed form sections without toggling already-open ones."""
-        assert self.lifecycle_service is not None, "Engine not started."
+        if self.lifecycle_service is None:
+            raise AutomationError("Engine not started.")
         return self.lifecycle_service.expand_all_sections(wait_ms=self.settings.expand_section_wait_ms)
 
     def fill_form_sequential(self, field_mappings: List[Tuple[str, Any]]) -> Dict[str, List[Tuple[str, Any]]]:
         """Universal sequential form filler (section-by-section + global fallback)."""
-        assert self.filler_service is not None, "Engine not started."
+        if self.filler_service is None:
+            raise AutomationError("Engine not started.")
         return self.filler_service.fill_form_sequential(field_mappings)
 
     def inspect(self, unpack_options: bool = True) -> Dict[str, Any]:
         """Deep inspection of the active page form components and schema."""
-        assert self.lifecycle_service is not None and self.inspection_service is not None, "Engine not started."
+        if self.lifecycle_service is None or self.inspection_service is None:
+            raise AutomationError("Engine not started.")
         self.wait_for_form_ready()
         self.expand_all_sections()
         return self.inspection_service.inspect(unpack_options=unpack_options)
@@ -155,27 +162,32 @@ class UniversalFormEngine:
 
     def set_field(self, target_identifier: str, value: Any) -> bool:
         """Sets form field value across text, picklist, radio, checkbox widgets."""
-        assert self.field_service is not None, "Engine not started."
+        if self.field_service is None:
+            raise AutomationError("Engine not started.")
         return self.field_service.set_field(target_identifier, value)
 
     def _playwright_click_fallback(self, target: str, value: Any) -> bool:
         """Fallback setter using Playwright native locators (click / fill)."""
-        assert self.field_service is not None, "Engine not started."
+        if self.field_service is None:
+            raise AutomationError("Engine not started.")
         return self.field_service._playwright_click_fallback(target, value)
 
     def verify_field_value(self, target: str, expected: Any) -> bool:
         """Reads back current DOM value of field and checks if it matches expected."""
-        assert self.field_service is not None, "Engine not started."
+        if self.field_service is None:
+            raise AutomationError("Engine not started.")
         return self.field_service.verify_field_value(target, expected)
 
     def upload_document(self, file_path: str, document_type_keyword: str = "") -> bool:
         """Universally attaches a document to file inputs or custom ATS chooser triggers."""
-        assert self.upload_adapter is not None, "Engine not started."
+        if self.upload_adapter is None:
+            raise AutomationError("Engine not started.")
         return self.upload_adapter.upload_document(file_path, document_type_keyword)
 
     def click_button(self, button_text_or_purpose: str) -> Dict[str, Any]:
         """Intelligently clicks a button/link and monitors reactive environmental mutations."""
-        assert self.reactive_service is not None, "Engine not started."
+        if self.reactive_service is None:
+            raise AutomationError("Engine not started.")
         outcome = self.reactive_service.click_button(button_text_or_purpose)
         if outcome.get("new_window") and self.page != self.reactive_service.page:
             self.page = self.reactive_service.page
@@ -183,7 +195,8 @@ class UniversalFormEngine:
 
     def get_validation_errors(self) -> List[str]:
         """Collects any error alerts, validation messages, or warning texts currently shown."""
-        assert self.validator is not None, "Engine not started."
+        if self.validator is None:
+            raise AutomationError("Engine not started.")
         return self.validator.get_validation_errors()
 
     def capture_screenshot(self, output_path: str, full_page: bool = False) -> None:

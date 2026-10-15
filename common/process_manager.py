@@ -60,11 +60,11 @@ class WindowsProcessManager(BaseProcessManager):
             cmd_str = cmd
 
         # Primary approach: Win32_Process.Create via WMI to break out of terminal Job Objects
+        cwd_b64 = base64.b64encode(target_cwd.encode("utf-8")).decode("ascii")
+        cmd_b64 = base64.b64encode(cmd_str.encode("utf-8")).decode("ascii")
         ps_script = f"""
-$cwd = '{target_cwd}'
-$cmd = @'
-{cmd_str}
-'@
+$cwd = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{cwd_b64}'))
+$cmd = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('{cmd_b64}'))
 $startup = ([wmiclass]'Win32_ProcessStartup').CreateInstance()
 $startup.ShowWindow = 0
 $proc = ([wmiclass]'Win32_Process').Create($cmd, $cwd, $startup)
@@ -189,6 +189,8 @@ class PosixProcessManager(BaseProcessManager):
 
     def kill_process_tree(self, pid: int, force: bool = True) -> bool:
         if not pid or pid <= 0:
+            return False
+        if not self.is_process_running(pid):
             return False
         sig = signal.SIGKILL if force else signal.SIGTERM
         killed = False
