@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### 9. Coverage Enhancements (WPB-008)
 - **Custom Comboboxes & Duplicate Labels**: Added support for custom combobox popups (`role="combobox"`, `.menu`, `#opts`) and container heading + label combined matching (`Billing Address`, `Shipping Address`). Enabled multi-step wizard field recovery between button presses.
 
+#### 10. CLI Usability & Upstream Hotfixes
+- **Argparse Percent Escaping (`cli_parser.py#L269`)**: Escaped `%` in the `read` subcommand help text (`~99.7%% of tokens`) to prevent Python's `argparse` formatter from interpreting `%o` as an octal format specifier, which crashed `webpilot --help` with `TypeError: %o format: an integer is required, not dict`.
+- **Supervisor Client Factory Integration (`cli_commands/read_cmd.py#L16`)**: Replaced raw `SupervisorClient(port=port)` instantiation with standard `get_supervisor_client(args)` factory, resolving `TypeError: SupervisorClient.__init__() got an unexpected keyword argument 'port'`.
+
 ## [2.5.8] - 2026-10-16
 
 ### High-Density Clean Markdown Extraction via Trafilatura (`wp read`)
