@@ -16,6 +16,31 @@ class PlaywrightLocatorFallback:
         """Escapes special characters in CSS attribute selectors."""
         return str(val).replace("\\", "\\\\").replace('"', '\\"')
 
+    @staticmethod
+    def _is_safe_interactable(loc: Any) -> bool:
+        """Verifies element is truly interactable and not an off-screen honeypot or aria-hidden decoy."""
+        try:
+            return not bool(
+                loc.evaluate(
+                    """el => {
+                        if (el.closest && el.closest('[aria-hidden="true"]')) return true;
+                        if (el.getAttribute && el.getAttribute('tabindex') === '-1') {
+                            const n = ((el.name || '') + ' ' + (el.id || '')).toLowerCase();
+                            if (n.includes('hp_') || n.includes('honeypot') || n.includes('homepage') || n.includes('decoy') || n.includes('bot') || n.includes('trap')) return true;
+                        }
+                        const r = el.getBoundingClientRect();
+                        const sx = window.pageXOffset || window.scrollX || 0;
+                        const sy = window.pageYOffset || window.scrollY || 0;
+                        const x = r.left + sx;
+                        const y = r.top + sy;
+                        if (x < -500 || y < -500 || x > 5000 || y > 50000 || (r.right + sx) < 0 || (r.bottom + sy) < 0) return true;
+                        return false;
+                    }"""
+                )
+            )
+        except Exception:
+            return True
+
     @classmethod
     def execute(cls, page: Page, target: str, value: Any) -> bool:
         """Fallback setter using Playwright native locators (click / fill / select / check)."""
@@ -124,7 +149,7 @@ class PlaywrightLocatorFallback:
         for sel in [f'#{safe_target}', f'input[name="{safe_target}"]', f'textarea[name="{safe_target}"]']:
             try:
                 loc = page.locator(sel)
-                if loc.count() > 0 and loc.first.is_visible(timeout=300):
+                if loc.count() > 0 and loc.first.is_visible(timeout=300) and cls._is_safe_interactable(loc.first):
                     loc.first.focus()
                     loc.first.fill(strval)
                     try:
@@ -184,7 +209,7 @@ class PlaywrightLocatorFallback:
         # 4. Text / Textarea via label (strictly avoid clicking checkboxes or switches)
         try:
             field = page.get_by_label(lower, exact=False)
-            if field.count() > 0 and field.first.is_visible(timeout=300):
+            if field.count() > 0 and field.first.is_visible(timeout=300) and cls._is_safe_interactable(field.first):
                 field_type = (field.first.get_attribute("type") or "").lower()
                 field_role = (field.first.get_attribute("role") or "").lower()
                 if field_type not in ("checkbox", "radio") and field_role not in ("checkbox", "switch"):
@@ -209,7 +234,7 @@ class PlaywrightLocatorFallback:
         # 5. Text via placeholder
         try:
             field = page.get_by_placeholder(lower, exact=False)
-            if field.count() > 0 and field.first.is_visible(timeout=300):
+            if field.count() > 0 and field.first.is_visible(timeout=300) and cls._is_safe_interactable(field.first):
                 field.first.fill(strval)
                 try:
                     field.first.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")

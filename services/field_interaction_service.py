@@ -130,6 +130,16 @@ class FieldInteractionService:
                 debug_lines.append(f"    [!] Fast-fail: {res.get('reason')}")
             return False
 
+        # Honeypot / Hidden decoy protection: never attempt fallback on hidden decoys (WPB-007)
+        if not res.get("success") and res.get("reason") in (
+            "Field is hidden or collapsed in DOM",
+            "Field is read-only",
+        ):
+            self.last_failure_reason = res.get("reason")
+            if debug_lines is not None:
+                debug_lines.append(f"    [!] Fast-fail: {res.get('reason')}")
+            return False
+
         # Cascading dependent fields readiness check:
         # If element is missing or temporarily disabled/updating via parent reactive onChange/AJAX,
         # poll for up to 1200ms (150ms steps) to allow cascading DOM updates.

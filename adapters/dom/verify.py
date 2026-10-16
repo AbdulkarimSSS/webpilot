@@ -52,6 +52,10 @@ _VERIFY_LOGIC: Final[str] = r"""
             const wcLbl = wc.getAttribute('accessible-name') || wc.getAttribute('aria-label') || wc.getAttribute('title') || wc.getAttribute('placeholder');
             if (wcLbl && wcLbl.toLowerCase().includes(lower)) return true;
         }
+        if ((el.getAttribute && ['combobox', 'button'].includes(el.getAttribute('role'))) || (el.tagName && el.tagName.toLowerCase() === 'button') || (el.classList && el.classList.contains('control'))) {
+            const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+            if (txt && txt.includes(lower)) return true;
+        }
         if (el.id) {
             const root = el.getRootNode ? el.getRootNode() : document;
             try {

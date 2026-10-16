@@ -85,6 +85,10 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             const wcLbl = wc.getAttribute('accessible-name') || wc.getAttribute('aria-label') || wc.getAttribute('title') || wc.getAttribute('placeholder');
             if (wcLbl && checkText(wcLbl)) return true;
         }
+        if ((el.getAttribute && ['combobox', 'button'].includes(el.getAttribute('role'))) || (el.tagName && el.tagName.toLowerCase() === 'button') || (el.classList && el.classList.contains('control'))) {
+            const txt = (el.innerText || el.textContent || '').trim();
+            if (txt && checkText(txt)) return true;
+        }
 
         if (el.id) {
             const root = el.getRootNode ? el.getRootNode() : document;
@@ -136,6 +140,10 @@ _SET_FIELD_LOGIC: Final[str] = r"""
     }
     const NON_FIELD_TAGS = ['html', 'head', 'body', 'title', 'style', 'script', 'meta', 'link'];
     if (exactEl && NON_FIELD_TAGS.includes((exactEl.tagName || '').toLowerCase())) {
+        exactEl = null;
+    }
+    const isExplicitSelector = hint === 'selector' || hint === 'css' || hint === 'xpath' || rawTarget.startsWith('css=') || rawTarget.startsWith('css:') || rawTarget.startsWith('selector:') || rawTarget.startsWith('selector=') || rawTarget.startsWith('xpath=') || rawTarget.startsWith('xpath:') || rawTarget.startsWith('//');
+    if (exactEl && !isExplicitSelector && isHoneypotOrHidden(exactEl)) {
         exactEl = null;
     }
 
@@ -281,6 +289,9 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             if (targetPicklist.disabled || targetPicklist.getAttribute('aria-disabled') === 'true') {
                 return { success: false, type: 'picklist', id: targetPicklist.id, reason: 'Picklist is disabled (awaiting dependency)' };
             }
+            if (!targetPicklist.id) {
+                targetPicklist.id = 'wp-pick-' + Math.random().toString(36).substring(2, 9);
+            }
             const baseId = targetPicklist.id ? targetPicklist.id.replace(':_input', '') : '';
             const root = targetPicklist.getRootNode ? targetPicklist.getRootNode() : document;
             let btn = (baseId && root.getElementById ? root.getElementById(baseId + ':_selectButton') : null) || (baseId ? document.getElementById(baseId + ':_selectButton') : null);
@@ -290,6 +301,9 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             }
             if (!btn && targetPicklist.tagName && targetPicklist.tagName.toLowerCase() !== 'input') {
                 btn = targetPicklist;
+            }
+            if (btn && !btn.id) {
+                btn.id = 'wp-btn-' + Math.random().toString(36).substring(2, 9);
             }
             return { success: false, type: 'picklist', id: targetPicklist.id, trigger_button: btn ? btn.id : null };
         }
