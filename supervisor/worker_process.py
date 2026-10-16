@@ -32,6 +32,7 @@ from supervisor.worker_handlers import (
     handle_worker_apply,
     handle_worker_inspect,
     handle_worker_probe,
+    handle_worker_read,
 )
 
 
@@ -146,6 +147,9 @@ class OperationalWorker:
 
             elif action in ("probe", "find"):
                 return self._handle_probe(req)
+
+            elif action in ("read", "clean_read", "content"):
+                return self._handle_read(req)
 
             elif action in ("eval", "js", "exec"):
                 return self._handle_eval(req)
@@ -287,6 +291,9 @@ class OperationalWorker:
 
     def _handle_apply(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         return handle_worker_apply(self, req)
+
+    def _handle_read(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        return handle_worker_read(self, req)
 
     def _handle_eval(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         coord = self._ensure_session(req)

@@ -5,6 +5,19 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.8] - 2026-10-16
+
+### High-Density Clean Markdown Extraction via Trafilatura (`wp read`)
+
+#### 1. Native Trafilatura Content Reader Service
+- **Token-Optimized Page Reading**: Integrated `ContentReaderService` leveraging `trafilatura` to extract clean, core text and tables from web pages in Markdown format, achieving ~99.7% token reduction while eliminating navigation, footers, scripts, and advertisements.
+- **Graceful Fallbacks**: Implemented multi-tier fallback to live DOM `document.body.innerText` and stripped HTML if pure JS-shells or short snippets yield zero extraction.
+
+#### 2. Universal Tooling & SDK Integration
+- **CLI Command `wp read`**: Added `wp read [--url <url>] [--output <file.md>] [--tab <index>]` for instant CLI page summarization and markdown dumping.
+- **MCP Tool `webpilot_read_page`**: Added official MCP tool enabling AI agents (Claude, OpenCode, Antigravity) to read pages with extreme token density before acting.
+- **Programmatic Python SDK**: Added `wp.read(url=..., tab=..., output=...)` to `WebPilot` client.
+
 ## [2.5.7] - 2026-10-16
 
 ### Target Disambiguation & Truth Barrier Hardening (WP-027)

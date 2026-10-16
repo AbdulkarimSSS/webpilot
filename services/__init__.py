@@ -11,7 +11,10 @@ from services.reactive_interaction_service import ReactiveInteractionService
 from services.schema_merger import SchemaMerger
 from services.target_descriptor import TargetDescriptor, TargetDescriptorParser
 
+from services.content_reader_service import ContentReaderService
+
 __all__ = [
+    "ContentReaderService",
     "PageLifecycleService",
     "DOMDataMatcher",
     "FieldInteractionService",

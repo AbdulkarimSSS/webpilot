@@ -35,6 +35,7 @@ class SupervisorActionRequest:
     script: Optional[str] = None
     script_args: Optional[Any] = None
     auto_expand: bool = True
+    output_path: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -66,6 +67,7 @@ class SupervisorActionResponse:
     reactive_event: Optional[Dict[str, Any]] = None
     output_lines: List[str] = field(default_factory=list)
     field_details: Optional[Dict[str, Any]] = None
+    content: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

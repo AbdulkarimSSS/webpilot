@@ -260,3 +260,55 @@ def execute_service_restart(client: SupervisorClient) -> str:
         },
         indent=2,
     )
+
+
+def execute_read_page(
+    client: SupervisorClient,
+    url: Optional[str] = None,
+    output_path: Optional[str] = None,
+    tab_index: Optional[int] = None,
+) -> str:
+    """Extracts ultra-dense clean markdown content from active or target page via Trafilatura."""
+    if url is not None and not url.strip():
+        return json.dumps(
+            {
+                "success": False,
+                "status": "error",
+                "error": "Validation error: explicit empty URL is invalid.",
+                "message": "Validation error: explicit empty URL is invalid.",
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    req = SupervisorActionRequest(
+        action="read",
+        url=url,
+        output_path=output_path,
+        tab_index=tab_index,
+    )
+    resp = client.execute(req)
+    if not resp.success:
+        return json.dumps(
+            {
+                "success": False,
+                "status": "error",
+                "error": resp.message,
+                "message": f"Error reading page: {resp.message}",
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    output = {
+        "success": True,
+        "status": "success",
+        "active_url": resp.active_url,
+        "active_title": resp.active_title,
+        "active_tab": resp.active_tab_index,
+        "total_tabs": resp.total_tabs,
+        "content": resp.content or "",
+        "message": resp.message,
+    }
+    return json.dumps(output, indent=2, ensure_ascii=False)
+

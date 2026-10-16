@@ -247,6 +247,24 @@ class WebPilot:
         resp = self.client.execute(req)
         return resp.tabs
 
+    def read(
+        self,
+        url: Optional[str] = None,
+        tab: Optional[int] = None,
+        output: Optional[str] = None,
+    ) -> str:
+        """Extracts ultra-dense clean markdown content from active or target page via Trafilatura."""
+        req = SupervisorActionRequest(
+            action="read",
+            url=url,
+            tab_index=tab,
+            output_path=output,
+        )
+        resp = self.client.execute(req)
+        if not resp.success:
+            raise RuntimeError(f"WebPilot read failed: {resp.message}")
+        return resp.content or ""
+
     def service_status(self) -> Dict[str, Any]:
         """Queries the status of Layer 1 Supervisor and Layer 2 Worker."""
         return self.client.get_status()

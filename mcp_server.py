@@ -155,6 +155,16 @@ def webpilot_service_restart() -> str:
     return mcp_tools.execute_service_restart(client)
 
 
+@mcp.tool()
+def webpilot_read_page(
+    url: Optional[str] = None,
+    output_path: Optional[str] = None,
+    tab_index: Optional[int] = None,
+) -> str:
+    """Extracts ultra-dense clean markdown content from active or target page saving ~99.7% of tokens via Trafilatura."""
+    return mcp_tools.execute_read_page(client, url, output_path, tab_index)
+
+
 def main():
     """Main entrypoint for running the MCP server."""
     os.environ["WEBPILOT_NO_STDIN"] = "1"

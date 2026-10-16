@@ -29,8 +29,9 @@ def test_webpilot_client_init_and_context_manager():
     assert wp.base_url == "http://127.0.0.1:9333"
     assert wp.client.token == "test-token"
 
-    with WebPilot(host="127.0.0.1", port=9333) as client:
-        assert isinstance(client, WebPilot)
+    with patch.object(SupervisorClient, "restart_worker", return_value=True):
+        with WebPilot(host="127.0.0.1", port=9333) as client:
+            assert isinstance(client, WebPilot)
 
 
 @patch.object(SupervisorClient, "execute")

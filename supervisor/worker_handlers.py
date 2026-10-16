@@ -464,3 +464,84 @@ def handle_worker_apply(
         reactive_event=last_reactive_event,
         output_lines=lines,
     )
+
+
+def handle_worker_read(
+    worker: OperationalWorker,
+    req: SupervisorActionRequest,
+) -> SupervisorActionResponse:
+    """Executes high-density clean markdown content extraction via Trafilatura."""
+    from common.paths import validate_safe_path
+    from services.content_reader_service import ContentReaderService
+
+    coord = worker._ensure_session(req)
+    if req.tab_index is not None:
+        page = coord.switch_to_tab(req.tab_index)
+    else:
+        page = coord.page
+    if page is None:
+        raise RuntimeError("Worker page is not available.")
+
+    lines: List[str] = []
+    if req.url is not None and not req.url.strip():
+        return SupervisorActionResponse(
+            success=False,
+            action="read",
+            message="Explicit empty URL is invalid.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+        )
+
+    if req.url:
+        coord.adapter.navigate(req.url)
+        page = coord.page
+    elif getattr(req, "reload", False):
+        page.reload(wait_until="domcontentloaded")
+
+    try:
+        page.wait_for_load_state("domcontentloaded", timeout=4000)
+    except Exception:
+        pass
+
+    try:
+        html = page.content()
+    except Exception as exc:
+        html = ""
+        lines.append(f"[!] Warning reading page content: {exc}")
+
+    try:
+        body_text = page.evaluate("() => document.body ? document.body.innerText : ''")
+    except Exception:
+        body_text = ""
+
+    clean_md = ContentReaderService.extract_clean_markdown(
+        html=html,
+        include_tables=True,
+        include_links=True,
+        fallback_text=body_text,
+    )
+
+    out_path = getattr(req, "output_path", None) or getattr(req, "data_path", None)
+    if out_path:
+        valid_path = validate_safe_path(out_path, for_write=True)
+        os.makedirs(os.path.dirname(os.path.abspath(valid_path)), exist_ok=True)
+        with open(valid_path, "w", encoding="utf-8") as f:
+            f.write(clean_md)
+        lines.append(f"[✓] Clean content successfully saved to: {valid_path}")
+
+    ctx = coord.context
+    return SupervisorActionResponse(
+        success=True,
+        action="read",
+        message=f"Successfully extracted {len(clean_md)} characters of clean content.",
+        browser_pid=coord.adapter.browser_pid,
+        worker_pid=os.getpid(),
+        active_tab_index=coord.adapter.get_active_tab_index(),
+        active_url=page.url,
+        active_title=page.title(),
+        total_tabs=len(ctx.pages) if ctx else 1,
+        tabs=coord.adapter.list_open_tabs(),
+        content=clean_md,
+        output_lines=lines,
+    )
+

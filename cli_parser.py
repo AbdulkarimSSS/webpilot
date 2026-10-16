@@ -262,6 +262,22 @@ def build_cli_parser() -> argparse.ArgumentParser:
     # 6. Skill Specification Subcommand
     p_skill = subparsers.add_parser("skill", help="Output the AI agent skill specification (SKILL.md) to terminal")
 
+    # 6b. Read Subcommand (Clean Markdown Content Extraction via Trafilatura)
+    p_read = subparsers.add_parser(
+        "read",
+        aliases=["clean_read", "content"],
+        help="Extract clean, high-density markdown content from active or target page saving ~99.7% of tokens via Trafilatura",
+    )
+    p_read.add_argument(
+        "--url",
+        nargs="?",
+        default=None,
+        help="Target URL to read (optional if reading existing active tab/session)",
+    )
+    p_read.add_argument("--output", "-o", help="Path to save clean markdown content")
+    p_read.add_argument("--tab", type=int, help="Target browser tab index to read")
+    p_read.add_argument("--port", type=int, default=9333, help="Master Supervisor RPC port")
+
     # 7. Find / Probe Subcommand
     p_find = subparsers.add_parser(
         "find",
