@@ -266,7 +266,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_read = subparsers.add_parser(
         "read",
         aliases=["clean_read", "content"],
-        help="Extract clean, high-density markdown content from active or target page saving ~99.7% of tokens via Trafilatura",
+        help="Extract clean, high-density markdown content from active or target page saving ~99.7%% of tokens via Trafilatura",
     )
     p_read.add_argument(
         "--url",

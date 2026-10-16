@@ -6,14 +6,13 @@ import argparse
 import sys
 from typing import Optional
 
-from supervisor.client import SupervisorClient
+from cli_commands.common import get_supervisor_client
 from supervisor.contracts import SupervisorActionRequest
 
 
 def read_cmd(args: argparse.Namespace) -> None:
     """Executes high-density clean markdown extraction via Trafilatura."""
-    port = getattr(args, "port", None)
-    client = SupervisorClient(port=port)
+    client = get_supervisor_client(args)
     client.ensure_running()
 
     url = getattr(args, "url", None)
