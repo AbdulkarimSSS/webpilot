@@ -15,10 +15,10 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = r"""async ([inpId, target]) => {
     }
     // Only fallback to generic listbox if input did NOT explicitly define aria-owns
     if (!list && input && !owns) {
-        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"]), [class*="listSelect"]:not([style*="display: none"])');
+        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"]), [class*="listSelect"]:not([style*="display: none"]), #menu:not([style*="display: none"]), .menu:not([style*="display: none"]), #opts, [class*="dropdown-menu"]:not([style*="display: none"])');
     }
     if (!list && !input) {
-        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"])') || document;
+        list = document.querySelector('[role="listbox"]:not([style*="display: none"]), .rcmpaginatedselectlist:not([style*="display: none"]), .globalMenu:not([style*="display: none"]), #menu:not([style*="display: none"]), .menu:not([style*="display: none"]), #opts, [class*="dropdown-menu"]:not([style*="display: none"])') || document;
     }
     if (!list) {
         return { success: false, reason: 'list_not_ready' };
@@ -71,7 +71,7 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = r"""async ([inpId, target]) => {
             }
         } else if (mode === 'value') {
             match = items.find(el => {
-                const v = (el.value || el.getAttribute('data-value') || el.getAttribute('value') || '').trim().toLowerCase();
+                const v = (el.value || el.getAttribute('data-value') || el.getAttribute('data-v') || el.getAttribute('value') || '').trim().toLowerCase();
                 return v === targetLower;
             });
         } else if (mode === 'id') {
@@ -94,7 +94,7 @@ PICKLIST_AUTO_SCROLL_SCRIPT: Final[str] = r"""async ([inpId, target]) => {
             match = items.find(el => {
                 const title = (el.getAttribute('title') || '').trim().toLowerCase();
                 const text = (el.innerText || el.textContent || '').trim().toLowerCase();
-                const val = (el.value || el.getAttribute('data-value') || el.getAttribute('value') || '').trim().toLowerCase();
+                const val = (el.value || el.getAttribute('data-value') || el.getAttribute('data-v') || el.getAttribute('value') || '').trim().toLowerCase();
                 return title === targetLower || text === targetLower || val === targetLower || (el.id && el.id.toLowerCase() === targetLower);
             });
 

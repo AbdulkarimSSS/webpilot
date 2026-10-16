@@ -20,6 +20,22 @@ def read_cmd(args: argparse.Namespace) -> None:
     tab_index = getattr(args, "tab", None)
     output_path = getattr(args, "output", None)
 
+    if url:
+        from common.paths import validate_safe_url
+        try:
+            validate_safe_url(url)
+        except Exception as exc:
+            print(f"[!] Invalid URL: {exc}", file=sys.stderr)
+            sys.exit(1)
+
+    if output_path:
+        from common.paths import validate_safe_path
+        try:
+            validate_safe_path(output_path, for_write=True)
+        except Exception as exc:
+            print(f"[!] Invalid output path: {exc}", file=sys.stderr)
+            sys.exit(1)
+
     req = SupervisorActionRequest(
         action="read",
         url=url,

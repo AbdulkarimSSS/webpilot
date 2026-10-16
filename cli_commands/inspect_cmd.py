@@ -16,6 +16,14 @@ from supervisor.contracts import SupervisorActionRequest
 
 def inspect_cmd(args: argparse.Namespace) -> None:
     """Executes the universal inspection workflow."""
+    if getattr(args, "url", None):
+        from common.paths import validate_safe_url
+        try:
+            validate_safe_url(args.url)
+        except Exception as exc:
+            print(f"[!] Invalid URL: {exc}", file=sys.stderr)
+            sys.exit(1)
+
     do_reload = bool(getattr(args, "reload", False) or getattr(args, "command", "") in ("reload", "refresh"))
     strip_header = getattr(args, "strip_header", False)
     auto_expand = getattr(args, "auto_expand", True)

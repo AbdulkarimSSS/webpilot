@@ -5,6 +5,37 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.9] - 2026-10-16
+
+### Adversarial Benchmark Audit & Truth Barrier Hardening (WPB-001 - WPB-009)
+
+#### 1. Cookie Persistence Truth Contract (WPB-002)
+- **Honest Cookie Export**: Refactored `mcp_tools.execute_save_cookies` and `supervisor/worker_handlers.py` to validate `output_path` upfront against empty strings and sensitive files. Failures during cookie persistence are strictly recorded as failures, and `overall_success` requires successful cookie export whenever requested.
+
+#### 2. LFI & Cloud Metadata SSRF Protection (WPB-003)
+- **URL Scheme & Host Allow-list**: Implemented `validate_safe_url` in `common/paths.py` enforcing `http://` and `https://` schemes. Prohibited dangerous schemes (`data:`, `javascript:`, `blob:`) and blocked local file inclusion (`file://`) unless `WEBPILOT_ALLOW_FILE_URLS=1`. Strictly blocked cloud metadata SSRF addresses (`169.254.169.254`, `metadata.google.internal`).
+
+#### 3. Screenshot Overwrite Prevention (WPB-004)
+- **Overwrite Safety**: Extended `validate_safe_path` with `allow_overwrite=False` support, preventing arbitrary clobbering of existing image files. Expanded sensitive path denylist to protect `.bashrc`, `.profile`, `.config`, `.env`, and SSH credential stores.
+
+#### 4. Head-of-Line Navigation Blocking Remediation (WPB-001)
+- **Fast-Failing Navigation**: Lowered default navigation timeout to 20 seconds and eliminated redundant 45s retries on unroutable hosts (`ETIMEDOUT`, `timeout`), preventing serialized tool blocking.
+
+#### 5. MCP Response Bloat Mitigation (WPB-005)
+- **Response Truncation**: Added deep string truncation (`_truncate_echo`) capping echoed form field values and logs in MCP responses to prevent token blow-ups on oversized inputs.
+
+#### 6. Anti-Bot Integrity & Shadow DOM Semantics (WPB-006)
+- **Respect Closed Shadow Roots**: Removed destructive `Element.prototype.attachShadow` monkey-patching, ensuring pages with sealed closed shadow roots maintain DOM encapsulation. Removed detectable triplicate fake plugins and arbitrary WebGL spoofing.
+
+#### 7. Honeypot Decoy Trap Avoidance (WPB-007)
+- **Robust Decoy Detection**: Overhauled `isHoneypotOrHidden` in `universal_core.py` to accurately inspect `type="hidden"`, computed styles (`display:none`, `visibility:hidden`, `opacity:0`), ancestor visibility chains, off-canvas coordinates, and honeypot naming markers. Hardened companion hidden input sync in `set_field.py` to require exact/suffix matches and skip anti-bot decoys.
+
+#### 8. Chromium Temp Profile Reclaim (WPB-009)
+- **Profile Garbage Collection**: Implemented `cleanup_temp_profiles` in `LiveSessionManager` to sweep orphaned `playwright_chromiumdev_profile-*` directories from temp upon `--close-session`, worker shutdown, and startup sweeps, eliminating unbounded disk growth.
+
+#### 9. Coverage Enhancements (WPB-008)
+- **Custom Comboboxes & Duplicate Labels**: Added support for custom combobox popups (`role="combobox"`, `.menu`, `#opts`) and container heading + label combined matching (`Billing Address`, `Shipping Address`). Enabled multi-step wizard field recovery between button presses.
+
 ## [2.5.8] - 2026-10-16
 
 ### High-Density Clean Markdown Extraction via Trafilatura (`wp read`)

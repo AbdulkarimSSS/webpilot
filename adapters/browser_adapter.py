@@ -291,6 +291,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
             self._page = self._context.new_page()
 
         # Stealth evasions & Closed Shadow DOM hook (WP-007, WP-015)
+        # Dialog handling
         if self._context:
             try:
                 self._context.on("page", self._attach_default_dialog_handler)
@@ -300,39 +301,10 @@ class BrowserAdapter(BrowserAdapterProtocol):
                 pass
             try:
                 self._context.add_init_script("""
-                    // Evasion 1: webdriver
-                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-
-                    // Evasion 2: window.chrome
+                    // Standard window.chrome runtime stub
                     if (!window.chrome) {
                         window.chrome = { runtime: {} };
                     }
-
-                    // Evasion 3: plugins
-                    if (!navigator.plugins || navigator.plugins.length === 0) {
-                        const fakePlugin = { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' };
-                        Object.defineProperty(navigator, 'plugins', {
-                            get: () => [fakePlugin, fakePlugin, fakePlugin]
-                        });
-                    }
-
-                    // Evasion 4: WebGL vendor / unmasked renderer
-                    try {
-                        const getParamProto = WebGLRenderingContext.prototype.getParameter;
-                        WebGLRenderingContext.prototype.getParameter = function(param) {
-                            if (param === 37446) return 'Intel Inc.';
-                            if (param === 37447) return 'Intel Iris OpenGL Engine';
-                            return getParamProto.apply(this, arguments);
-                        };
-                    } catch(e) {}
-
-                    // Hook for closed shadow DOM (WP-007)
-                    try {
-                        const _origAttach = Element.prototype.attachShadow;
-                        Element.prototype.attachShadow = function(init) {
-                            return _origAttach.call(this, Object.assign({}, init, { mode: 'open' }));
-                        };
-                    } catch(e) {}
                 """)
             except Exception:
                 pass
@@ -384,16 +356,20 @@ class BrowserAdapter(BrowserAdapterProtocol):
             self._context = None
             self._page = None
             LiveSessionManager.terminate_session()
+            # Clean leftover temp profiles (WPB-009)
+            LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
 
     def navigate(self, url: str, wait_timeout: Optional[int] = None) -> None:
         """Navigates to URL and waits for DOM content loaded with transient retry."""
         if self._page is None:
             raise AutomationError("Browser not started. Call start() first.")
+        from common.paths import validate_safe_url
+        url = validate_safe_url(url) or ""
         if self._page.url == url:
             print(f"[*] Page is already on target URL: {url}")
             self.print_page_telemetry()
             return
-        timeout = wait_timeout if wait_timeout is not None else self.settings.default_timeout_ms
+        timeout = wait_timeout if wait_timeout is not None else min(self.settings.default_timeout_ms, 20000)
         max_attempts = 2
         for attempt in range(1, max_attempts + 1):
             try:
@@ -409,7 +385,9 @@ class BrowserAdapter(BrowserAdapterProtocol):
                 if is_download:
                     print(f"[*] Detected download triggered by navigation to: {url}")
                     return
-                if attempt < max_attempts and any(x in err_msg for x in ("err_connection_reset", "err_network_changed", "timeout", "timed out")):
+                # Do NOT retry hard timeouts on unroutable hosts (WPB-001)
+                is_timeout = "timeout" in err_msg or "timed out" in err_msg
+                if attempt < max_attempts and not is_timeout and any(x in err_msg for x in ("err_connection_reset", "err_network_changed")):
                     print(f"[*] Transient error navigating to '{url}': {exc}. Retrying in 500ms...")
                     self._page.wait_for_timeout(500)
                     continue
@@ -421,6 +399,8 @@ class BrowserAdapter(BrowserAdapterProtocol):
                     "err_invalid_url",
                     "cannot navigate to invalid url",
                     "net::err_",
+                    "timeout",
+                    "timed out",
                 )
                 if any(ind in err_msg for ind in fatal_indicators) or (
                     self._page.url in ("", "about:blank") and url not in ("", "about:blank")
@@ -431,11 +411,11 @@ class BrowserAdapter(BrowserAdapterProtocol):
         self._page.wait_for_timeout(PAUSE_DOM_CONTENT_LOADED_MS)
         self.print_page_telemetry()
 
-    def capture_screenshot(self, output_path: str, full_page: bool = False) -> None:
-        """Captures a screenshot to the specified disk path."""
+    def capture_screenshot(self, output_path: str, full_page: bool = False, allow_overwrite: bool = True) -> None:
+        """Captures a screenshot to the specified disk path with overwrite validation."""
         if self._page is None:
             raise AutomationError("Browser not started.")
         from common.paths import validate_safe_path
-        safe_path = validate_safe_path(output_path, for_write=True)
+        safe_path = validate_safe_path(output_path, for_write=True, allow_overwrite=allow_overwrite)
         os.makedirs(os.path.dirname(os.path.abspath(safe_path)), exist_ok=True)
         self._page.screenshot(path=safe_path, full_page=full_page)

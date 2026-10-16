@@ -160,24 +160,47 @@ function resolveShadowInput(el) {
 // 3. Universal Honeypot & Hidden Element Detection
 function isHoneypotOrHidden(el) {
     if (!el) return true;
-    if (el.offsetParent === null) {
-        const tag = (el.tagName || '').toLowerCase();
-        if (['select', 'input', 'button'].includes(tag)) {
-            const p = el.parentElement;
-            if (p && p.offsetParent !== null && (p.offsetWidth > 10 || p.offsetHeight > 10)) {
-                return false;
-            }
-        }
-        return true;
-    }
+    if (el.type === 'hidden' || (el.getAttribute && el.getAttribute('type') === 'hidden')) return true;
+    if (el.getAttribute && el.getAttribute('aria-hidden') === 'true') return true;
+    if (el.closest && el.closest('[aria-hidden="true"]')) return true;
+
     try {
-        const style = window.getComputedStyle(el);
-        if (style.display === 'none' || style.visibility === 'hidden') return true;
-        if (parseFloat(style.opacity) === 0 && !['radio', 'checkbox', 'file'].includes(el.type)) return true;
+        const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+        if (style) {
+            if (style.display === 'none' || style.visibility === 'hidden') return true;
+            if (parseFloat(style.opacity) === 0 && !['radio', 'checkbox', 'file'].includes(el.type)) return true;
+            if (style.clip === 'rect(0px, 0px, 0px, 0px)' || style.clip === 'rect(0, 0, 0, 0)') return true;
+            if (style.clipPath && (style.clipPath.includes('inset(50%)') || style.clipPath.includes('inset(100%)'))) return true;
+        }
     } catch(e) {}
-    if (el.getAttribute('aria-hidden') === 'true') return true;
-    const name = (el.name || el.id || '').toLowerCase();
-    if (el.getAttribute('tabindex') === '-1' && (name.includes('hp_') || name.includes('honeypot'))) return true;
+
+    // Check ancestor chain for display:none, visibility:hidden, or aria-hidden
+    try {
+        let parent = el.parentElement;
+        while (parent && parent !== document.body && parent !== document.documentElement) {
+            if (parent.getAttribute && parent.getAttribute('aria-hidden') === 'true') return true;
+            const pStyle = window.getComputedStyle ? window.getComputedStyle(parent) : null;
+            if (pStyle) {
+                if (pStyle.display === 'none' || pStyle.visibility === 'hidden') return true;
+            }
+            parent = parent.parentElement;
+        }
+    } catch(e) {}
+
+    if (el.offsetParent === null) {
+        try {
+            const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+            if (!style || style.position !== 'fixed') {
+                return true;
+            }
+        } catch(e) {
+            return true;
+        }
+    }
+
+    const name = ((el.name || '') + ' ' + (el.id || '')).toLowerCase();
+    if (el.getAttribute && el.getAttribute('tabindex') === '-1' && (name.includes('hp_') || name.includes('honeypot') || name.includes('homepage') || name.includes('decoy') || name.includes('bot') || name.includes('trap'))) return true;
+
     try {
         const rect = el.getBoundingClientRect();
         const scrollX = window.pageXOffset || window.scrollX || 0;
@@ -185,14 +208,9 @@ function isHoneypotOrHidden(el) {
         const docX = rect.left + scrollX;
         const docY = rect.top + scrollY;
 
-        // An element is a coordinate honeypot if placed off-canvas in ANY direction or clipped:
+        // An element is a coordinate honeypot if placed off-canvas in ANY direction:
         if (docX < -500 || docY < -500 || docX > 5000 || docY > 50000 || (rect.right + scrollX) < 0 || (rect.bottom + scrollY) < 0) {
             return true;
-        }
-        const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
-        if (style) {
-            if (style.clip === 'rect(0px, 0px, 0px, 0px)' || style.clip === 'rect(0, 0, 0, 0)') return true;
-            if (style.clipPath && (style.clipPath.includes('inset(50%)') || style.clipPath.includes('inset(100%)'))) return true;
         }
         if (rect.width === 0 && rect.height === 0 && !['radio', 'checkbox'].includes(el.type)) return true;
     } catch(e) {}

@@ -19,6 +19,14 @@ from supervisor.contracts import SupervisorActionRequest
 
 def apply_cmd(args: argparse.Namespace) -> None:
     """Executes the universal form filling and submission workflow."""
+    if getattr(args, "url", None):
+        from common.paths import validate_safe_url
+        try:
+            validate_safe_url(args.url)
+        except Exception as exc:
+            print(f"[!] Invalid URL: {exc}", file=sys.stderr)
+            sys.exit(1)
+
     auto_inspect = not getattr(args, "no_auto_inspect", False)
 
     raw_fill_args = args.fill or []

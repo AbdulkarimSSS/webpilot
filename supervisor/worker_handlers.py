@@ -55,8 +55,18 @@ def handle_worker_inspect(
             worker_pid=os.getpid(),
         )
     if req.url:
-        coord.adapter.navigate(req.url)
-        page = coord.page
+        try:
+            coord.adapter.navigate(req.url)
+            page = coord.page
+        except Exception as exc:
+            return SupervisorActionResponse(
+                success=False,
+                action="inspect",
+                message=f"Navigation failed: {exc}",
+                browser_pid=coord.adapter.browser_pid,
+                worker_pid=os.getpid(),
+                output_lines=[f"[!] Navigation error: {exc}"],
+            )
     elif getattr(req, "reload", False):
         lines.append(f"[*] Hard-reloading active page from server: {page.url}")
         page.reload(wait_until="load")
@@ -211,8 +221,18 @@ def handle_worker_apply(
 
     if req.url:
         lines.append(f"[*] Navigating to target URL: {req.url}")
-        coord.adapter.navigate(req.url)
-        page = coord.page
+        try:
+            coord.adapter.navigate(req.url)
+            page = coord.page
+        except Exception as exc:
+            return SupervisorActionResponse(
+                success=False,
+                action="apply",
+                message=f"Navigation failed: {exc}",
+                browser_pid=coord.adapter.browser_pid,
+                worker_pid=os.getpid(),
+                output_lines=[f"[!] Navigation error: {exc}"],
+            )
     else:
         if page.url and page.url != "about:blank":
             lines.append(f"[*] Working on active page in existing session: {page.url}")
@@ -332,6 +352,21 @@ def handle_worker_apply(
             elif res.get("new_inputs_count", 0) > 0:
                 lines.append(f"\n[📋 Dynamic Form Expansion (+{res['new_inputs_count']} new inputs)]")
 
+            # Multi-step wizard recovery: retry any previously failing fields after step transition (WPB-008)
+            if failed:
+                still_failed = []
+                for k, v in failed:
+                    try:
+                        if field_svc.set_field(k, v):
+                            if field_svc.verify_field_value(k, v):
+                                confirmed.append((k, v))
+                                lines.append(f"  [✓] Multi-step filled & verified: '{k}'")
+                                continue
+                    except Exception:
+                        pass
+                    still_failed.append((k, v))
+                failed = still_failed
+
     # 7. Final form submission if requested
     submit_failed = False
     if req.submit:
@@ -368,18 +403,29 @@ def handle_worker_apply(
                 lines.append(f"  [!] Post-interaction check notice: {exc}")
 
     # 8. Capture screenshot if requested
+    screenshot_failed = False
     if req.screenshot_path:
-        coord.adapter.capture_screenshot(req.screenshot_path, full_page=True)
-        lines.append(f"[✓] Form state captured: {req.screenshot_path}")
-
-    # 9. Save refreshed cookies if requested
-    if req.cookies_path and ctx:
         try:
-            cookies = ctx.cookies()
-            save_cookies(req.cookies_path, cookies)
-            lines.append(f"[✓] Persisted {len(cookies)} cookies to: {req.cookies_path}")
+            coord.adapter.capture_screenshot(req.screenshot_path, full_page=True)
+            lines.append(f"[✓] Form state captured: {req.screenshot_path}")
         except Exception as exc:
-            lines.append(f"[!] Warning saving cookies: {exc}")
+            screenshot_failed = True
+            lines.append(f"[!] Failed to capture screenshot: {exc}")
+
+    # 9. Save refreshed cookies if requested (WPB-002)
+    cookie_save_failed = False
+    if req.cookies_path:
+        if ctx:
+            try:
+                cookies = ctx.cookies()
+                save_cookies(req.cookies_path, cookies)
+                lines.append(f"[✓] Persisted {len(cookies)} cookies to: {req.cookies_path}")
+            except Exception as exc:
+                cookie_save_failed = True
+                lines.append(f"[!] Failed to save cookies: {exc}")
+        else:
+            cookie_save_failed = True
+            lines.append("[!] Failed to save cookies: browser context not available")
 
     # 10. Validation checks
     try:
@@ -423,13 +469,15 @@ def handle_worker_apply(
             schema = None
 
 
-    # Honesty contract: success requires zero failed fields, zero unconfirmed fields, zero validation errors, and all requested button presses and uploads succeeding
+    # Honesty contract: success requires zero failed fields, zero unconfirmed fields, zero validation errors, all requested button presses and uploads succeeding, and cookie/screenshot tasks succeeding
     overall_success = (
         len(failed) == 0
         and len(unconfirmed) == 0
         and not press_failed
         and not submit_failed
         and not upload_failed
+        and not cookie_save_failed
+        and not screenshot_failed
         and len(validation_errors) == 0
     )
     if press_failed:
@@ -438,6 +486,10 @@ def handle_worker_apply(
         action_msg = "Form action completed but submission button click failed."
     elif upload_failed:
         action_msg = "Form action completed but one or more file uploads failed."
+    elif cookie_save_failed:
+        action_msg = "Form action completed but saving cookies failed."
+    elif screenshot_failed:
+        action_msg = "Form action completed but capturing screenshot failed."
     elif len(validation_errors) > 0:
         action_msg = f"Form action completed but {len(validation_errors)} validation error(s) detected: {validation_errors[0]}"
     elif overall_success:

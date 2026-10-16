@@ -126,21 +126,40 @@ class LiveSessionManager:
                 pass
 
     @classmethod
-    def terminate_session(cls) -> bool:
-        """Forcefully terminates the persistent browser process and clears state."""
-        state = cls.load_session_state()
-        cls.clear_session_file()
-        if not state:
-            return False
+    def cleanup_temp_profiles(cls, max_age_seconds: int = 1800) -> int:
+        """Cleans up leftover playwright_chromiumdev_profile-* directories from temp (WPB-009)."""
+        import glob
+        import shutil
+        import tempfile
 
-        pid = state.get("pid")
-        if pid:
+        cleaned = 0
+        tmp_dir = tempfile.gettempdir()
+        now = time.time()
+        for p in glob.glob(os.path.join(tmp_dir, "playwright_chromiumdev_profile-*")):
             try:
-                from common.process_manager import get_process_manager
-                return get_process_manager().kill_process_tree(pid, force=True)
+                if max_age_seconds <= 0 or (now - os.path.getmtime(p)) > max_age_seconds:
+                    shutil.rmtree(p, ignore_errors=True)
+                    cleaned += 1
             except Exception:
                 pass
-        return False
+        return cleaned
+
+    @classmethod
+    def terminate_session(cls) -> bool:
+        """Forcefully terminates the persistent browser process, clears state, and reclaims temp profiles."""
+        state = cls.load_session_state()
+        cls.clear_session_file()
+        killed = False
+        if state:
+            pid = state.get("pid")
+            if pid:
+                try:
+                    from common.process_manager import get_process_manager
+                    killed = get_process_manager().kill_process_tree(pid, force=True)
+                except Exception:
+                    pass
+        cls.cleanup_temp_profiles(max_age_seconds=0)
+        return killed
 
     @classmethod
     def launch_persistent_chrome(
@@ -162,6 +181,8 @@ class LiveSessionManager:
         if existing and cls.is_cdp_port_active(existing.get("port", port)):
             cls.touch_session()
             return existing["pid"], existing["port"]
+
+        cls.cleanup_temp_profiles(max_age_seconds=1800)
 
         user_data_dir = os.path.join(USER_DATA_DIR, ".live_browser_profile")
         os.makedirs(user_data_dir, exist_ok=True)

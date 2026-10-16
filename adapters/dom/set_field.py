@@ -101,10 +101,15 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             const pt = (prev.innerText || prev.textContent || '').trim();
             if (pt && pt.length < 60 && checkText(pt)) return true;
         }
-        const container = el.closest ? el.closest('tr, .rcmFormField, .form-group, .field') : null;
+        const container = el.closest ? el.closest('section, fieldset, details, tr, .rcmFormField, .form-group, .field, div') : null;
         if (container && container !== el) {
-            const header = container.querySelector('label, legend, .control-label, .field-label, th, dt, strong');
-            if (header && header.innerText && checkText(header.innerText)) return true;
+            const header = container.querySelector('h1, h2, h3, h4, h5, label, legend, .control-label, .field-label, th, dt, strong');
+            if (header && header.innerText) {
+                if (checkText(header.innerText)) return true;
+                const escId = el.id ? ((window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1")) : '';
+                const myLbl = (el.labels && el.labels[0] ? el.labels[0].innerText : '') || (escId ? ((document.querySelector('label[for="' + escId + '"]') || {}).innerText || '') : '');
+                if (myLbl && checkText(header.innerText + ' ' + myLbl)) return true;
+            }
         }
         return false;
     }
@@ -592,7 +597,11 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                     for (let h of hiddenInputs) {
                         const hName = (h.name || '').toLowerCase();
                         const hId = (h.id || '').toLowerCase();
-                        const isMatch = targetsToCheck.some(t => hName === t || hId === t || (hName && t && (hName.includes(t) || t.includes(hName))));
+                        // Never write into honeypots / decoys (WPB-007)
+                        if (isHoneypotOrHidden(h)) continue;
+                        if (hName.includes('honeypot') || hName.includes('homepage') || hId.includes('homepage') || hName.includes('bot') || hName.includes('trap')) continue;
+                        // Exact match or specific companion suffixes (never loose fuzzy bidirectional substring)
+                        const isMatch = targetsToCheck.some(t => hName === t || hId === t || hName === (t + '_id') || hName === (t + '_value') || hId === (t + '_id') || hId === (t + '_value'));
                         if (isMatch) {
                             h.value = toSet;
                             h.dispatchEvent(new Event('input', { bubbles: true }));
