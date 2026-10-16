@@ -141,7 +141,8 @@ class ReactiveInteractionService:
                     f"input[type='button'][value='{target}']",
                 ]:
                     cand = self.page.locator(selector)
-                    if cand.count() > 0:
+                    cnt = cand.count()
+                    if cnt == 1:
                         try:
                             cand.first.click(timeout=1000)
                             clicked = True
@@ -150,6 +151,9 @@ class ReactiveInteractionService:
                             if _is_nav_exc(exc):
                                 clicked = True
                                 break
+                    elif cnt > 1:
+                        # Multiple matches without scope: ambiguous target!
+                        break
             except Exception as exc:
                 if _is_nav_exc(exc):
                     clicked = True
@@ -168,7 +172,8 @@ class ReactiveInteractionService:
                     f"span:has-text('{target}')",
                 ]:
                     cand = self.page.locator(selector)
-                    if cand.count() > 0 and cand.first.is_visible(timeout=400):
+                    cnt = cand.count()
+                    if cnt == 1 and cand.first.is_visible(timeout=400):
                         cand.first.scroll_into_view_if_needed()
                         try:
                             cand.first.click(timeout=1500)
@@ -178,6 +183,9 @@ class ReactiveInteractionService:
                             if _is_nav_exc(exc):
                                 clicked = True
                                 break
+                    elif cnt > 1:
+                        # Multiple matches without scope: ambiguous target!
+                        break
             except Exception as exc:
                 if _is_nav_exc(exc):
                     clicked = True

@@ -501,8 +501,18 @@ _INSPECT_LOGIC: Final[str] = r"""
         let scopeContext = '';
         const rowOrContainer = btn.closest ? btn.closest('tr, li, [role="row"], .card, fieldset') : null;
         if (rowOrContainer) {
-            const rawRowText = clean(rowOrContainer.innerText || rowOrContainer.textContent || '');
-            scopeContext = rawRowText.replace(new RegExp(text, 'gi'), '').trim().slice(0, 60);
+            try {
+                const clone = rowOrContainer.cloneNode(true);
+                const innerBtns = clone.querySelectorAll ? clone.querySelectorAll('button, input, a, [role="button"]') : [];
+                for (let i = 0; i < innerBtns.length; i++) {
+                    if (innerBtns[i].remove) innerBtns[i].remove();
+                }
+                scopeContext = clean(clone.innerText || clone.textContent || '').slice(0, 60);
+            } catch(e) {}
+            if (!scopeContext) {
+                const rawRowText = clean(rowOrContainer.innerText || rowOrContainer.textContent || '');
+                scopeContext = rawRowText.slice(0, 60);
+            }
         }
 
         const localId = getOrCreateLocalId(btn, 'btn', 'btn');

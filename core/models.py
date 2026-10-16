@@ -322,14 +322,18 @@ class ApplyExecutionResult:
     validation_errors: List[str] = field(default_factory=list)
     submitted: bool = False
     confirmation_screenshot: Optional[str] = None
+    press_failed: bool = False
+    submit_failed: bool = False
 
     @property
     def overall_success(self) -> bool:
-        """Physical honesty contract: success requires zero failed fields, zero unconfirmed fields, and zero validation errors."""
+        """Physical honesty contract: success requires zero failed fields, zero unconfirmed fields, zero validation errors, and no failed button presses or submissions."""
         return (
             len(self.failed_fields) == 0
             and len(self.unconfirmed_fields) == 0
             and len(self.validation_errors) == 0
+            and not self.press_failed
+            and not self.submit_failed
         )
 
     def to_dict(self) -> Dict[str, Any]:

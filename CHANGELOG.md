@@ -5,6 +5,17 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.7] - 2026-10-16
+
+### Target Disambiguation & Truth Barrier Hardening (WP-027)
+
+#### 1. Ambiguous Target Rejection Across Distinct Containers
+- **Container Ambiguity Detection**: In `adapters/dom/reactive.py` (`CLICK_BUTTON_DOM_SCRIPT`) and `services/reactive_interaction_service.py`, detected when multiple actionable buttons share identical text across separate containers (e.g. table rows, list items, card grids). Replaced naive `cand.first.click()` with strict rejection (`return false`) when unscoped, preventing accidental clicks on the wrong item.
+- **Scope Context Preservation**: In `adapters/dom/inspection.py`, cloned ancestor containers and removed child buttons when extracting `scope`, preventing label replacement from corrupting adjacent words (e.g. preserves `"Row 3: Editor"` instead of mangling into `"Row 3: or"`).
+
+#### 2. Standalone Apply Flow Honesty Enforcement
+- **Execution Result Tracking**: Extended `ApplyExecutionResult` in `core/models.py` and `FlowOrchestrator` in `orchestration/flow_orchestrator.py` to record `press_failed` and `submit_failed`, binding `overall_success` strictly to successful button interactions.
+
 ## [2.5.6] - 2026-10-16
 
 ### Benchmark Adversarial Catalog Remediation (WP-022 - WP-027)

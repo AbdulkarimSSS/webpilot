@@ -117,24 +117,46 @@ CLICK_BUTTON_DOM_SCRIPT: Final[str] = """(t) => {
 
     const btns = deepQueryAll(searchRoot, 'button, input[type="button"], input[type="submit"], a, [role="button"], [onclick], span[id$="_submitBtn"], span[id$="_saveBtn"], .modal-footer *, .modal-close, [class*="close"], [aria-label*="close" i]')
         .filter(b => isActionable(b));
-    let chosen = btns.find(b => {
+    let matching = btns.filter(b => {
         const text = cleanText(b.innerText || b.value || b.title || b.getAttribute('aria-label') || '');
         return text === lower || (b.id && b.id.toLowerCase() === lower);
     });
-    if (!chosen) {
-        chosen = btns.find(b => {
+    if (matching.length === 0) {
+        matching = btns.filter(b => {
             const text = cleanText((b.innerText || '') + ' ' + (b.value || '') + ' ' + (b.title || '') + ' ' + (b.id || ''));
             return text.includes(lower);
         });
     }
-    if (!chosen && ['submit', 'apply', 'send', 'save', 'confirm'].includes(lower)) {
-        chosen = btns.find(b => (b.getAttribute('type') || '').toLowerCase() === 'submit');
+    if (matching.length === 0 && ['submit', 'apply', 'send', 'save', 'confirm'].includes(lower)) {
+        matching = btns.filter(b => (b.getAttribute('type') || '').toLowerCase() === 'submit');
     }
-    if (chosen && isActionable(chosen)) {
-        if (chosen.scrollIntoViewIfNeeded) chosen.scrollIntoViewIfNeeded();
-        chosen.click();
-        return true;
+
+    if (matching.length === 1) {
+        const chosen = matching[0];
+        if (isActionable(chosen)) {
+            if (chosen.scrollIntoViewIfNeeded) chosen.scrollIntoViewIfNeeded();
+            chosen.click();
+            return true;
+        }
+    } else if (matching.length > 1) {
+        // If not scoped and not targeted via specific local ID, check for container ambiguity
+        if (!scopeText && !rawTarget.startsWith('@')) {
+            const distinctContainers = new Set(
+                matching.map(b => (b.closest ? b.closest('tr, li, [role="row"], .card, fieldset') : null)).filter(Boolean)
+            );
+            if (distinctContainers.size > 1) {
+                // Ambiguous target spanning multiple rows/items!
+                return false;
+            }
+        }
+        const chosen = matching.find(b => isActionable(b));
+        if (chosen) {
+            if (chosen.scrollIntoViewIfNeeded) chosen.scrollIntoViewIfNeeded();
+            chosen.click();
+            return true;
+        }
     }
     return false;
 }"""
+
 

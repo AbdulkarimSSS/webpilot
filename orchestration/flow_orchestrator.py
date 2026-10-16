@@ -289,15 +289,18 @@ class FlowOrchestrator:
                 on_active_page_change=lambda p: coordinator.switch_to_latest_page(),
             )
 
+            press_failed = False
             if req.press_buttons:
                 for btn in req.press_buttons:
                     if not btn or not str(btn).strip():
                         print("  [!] Failed: Empty button text specified.")
+                        press_failed = True
                         continue
                     print(f"\n[*] Pressing requested button: '{btn}'...")
                     res = reactive_svc.click_button(btn)
                     if not res.get("success"):
                         print(f"  [!] Failed to find or click button: '{btn}'")
+                        press_failed = True
                         continue
                     print(f"  [✓] Successfully clicked '{btn}'.")
 
@@ -320,6 +323,7 @@ class FlowOrchestrator:
 
             # 7. Final Form Submission if requested
             submitted = False
+            submit_failed = False
             if req.submit:
                 print("\n[*] Executing final form submission (submit=True)...")
                 res = reactive_svc.click_button("apply")
@@ -331,6 +335,7 @@ class FlowOrchestrator:
                     page = coordinator.switch_to_latest_page()
                     coordinator.adapter.print_page_telemetry()
                 else:
+                    submit_failed = True
                     print("  [!] Submission button clicked or not found; moving to validation.")
 
             # 8. Post-submission screenshot
@@ -370,4 +375,6 @@ class FlowOrchestrator:
                 validation_errors=validation_errors,
                 submitted=submitted,
                 confirmation_screenshot=confirmation_screenshot,
+                press_failed=press_failed,
+                submit_failed=submit_failed,
             )

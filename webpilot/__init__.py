@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-__version__ = "2.5.6"
+__version__ = "2.5.7"
 __author__ = "Abdulkarim Salih & WebPilot Core Team"
 __license__ = "MIT"
 
