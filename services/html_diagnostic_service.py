@@ -145,23 +145,107 @@ class HTMLDiagnosticService:
         return matched_node
 
     @classmethod
-    def prune_ancestral_spine(cls, root: Tag, matched_node: Tag) -> Tag:
-        """Prunes all sibling branches outside the ancestral spine down to the field container."""
+    def _matches_upper_token(cls, node: Tag, token: str) -> bool:
+        """Determines if an upper-tier uncle element matches an upper-include token."""
+        if not isinstance(node, Tag):
+            return False
+        clean_token = token.strip().lower()
+        if not clean_token:
+            return False
+
+        # 1. Direct tag name match (e.g. 'header', 'h2', 'button')
+        if node.name.lower() == clean_token:
+            return True
+
+        # 2. Class match (e.g. '.section-toolbar' or 'section-toolbar')
+        class_target = clean_token[1:] if clean_token.startswith(".") else clean_token
+        node_classes = (
+            [c.lower() for c in node.get("class", [])]
+            if isinstance(node.get("class"), list)
+            else [str(node.get("class", "")).lower()]
+        )
+        if class_target in node_classes:
+            return True
+
+        # 3. ID match (e.g. '#header-id')
+        if clean_token.startswith("#"):
+            id_target = clean_token[1:]
+            if node.get("id", "").lower() == id_target:
+                return True
+
+        # 4. Check if node contains a matching descendant
+        if node.find(clean_token):
+            return True
+        try:
+            if node.select_one(clean_token):
+                return True
+        except Exception:
+            pass
+
+        return False
+
+    @classmethod
+    def _apply_upper_exclude(cls, container: Tag, tokens: List[str]) -> None:
+        """Purges unwanted child elements from inside spared upper-tier elements."""
+        for token in tokens:
+            clean_tok = token.strip().lower()
+            if not clean_tok:
+                continue
+
+            for el in list(container.find_all(clean_tok)):
+                if el.parent is None:
+                    continue
+                stub = cls.STUBBED_TAGS.get(clean_tok)
+                if stub:
+                    el.clear()
+                    el.string = stub
+                else:
+                    el.decompose()
+
+            if clean_tok.startswith("."):
+                target_cls = clean_tok[1:]
+                for el in list(container.find_all()):
+                    if el.parent is None:
+                        continue
+                    classes = (
+                        [c.lower() for c in el.get("class", [])]
+                        if isinstance(el.get("class"), list)
+                        else [str(el.get("class", "")).lower()]
+                    )
+                    if target_cls in classes:
+                        el.decompose()
+
+    @classmethod
+    def prune_ancestral_spine(
+        cls,
+        root: Tag,
+        matched_node: Tag,
+        upper_include: Optional[str] = None,
+        upper_exclude: Optional[str] = None,
+    ) -> Tuple[Tag, Tag]:
+        """
+        Prunes all sibling branches outside the ancestral spine down to the field container,
+        sparing upper uncle branches matching upper_include, and purging child elements matching upper_exclude
+        from inside spared upper-tier elements.
+        Returns: (root, field_container)
+        """
         if matched_node == root:
-            return root
+            return root, root
 
         field_container = cls._identify_field_container(matched_node, root)
 
-        # Build spine list from field_container up to root
-        spine: List[Tag] = []
-        curr: Optional[Tag] = field_container
-        while curr:
-            spine.append(curr)
-            if curr == root:
-                break
-            curr = curr.parent
+        upper_inc_tokens: Optional[List[str]] = (
+            [t.strip() for t in upper_include.split(",") if t.strip()]
+            if upper_include
+            else None
+        )
+        upper_exc_tokens: Optional[List[str]] = (
+            [t.strip() for t in upper_exclude.split(",") if t.strip()]
+            if upper_exclude
+            else None
+        )
 
-        # From field_container up to root, prune irrelevant siblings
+        # From field_container up to root, prune irrelevant siblings unless spared by upper_include
         curr = field_container
         while curr and curr != root:
             parent = curr.parent
@@ -169,13 +253,25 @@ class HTMLDiagnosticService:
                 break
             for child in list(parent.children):
                 if child != curr:
-                    if hasattr(child, "decompose"):
-                        child.decompose()
-                    elif isinstance(child, NavigableString):
+                    if isinstance(child, NavigableString):
                         child.extract()
+                        continue
+                    if not isinstance(child, Tag):
+                        continue
+
+                    spared = False
+                    if upper_inc_tokens:
+                        spared = any(cls._matches_upper_token(child, tok) for tok in upper_inc_tokens)
+
+                    if spared:
+                        if upper_exc_tokens:
+                            cls._apply_upper_exclude(child, upper_exc_tokens)
+                    else:
+                        child.decompose()
+
             curr = parent
 
-        return root
+        return root, field_container
 
     @classmethod
     def apply_structural_tag_filter(
@@ -327,7 +423,7 @@ class HTMLDiagnosticService:
 
         streamed_text = "\n".join(streamed)
         actual_chars = len(streamed_text)
-        notice = f"\n... [⚠️ Truncated: showing first {actual_chars:,} of {total_chars:,} characters. Use --all or --max-chars <N> to view more]"
+        notice = f"\n... [Truncated: showing first {actual_chars:,} of {total_chars:,} characters. Use --all or --max-chars <N> to view more]"
         return f"{streamed_text}{notice}"
 
     @classmethod
@@ -367,7 +463,7 @@ class HTMLDiagnosticService:
                     )
                     content = "\n".join(collected)
                     if truncated:
-                        banner = f"[⚠️ Note: Displaying target-anchored window preceding line {val} (lines {start_line} to {end_line}). Use --all to view from line 1]"
+                        banner = f"[Note: Displaying target-anchored window preceding line {val} (lines {start_line} to {end_line}). Use --all to view from line 1]"
                         return f"{banner}\n{content}"
                     return content
             except ValueError:
@@ -390,7 +486,7 @@ class HTMLDiagnosticService:
                 )
                 content = "\n".join(collected)
                 if truncated:
-                    banner = f"[⚠️ Note: Displaying target-anchored window preceding line {target_line} (lines {start_line} to {end_line}). Use --all to view from line 1]"
+                    banner = f"[Note: Displaying target-anchored window preceding line {target_line} (lines {start_line} to {end_line}). Use --all to view from line 1]"
                     return f"{banner}\n{content}"
                 return content
             except ValueError:
@@ -479,7 +575,7 @@ class HTMLDiagnosticService:
                     slice_total = len(raw_slice)
                     if not show_all and max_chars is not None and max_chars > 0 and slice_total > max_chars:
                         truncated = raw_slice[:max_chars]
-                        return f"{truncated}\n... [⚠️ Truncated: showing first {max_chars:,} of {slice_total:,} characters. Use --all or --max-chars <N> to view more]"
+                        return f"{truncated}\n... [Truncated: showing first {max_chars:,} of {slice_total:,} characters. Use --all or --max-chars <N> to view more]"
                     return raw_slice
             except ValueError:
                 return text
@@ -506,7 +602,7 @@ class HTMLDiagnosticService:
         total_len = len(text)
         if total_len > max_chars:
             truncated = text[:max_chars]
-            return f"{truncated}\n... [⚠️ Truncated: showing first {max_chars:,} of {total_len:,} characters. Use --all or --max-chars <N> to view more]"
+            return f"{truncated}\n... [Truncated: showing first {max_chars:,} of {total_len:,} characters. Use --all or --max-chars <N> to view more]"
         return text
 
     @classmethod
@@ -516,6 +612,8 @@ class HTMLDiagnosticService:
         search_query: Optional[str] = None,
         include_tags: Optional[str] = None,
         exclude_tags: Optional[str] = None,
+        upper_include: Optional[str] = None,
+        upper_exclude: Optional[str] = None,
         pretty: bool = True,
         lines_slice: Optional[str] = None,
         chars_slice: Optional[str] = None,
@@ -531,6 +629,7 @@ class HTMLDiagnosticService:
         if not root or not isinstance(root, Tag):
             return raw_html
 
+        field_container: Optional[Tag] = None
         # Stage 2: Semantic Search & Ancestral Spine Pruning
         if search_query and search_query.strip():
             matched_node = cls._find_matching_leaf(root, search_query)
@@ -538,11 +637,18 @@ class HTMLDiagnosticService:
                 raise DiagnosticSearchNotFoundError(
                     f"Search target '{search_query}' not found within element boundary"
                 )
-            root = cls.prune_ancestral_spine(root, matched_node)
+            root, field_container = cls.prune_ancestral_spine(
+                root,
+                matched_node,
+                upper_include=upper_include,
+                upper_exclude=upper_exclude,
+            )
 
         # Stage 3: Structural Tag Filtering (include > exclude)
+        # Lower-tier filter applies strictly to field_container (if search was performed)
         if include_tags or exclude_tags:
-            root = cls.apply_structural_tag_filter(root, include_tags, exclude_tags)
+            target_filter_root = field_container if field_container is not None else root
+            cls.apply_structural_tag_filter(target_filter_root, include_tags, exclude_tags)
 
         # Stage 4: DOM Formatting & Indentation
         formatted = cls.format_html(root, pretty=pretty)
@@ -554,7 +660,7 @@ class HTMLDiagnosticService:
                 formatted, lines_slice, max_chars=max_chars, show_all=show_all
             )
             # If target-anchored window prepended a diagnostic banner, preserve it so --chars trims the lines block
-            if formatted.startswith("[⚠️ Note:"):
+            if formatted.startswith("[Note:"):
                 parts = formatted.split("\n", 1)
                 banner = parts[0]
                 formatted = parts[1] if len(parts) > 1 else ""

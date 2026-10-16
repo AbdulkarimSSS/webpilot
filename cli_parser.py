@@ -387,6 +387,18 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="Comma-separated list of HTML tag names to prune (e.g. 'svg,script,style')",
     )
     p_find.add_argument(
+        "--upper-include",
+        type=str,
+        default=None,
+        help="Comma-separated whitelist of upper-tier uncle elements/tags to spare from default spine pruning (e.g. 'header,h2,button')",
+    )
+    p_find.add_argument(
+        "--upper-exclude",
+        type=str,
+        default=None,
+        help="Comma-separated blacklist to prune child elements from inside spared --upper-include containers (e.g. 'svg,script')",
+    )
+    p_find.add_argument(
         "--lines",
         type=str,
         default=None,

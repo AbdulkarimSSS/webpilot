@@ -106,6 +106,8 @@ def find_cmd(args: argparse.Namespace) -> None:
                     search_query=search_val,
                     include_tags=getattr(args, "include", None),
                     exclude_tags=getattr(args, "exclude", None),
+                    upper_include=getattr(args, "upper_include", None),
+                    upper_exclude=getattr(args, "upper_exclude", None),
                     pretty=pretty_mode,
                     lines_slice=getattr(args, "lines", None),
                     chars_slice=getattr(args, "chars", None),
@@ -130,7 +132,7 @@ def find_cmd(args: argparse.Namespace) -> None:
     print("\n" + "═" * 70)
     local_id_str = details.get("local_id") or "@fld"
     type_str = (details.get("type") or "element").upper()
-    print(f" 🔍 WEBPILOT ELEMENT DIAGNOSTIC | {local_id_str} | {type_str}")
+    print(f" WEBPILOT ELEMENT DIAGNOSTIC | {local_id_str} | {type_str}")
     print("═" * 70)
     print(f" • Label       : {details.get('label')}")
     print(f" • Local ID    : {details.get('local_id')}")
@@ -148,7 +150,7 @@ def find_cmd(args: argparse.Namespace) -> None:
         p_loc = f"[{dep.get('parent_local_id')}] " if dep.get("parent_local_id") else ""
         print(f" • Linked Parent : {p_loc}'{p_label}' (ID: {p_id})")
         if details.get("disabled") or details.get("options_count", 1) == 0:
-            print(f" ⚠️ DEPENDENCY ALERT: Field is locked/empty awaiting parent selection '{p_label}'!")
+            print(f" [!] DEPENDENCY ALERT: Field is locked/empty awaiting parent selection '{p_label}'!")
 
     ancestor_d = details.get("ancestor_depth", 0)
     requested_d = details.get("ancestor_requested", up_val)
@@ -206,7 +208,7 @@ def find_cmd(args: argparse.Namespace) -> None:
         elif show_all:
             pagination_header = " | Full List"
 
-        print(f"\n 📋 Options ({total_cnt} total{pagination_header}):")
+        print(f"\n Options ({total_cnt} total{pagination_header}):")
         for o in sliced_opts:
             if isinstance(o, dict):
                 loc = f"[{o.get('local_id')}] " if o.get('local_id') else ""
@@ -224,5 +226,5 @@ def find_cmd(args: argparse.Namespace) -> None:
     if (want_html or getattr(args, "html", False) or up_val > 0) and final_html:
         max_str = " - PAGE ROOT" if max_reached else ""
         header_lvl = f" (Level +{ancestor_d}{max_str})" if ancestor_d > 0 else ""
-        print(f"\n 🌐 Outer HTML{header_lvl}:\n{final_html}")
+        print(f"\n Outer HTML{header_lvl}:\n{final_html}")
     print("═" * 70 + "\n")

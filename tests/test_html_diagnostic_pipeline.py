@@ -225,7 +225,7 @@ def test_line_slicing_target_anchored_window():
     assert "Line 500" in res
 
     # Must contain the target-anchored window notification banner
-    assert "[⚠️ Note: Displaying target-anchored window preceding line 500" in res
+    assert "[Note: Displaying target-anchored window preceding line 500" in res
     assert "Use --all to view from line 1]" in res
 
     # Line 1 must NOT be in the window because ceiling clamped the window backward
@@ -233,7 +233,7 @@ def test_line_slicing_target_anchored_window():
 
     # Same target-anchored behavior with bare integer Variant 2
     res_bare = HTMLDiagnosticService.apply_line_slice(large_lines, "500", max_chars=20000, show_all=False)
-    assert "[⚠️ Note: Displaying target-anchored window preceding line 500" in res_bare
+    assert "[Note: Displaying target-anchored window preceding line 500" in res_bare
     assert "Line 500" in res_bare
     assert "Line 001" not in res_bare
 
@@ -241,7 +241,7 @@ def test_line_slicing_target_anchored_window():
     res_all = HTMLDiagnosticService.apply_line_slice(large_lines, ":500", max_chars=20000, show_all=True)
     assert "Line 001" in res_all
     assert "Line 500" in res_all
-    assert "[⚠️ Note:" not in res_all
+    assert "[Note:" not in res_all
 
 
 def test_line_slicing_forward_stream_clamping():
@@ -252,12 +252,12 @@ def test_line_slicing_forward_stream_clamping():
     # Variant 4: 20: -> streams forward until 20,000 chars, then truncates with warning notice
     res_v4 = HTMLDiagnosticService.apply_line_slice(large_lines, "20:", max_chars=20000, show_all=False)
     assert "Line 020" in res_v4
-    assert "... [⚠️ Truncated: showing first" in res_v4
+    assert "... [Truncated: showing first" in res_v4
     assert "Line 500" not in res_v4
 
     # Variant 5: -250: -> streams last 250 lines (~25,000 chars), clamped at 20,000
     res_v5 = HTMLDiagnosticService.apply_line_slice(large_lines, "-250:", max_chars=20000, show_all=False)
-    assert "... [⚠️ Truncated: showing first" in res_v5
+    assert "... [Truncated: showing first" in res_v5
 
     # Variant 1: Explicit range 20:300 is UNCONSTRAINED despite exceeding 20,000 chars
     res_v1 = HTMLDiagnosticService.apply_line_slice(large_lines, "20:300", max_chars=20000, show_all=False)
@@ -288,7 +288,7 @@ def test_char_slicing_differential_ceiling():
 
     # Variant 4 (<X>:): CLAMPED BY DEFAULT CEILING (20,000) + truncation notice
     s4 = HTMLDiagnosticService.apply_char_slice(large_payload, "1000:", max_chars=20000, show_all=False)
-    assert "... [⚠️ Truncated: showing first 20,000 of 99,000 characters" in s4
+    assert "... [Truncated: showing first 20,000 of 99,000 characters" in s4
     assert s4.startswith("A" * 20000)
 
     # Variant 4 with show_all=True: unconstrained
@@ -464,7 +464,148 @@ def test_sequential_target_anchored_lines_with_chars_trimmer():
     )
 
     lines = combined.splitlines()
-    assert lines[0].startswith("[⚠️ Note: Displaying target-anchored window preceding line 500")
+    assert lines[0].startswith("[Note: Displaying target-anchored window preceding line 500")
     # Content starts with line from the window
     assert "Line" in lines[1]
+
+
+# Symmetrical Upper-Tier Pruning Tests
+
+UPPER_TIER_HTML = """
+<div id="page-root" class="application-root">
+  <header class="main-header">
+    <h1 class="header-title">Application Dashboard</h1>
+    <svg class="header-icon"><path d="M0 0"/></svg>
+    <script>console.log("analytics tracking");</script>
+    <button id="help-btn">Help</button>
+  </header>
+  <div class="sidebar-nav">
+    <ul><li>Dashboard</li><li>Settings</li></ul>
+  </div>
+  <main class="page-body">
+    <div class="section-toolbar">
+      <h2 class="section-heading">Personal Details</h2>
+      <button class="btn-refresh">Refresh</button>
+    </div>
+    <div class="unrelated-section">
+      <p>System status notices</p>
+    </div>
+    <div class="form-container">
+      <div class="field-group form-group" data-field="fld-1">
+        <label for="full_name">Full Name</label>
+        <input id="full_name" name="name" type="text" />
+      </div>
+      <div class="field-group form-group" data-field="fld-2">
+        <label for="user_email">Email Address</label>
+        <input id="user_email" name="email" type="email" />
+      </div>
+      <div class="field-group form-group" data-field="fld-3">
+        <label for="user_phone">Phone Number</label>
+        <input id="user_phone" name="phone" type="tel" />
+      </div>
+    </div>
+  </main>
+</div>
+"""
+
+
+def test_upper_include_spares_ancestral_uncles():
+    """Verify --upper-include spares whitelisted upper-tier elements while other uncles and fields are pruned."""
+    # 1. Default: without upper-include, all upper uncles (header, sidebar, toolbar) are pruned
+    default_res = HTMLDiagnosticService.process_html_pipeline(
+        UPPER_TIER_HTML,
+        search_query="Email Address",
+        pretty=True,
+    )
+    assert "Email Address" in default_res
+    assert "user_email" in default_res
+    assert "main-header" not in default_res
+    assert "sidebar-nav" not in default_res
+    assert "section-toolbar" not in default_res
+    assert "unrelated-section" not in default_res
+    assert "Full Name" not in default_res
+    assert "Phone Number" not in default_res
+
+    # 2. With --upper-include "header,.section-toolbar", spared elements are retained
+    spared_res = HTMLDiagnosticService.process_html_pipeline(
+        UPPER_TIER_HTML,
+        search_query="Email Address",
+        upper_include="header,.section-toolbar",
+        pretty=True,
+    )
+    assert "Email Address" in spared_res
+    assert "main-header" in spared_res
+    assert "Application Dashboard" in spared_res
+    assert "section-toolbar" in spared_res
+    assert "Personal Details" in spared_res
+    # Un-whitelisted upper uncles and lower siblings must remain pruned
+    assert "sidebar-nav" not in spared_res
+    assert "unrelated-section" not in spared_res
+    assert "Full Name" not in spared_res
+    assert "Phone Number" not in spared_res
+
+
+def test_upper_exclude_prunes_inside_spared_elements():
+    """Verify --upper-exclude purges child elements (e.g. svg, script) exclusively inside spared upper elements."""
+    res = HTMLDiagnosticService.process_html_pipeline(
+        UPPER_TIER_HTML,
+        search_query="Email Address",
+        upper_include="header",
+        upper_exclude="svg,script",
+        pretty=True,
+    )
+    # Header is spared
+    assert "main-header" in res
+    assert "Application Dashboard" in res
+    assert "help-btn" in res
+
+    # Svg and script inside header are purged / stubbed
+    assert "analytics tracking" not in res
+    assert "M0 0" not in res
+    assert "[SVG ICON]" in res
+    assert "[SCRIPT]" in res
+
+
+def test_upper_exclude_graceful_noop():
+    """Verify --upper-exclude operates as a graceful no-op if --upper-include is omitted or tags are absent."""
+    # When --upper-include is omitted, upper_exclude has nothing to act on and produces no error
+    res_no_include = HTMLDiagnosticService.process_html_pipeline(
+        UPPER_TIER_HTML,
+        search_query="Email Address",
+        upper_exclude="svg,script",
+        pretty=True,
+    )
+    assert "Email Address" in res_no_include
+    assert "main-header" not in res_no_include
+
+    # When upper_exclude specifies non-existent tags, it is a clean no-op
+    res_unmatched = HTMLDiagnosticService.process_html_pipeline(
+        UPPER_TIER_HTML,
+        search_query="Email Address",
+        upper_include="header",
+        upper_exclude="video,canvas,.nonexistent-class",
+        pretty=True,
+    )
+    assert "main-header" in res_unmatched
+    assert "Application Dashboard" in res_unmatched
+
+
+def test_upper_and_lower_tier_independence():
+    """Verify lower-tier --include and --exclude do NOT prune or corrupt spared upper-tier elements."""
+    res = HTMLDiagnosticService.process_html_pipeline(
+        UPPER_TIER_HTML,
+        search_query="Email Address",
+        upper_include="header",
+        include_tags="label,input",  # Lower tier whitelist does NOT include 'header', 'h1', or 'button'
+        pretty=True,
+    )
+    # Spared upper tier must NOT be destroyed by lower-tier whitelist
+    assert "main-header" in res
+    assert "Application Dashboard" in res
+    assert "help-btn" in res
+
+    # Lower tier field container only retains whitelisted tags
+    assert "user_email" in res
+    assert "Email Address" in res
+
 
