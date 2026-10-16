@@ -188,45 +188,118 @@ def test_include_over_exclude_precedence():
     assert "<label" in result
 
 
-def test_line_slicing():
-    """Verify 1-indexed line slicing semantics."""
+def test_line_slicing_5_variants():
+    """Verify 1-indexed line slicing semantics across all 5 variants."""
     lines_text = "\n".join([f"Line {i}" for i in range(1, 21)])
 
-    # 1. Explicit range 1:10
-    s1 = HTMLDiagnosticService.apply_line_slice(lines_text, "1:10")
-    assert s1.splitlines() == [f"Line {i}" for i in range(1, 11)]
+    # 1. Variant 1: Explicit range 5:15 (lines 5 through 15 inclusive)
+    s1 = HTMLDiagnosticService.apply_line_slice(lines_text, "5:15")
+    assert s1.splitlines() == [f"Line {i}" for i in range(5, 16)]
 
-    # 2. Limit format 5
-    s2 = HTMLDiagnosticService.apply_line_slice(lines_text, "5")
-    assert s2.splitlines() == [f"Line {i}" for i in range(1, 6)]
+    # 2. Variant 2: Head as bare integer 10 (lines 1 through 10)
+    s2 = HTMLDiagnosticService.apply_line_slice(lines_text, "10")
+    assert s2.splitlines() == [f"Line {i}" for i in range(1, 11)]
 
-    # 3. Colon limit :5
-    s3 = HTMLDiagnosticService.apply_line_slice(lines_text, ":5")
-    assert s3.splitlines() == [f"Line {i}" for i in range(1, 6)]
+    # 3. Variant 3: Head slice notation :15 (lines 1 through 15)
+    s3 = HTMLDiagnosticService.apply_line_slice(lines_text, ":15")
+    assert s3.splitlines() == [f"Line {i}" for i in range(1, 16)]
 
-    # 4. Offset to end 15:
+    # 4. Variant 4: Offset to end 15: (lines 15 through 20)
     s4 = HTMLDiagnosticService.apply_line_slice(lines_text, "15:")
     assert s4.splitlines() == [f"Line {i}" for i in range(15, 21)]
 
-    # 5. Tail offset -5:
+    # 5. Variant 5: Tail slice -5: (last 5 lines, lines 16 through 20)
     s5 = HTMLDiagnosticService.apply_line_slice(lines_text, "-5:")
     assert s5.splitlines() == [f"Line {i}" for i in range(16, 21)]
 
 
-def test_char_slicing():
-    """Verify 0-indexed char slicing semantics."""
-    chars_text = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+def test_line_slicing_target_anchored_window():
+    """Verify target-anchored window preceding line X with banner when exceeding ceiling."""
+    # Create 500 lines of 100 characters each (~50,000 characters total)
+    large_lines = "\n".join([f"Line {i:03d} " + "x" * 90 for i in range(1, 501)])
 
-    # Explicit range
-    assert HTMLDiagnosticService.apply_char_slice(chars_text, "0:10") == "0123456789"
-    # Limit
-    assert HTMLDiagnosticService.apply_char_slice(chars_text, "10") == "0123456789"
-    # Colon limit
-    assert HTMLDiagnosticService.apply_char_slice(chars_text, ":10") == "0123456789"
-    # Offset to end
-    assert HTMLDiagnosticService.apply_char_slice(chars_text, "10:15") == "ABCDE"
-    # Tail
-    assert HTMLDiagnosticService.apply_char_slice(chars_text, "-5:") == "VWXYZ"
+    # Target line 500 with default ceiling 20,000 characters
+    res = HTMLDiagnosticService.apply_line_slice(large_lines, ":500", max_chars=20000, show_all=False)
+
+    # Must contain target line 500 at the end
+    assert "Line 500" in res
+
+    # Must contain the target-anchored window notification banner
+    assert "[⚠️ Note: Displaying target-anchored window preceding line 500" in res
+    assert "Use --all to view from line 1]" in res
+
+    # Line 1 must NOT be in the window because ceiling clamped the window backward
+    assert "Line 001" not in res
+
+    # Same target-anchored behavior with bare integer Variant 2
+    res_bare = HTMLDiagnosticService.apply_line_slice(large_lines, "500", max_chars=20000, show_all=False)
+    assert "[⚠️ Note: Displaying target-anchored window preceding line 500" in res_bare
+    assert "Line 500" in res_bare
+    assert "Line 001" not in res_bare
+
+    # Bypass with show_all=True: must contain Line 001 through Line 500 and NO banner
+    res_all = HTMLDiagnosticService.apply_line_slice(large_lines, ":500", max_chars=20000, show_all=True)
+    assert "Line 001" in res_all
+    assert "Line 500" in res_all
+    assert "[⚠️ Note:" not in res_all
+
+
+def test_line_slicing_forward_stream_clamping():
+    """Verify Variant 4 (<X>:) and Variant 5 (-<X>:) clamp at character ceiling with truncation notice."""
+    # 500 lines of 100 chars
+    large_lines = "\n".join([f"Line {i:03d} " + "x" * 90 for i in range(1, 501)])
+
+    # Variant 4: 20: -> streams forward until 20,000 chars, then truncates with warning notice
+    res_v4 = HTMLDiagnosticService.apply_line_slice(large_lines, "20:", max_chars=20000, show_all=False)
+    assert "Line 020" in res_v4
+    assert "... [⚠️ Truncated: showing first" in res_v4
+    assert "Line 500" not in res_v4
+
+    # Variant 5: -250: -> streams last 250 lines (~25,000 chars), clamped at 20,000
+    res_v5 = HTMLDiagnosticService.apply_line_slice(large_lines, "-250:", max_chars=20000, show_all=False)
+    assert "... [⚠️ Truncated: showing first" in res_v5
+
+    # Variant 1: Explicit range 20:300 is UNCONSTRAINED despite exceeding 20,000 chars
+    res_v1 = HTMLDiagnosticService.apply_line_slice(large_lines, "20:300", max_chars=20000, show_all=False)
+    assert "Line 020" in res_v1
+    assert "Line 300" in res_v1
+    assert "Truncated" not in res_v1
+
+
+def test_char_slicing_differential_ceiling():
+    """Verify Section 3 Differential Ceiling Rules for --chars."""
+    # 100,000 characters payload
+    large_payload = "A" * 100000
+
+    # Variant 1 (<s>:<e>): UNCONSTRAINED
+    s1 = HTMLDiagnosticService.apply_char_slice(large_payload, "0:50000", max_chars=20000)
+    assert len(s1) == 50000
+    assert "Truncated" not in s1
+
+    # Variant 2 (<X>): UNCONSTRAINED [0, X]
+    s2 = HTMLDiagnosticService.apply_char_slice(large_payload, "50000", max_chars=20000)
+    assert len(s2) == 50000
+    assert "Truncated" not in s2
+
+    # Variant 3 (:<X>): UNCONSTRAINED [0, X]
+    s3 = HTMLDiagnosticService.apply_char_slice(large_payload, ":50000", max_chars=20000)
+    assert len(s3) == 50000
+    assert "Truncated" not in s3
+
+    # Variant 4 (<X>:): CLAMPED BY DEFAULT CEILING (20,000) + truncation notice
+    s4 = HTMLDiagnosticService.apply_char_slice(large_payload, "1000:", max_chars=20000, show_all=False)
+    assert "... [⚠️ Truncated: showing first 20,000 of 99,000 characters" in s4
+    assert s4.startswith("A" * 20000)
+
+    # Variant 4 with show_all=True: unconstrained
+    s4_all = HTMLDiagnosticService.apply_char_slice(large_payload, "1000:", max_chars=20000, show_all=True)
+    assert len(s4_all) == 99000
+    assert "Truncated" not in s4_all
+
+    # Variant 5 (-<X>:): UNCONSTRAINED (exactly the last X characters)
+    s5 = HTMLDiagnosticService.apply_char_slice(large_payload, "-50000:", max_chars=20000)
+    assert len(s5) == 50000
+    assert "Truncated" not in s5
 
 
 def test_safety_guard_truncation():

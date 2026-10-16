@@ -247,87 +247,244 @@ class HTMLDiagnosticService:
         return "\n".join(lines)
 
     @classmethod
-    def apply_line_slice(cls, text: str, slice_str: Optional[str]) -> str:
-        """Applies 1-indexed Python slice notation to line-formatted output."""
+    def _collect_lines_backwards(
+        cls,
+        lines: List[str],
+        target_line: int,
+        max_chars: Optional[int],
+        show_all: bool,
+    ) -> Tuple[List[str], int, int, bool]:
+        """
+        Anchors at target_line (1-indexed) and collects preceding lines backwards
+        until reaching line 1 or the max_chars ceiling.
+        Returns: (selected_lines, start_line_num, end_line_num, truncated_start)
+        """
+        total_lines = len(lines)
+        if total_lines == 0 or target_line <= 0:
+            return [], 0, 0, False
+
+        end_line_num = min(target_line, total_lines)
+
+        # If show_all or unconstrained, return from line 1 to end_line_num
+        if show_all or max_chars is None or max_chars <= 0:
+            return lines[:end_line_num], 1, end_line_num, False
+
+        # Check if lines from line 1 to end_line_num fit within max_chars
+        full_candidate = lines[:end_line_num]
+        full_len = sum(len(l) for l in full_candidate) + max(0, len(full_candidate) - 1)
+        if full_len <= max_chars:
+            return full_candidate, 1, end_line_num, False
+
+        # Collect backwards from end_line_num - 1
+        collected: List[str] = []
+        curr_chars = 0
+        start_idx = end_line_num - 1
+
+        for i in range(end_line_num - 1, -1, -1):
+            line_len = len(lines[i])
+            needed = line_len + (1 if collected else 0)
+            if curr_chars + needed > max_chars:
+                if not collected:
+                    collected.append(lines[i])
+                    start_idx = i
+                break
+            collected.append(lines[i])
+            curr_chars += needed
+            start_idx = i
+
+        collected.reverse()
+        start_line_num = start_idx + 1
+        truncated_start = (start_line_num > 1)
+        return collected, start_line_num, end_line_num, truncated_start
+
+    @classmethod
+    def _stream_lines_forward_clamped(
+        cls,
+        candidate_lines: List[str],
+        max_chars: Optional[int],
+        show_all: bool,
+    ) -> str:
+        """
+        Streams lines forward until max_chars ceiling is reached,
+        truncating and appending a warning notice if ceiling is exceeded.
+        """
+        full_text = "\n".join(candidate_lines)
+        total_chars = len(full_text)
+        if show_all or max_chars is None or max_chars <= 0 or total_chars <= max_chars:
+            return full_text
+
+        streamed: List[str] = []
+        curr_chars = 0
+        for line in candidate_lines:
+            needed = len(line) + (1 if streamed else 0)
+            if curr_chars + needed > max_chars:
+                if not streamed:
+                    streamed.append(line[:max_chars])
+                    curr_chars = max_chars
+                break
+            streamed.append(line)
+            curr_chars += needed
+
+        streamed_text = "\n".join(streamed)
+        actual_chars = len(streamed_text)
+        notice = f"\n... [⚠️ Truncated: showing first {actual_chars:,} of {total_chars:,} characters. Use --all or --max-chars <N> to view more]"
+        return f"{streamed_text}{notice}"
+
+    @classmethod
+    def apply_line_slice(
+        cls,
+        text: str,
+        slice_str: Optional[str],
+        max_chars: Optional[int] = 20000,
+        show_all: bool = False,
+    ) -> str:
+        """
+        Applies 1-indexed Python slice notation to line-formatted output
+        implementing all 5 Stage 5 variants and differential ceiling rules.
+        """
         if not slice_str or not slice_str.strip():
             return text
 
         s = slice_str.strip()
         lines = text.splitlines()
-        total = len(lines)
+        total_lines = len(lines)
+        if total_lines == 0:
+            return text
 
+        # Variant 2 (bare integer <X>) or negative tail integer (-<X>)
         if ":" not in s:
             try:
-                limit = int(s)
-                return "\n".join(lines[:limit] if limit >= 0 else lines[limit:])
+                val = int(s)
+                if val < 0:
+                    # Variant 5 equivalent without colon: tail lines (-<X>)
+                    tail_val = abs(val)
+                    candidate = lines[-tail_val:] if total_lines > tail_val else lines
+                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all)
+                else:
+                    # Variant 2: Head as bare integer <X> -> Target-anchored backwards window
+                    collected, start_line, end_line, truncated = cls._collect_lines_backwards(
+                        lines, target_line=val, max_chars=max_chars, show_all=show_all
+                    )
+                    content = "\n".join(collected)
+                    if truncated:
+                        banner = f"[⚠️ Note: Displaying target-anchored window preceding line {val} (lines {start_line} to {end_line}). Use --all to view from line 1]"
+                        return f"{banner}\n{content}"
+                    return content
             except ValueError:
                 return text
 
         parts = s.split(":", 1)
         start_str, end_str = parts[0].strip(), parts[1].strip()
 
+        # Variant 3: Head slice notation (:<X>)
         if not start_str and end_str:
             try:
-                limit = int(end_str)
-                return "\n".join(lines[:limit] if limit >= 0 else lines[limit:])
+                val = int(end_str)
+                if val <= 0:
+                    target_line = max(1, total_lines + val)
+                else:
+                    target_line = val
+
+                collected, start_line, end_line, truncated = cls._collect_lines_backwards(
+                    lines, target_line=target_line, max_chars=max_chars, show_all=show_all
+                )
+                content = "\n".join(collected)
+                if truncated:
+                    banner = f"[⚠️ Note: Displaying target-anchored window preceding line {target_line} (lines {start_line} to {end_line}). Use --all to view from line 1]"
+                    return f"{banner}\n{content}"
+                return content
             except ValueError:
                 return text
 
+        # Variant 4 (<X>:) or Variant 5 (-<X>:)
         if start_str and not end_str:
             try:
                 start_val = int(start_str)
-                if start_val > 0:
-                    start_idx = min(start_val - 1, total)
-                    return "\n".join(lines[start_idx:])
-                elif start_val < 0:
-                    start_idx = max(total + start_val, 0)
-                    return "\n".join(lines[start_idx:])
-                return text
+                if start_val < 0:
+                    # Variant 5: Tail slice (-<X>:) -> CLAMPED BY DEFAULT CEILING (20,000)
+                    tail_val = abs(start_val)
+                    candidate = lines[-tail_val:] if total_lines > tail_val else lines
+                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all)
+                else:
+                    # Variant 4: Offset to end (<X>:) -> CLAMPED BY DEFAULT CEILING (20,000)
+                    start_idx = max(0, start_val - 1) if start_val > 0 else 0
+                    candidate = lines[start_idx:]
+                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all)
             except ValueError:
                 return text
 
+        # Variant 1: Explicit Range (<start>:<end>) -> UNCONSTRAINED
         try:
             start_val = int(start_str)
             end_val = int(end_str)
-            start_idx = max(start_val - 1, 0) if start_val > 0 else max(total + start_val, 0)
-            end_idx = end_val if end_val >= 0 else max(total + end_val, 0)
+            start_idx = max(0, start_val - 1) if start_val > 0 else max(total_lines + start_val, 0)
+            end_idx = min(total_lines, end_val) if end_val >= 0 else max(total_lines + end_val, 0)
             return "\n".join(lines[start_idx:end_idx])
         except ValueError:
             return text
 
     @classmethod
-    def apply_char_slice(cls, text: str, slice_str: Optional[str]) -> str:
-        """Applies 0-indexed slice notation to character stream."""
+    def apply_char_slice(
+        cls,
+        text: str,
+        slice_str: Optional[str],
+        max_chars: Optional[int] = 20000,
+        show_all: bool = False,
+    ) -> str:
+        """
+        Applies 0-indexed slice notation to character stream
+        implementing all 5 Stage 5 variants and differential ceiling rules.
+        """
         if not slice_str or not slice_str.strip():
             return text
 
         s = slice_str.strip()
-        total = len(text)
 
+        # Variant 2 (bare integer <X>) or negative tail integer (-<X>)
         if ":" not in s:
             try:
-                limit = int(s)
-                return text[:limit] if limit >= 0 else text[limit:]
+                val = int(s)
+                if val < 0:
+                    # Variant 5 equivalent without colon: tail chars -> UNCONSTRAINED
+                    tail = abs(val)
+                    return text[-tail:]
+                else:
+                    # Variant 2: Head as bare integer <X> -> UNCONSTRAINED [0, X]
+                    return text[:val]
             except ValueError:
                 return text
 
         parts = s.split(":", 1)
         start_str, end_str = parts[0].strip(), parts[1].strip()
 
+        # Variant 3: Head slice notation (:<X>) -> UNCONSTRAINED [0, X]
         if not start_str and end_str:
             try:
-                limit = int(end_str)
-                return text[:limit] if limit >= 0 else text[limit:]
+                val = int(end_str)
+                return text[:val]
             except ValueError:
                 return text
 
+        # Variant 4 (<X>:) or Variant 5 (-<X>:)
         if start_str and not end_str:
             try:
                 start_val = int(start_str)
-                return text[start_val:]
+                if start_val < 0:
+                    # Variant 5: Tail slice (-<X>:) -> UNCONSTRAINED (exactly the last X chars)
+                    tail = abs(start_val)
+                    return text[-tail:]
+                else:
+                    # Variant 4: Offset to end (<X>:) -> CLAMPED BY DEFAULT CEILING (20,000)
+                    raw_slice = text[start_val:]
+                    slice_total = len(raw_slice)
+                    if not show_all and max_chars is not None and max_chars > 0 and slice_total > max_chars:
+                        truncated = raw_slice[:max_chars]
+                        return f"{truncated}\n... [⚠️ Truncated: showing first {max_chars:,} of {slice_total:,} characters. Use --all or --max-chars <N> to view more]"
+                    return raw_slice
             except ValueError:
                 return text
 
+        # Variant 1: Explicit Range (<start>:<end>) -> UNCONSTRAINED
         try:
             start_val = int(start_str)
             end_val = int(end_str)
@@ -390,12 +547,20 @@ class HTMLDiagnosticService:
         # Stage 4: DOM Formatting & Indentation
         formatted = cls.format_html(root, pretty=pretty)
 
-        # Stage 5: Final Slicing & Safety Guard
+        # Stage 5: Final Slicing & Safety Guard (with Differential Ceiling Rules)
         if lines_slice:
-            formatted = cls.apply_line_slice(formatted, lines_slice)
+            formatted = cls.apply_line_slice(
+                formatted, lines_slice, max_chars=max_chars, show_all=show_all
+            )
 
         if chars_slice:
-            formatted = cls.apply_char_slice(formatted, chars_slice)
+            formatted = cls.apply_char_slice(
+                formatted, chars_slice, max_chars=max_chars, show_all=show_all
+            )
 
-        guarded = cls.apply_safety_guard(formatted, max_chars=max_chars, show_all=show_all)
-        return guarded
+        if not lines_slice and not chars_slice:
+            formatted = cls.apply_safety_guard(
+                formatted, max_chars=max_chars, show_all=show_all
+            )
+
+        return formatted
