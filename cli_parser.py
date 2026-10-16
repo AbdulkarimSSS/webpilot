@@ -324,7 +324,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Do not include options",
     )
-    p_find.add_argument("--query", "-q", help="Filter options by search substring or regex")
+    p_find.add_argument("--query", help="Filter options by search substring or regex")
     p_find.add_argument(
         "--limit",
         "--show",
@@ -351,7 +351,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         dest="all_options",
         action="store_true",
         default=False,
-        help="Display all options without truncation (full option dump)",
+        help="Display all options or HTML without truncation (full dump)",
     )
     p_find.add_argument(
         "--page",
@@ -367,6 +367,54 @@ def build_cli_parser() -> argparse.ArgumentParser:
         type=int,
         default=20,
         help="Number of options per page when using --page (default: 20)",
+    )
+    p_find.add_argument(
+        "--search", "-q",
+        type=str,
+        default=None,
+        help="Filter HTML tree to elements matching substring or regex ('re:<pattern>'), pruning non-ancestral sibling branches",
+    )
+    p_find.add_argument(
+        "--include",
+        type=str,
+        default=None,
+        help="Comma-separated list of HTML tag names to retain (e.g. 'div,label,input')",
+    )
+    p_find.add_argument(
+        "--exclude",
+        type=str,
+        default=None,
+        help="Comma-separated list of HTML tag names to prune (e.g. 'svg,script,style')",
+    )
+    p_find.add_argument(
+        "--lines",
+        type=str,
+        default=None,
+        help="Line slice filter on formatted output: '<start>:<end>', ':<end>', '<start>:', or '-<tail>:'",
+    )
+    p_find.add_argument(
+        "--chars",
+        type=str,
+        default=None,
+        help="Character slice filter on formatted output: '<start>:<end>', ':<end>', '<start>:', or '-<tail>:'",
+    )
+    p_find.add_argument(
+        "--max-chars",
+        type=int,
+        default=20000,
+        help="Maximum character ceiling before truncation (default: 20000; bypass with --all)",
+    )
+    p_find.add_argument(
+        "--pretty",
+        action="store_true",
+        default=True,
+        help="Format and indent HTML tree into distinct lines (default: True)",
+    )
+    p_find.add_argument(
+        "--raw",
+        action="store_true",
+        default=False,
+        help="Disable pretty-printing and output unformatted raw DOM string",
     )
     p_find.add_argument("--html", action="store_true", help="Include outerHTML in diagnostic output")
     p_find.add_argument(

@@ -23,6 +23,20 @@ def find_cmd(args: argparse.Namespace) -> None:
         print("[!] Error: You must specify a target or provide a --selector (e.g. wp find --selector 'div.datePicker').", file=sys.stderr)
         sys.exit(1)
 
+    search_val = getattr(args, "search", None)
+    want_html = bool(
+        getattr(args, "html", False)
+        or up_val > 0
+        or search_val
+        or getattr(args, "include", None)
+        or getattr(args, "exclude", None)
+        or getattr(args, "lines", None)
+        or getattr(args, "chars", None)
+    )
+    opt_query = getattr(args, "query", None)
+    if not opt_query and not (getattr(args, "html", False) or up_val > 0) and search_val:
+        opt_query = search_val
+
     if getattr(args, "standalone", False) and args.url:
         from playwright.sync_api import sync_playwright
         from services.field_interaction_service import FieldInteractionService
@@ -38,8 +52,8 @@ def find_cmd(args: argparse.Namespace) -> None:
             details = svc.probe_field(
                 target=target_val,
                 include_options=args.options,
-                query=args.query,
-                include_html=args.html or (up_val > 0),
+                query=opt_query,
+                include_html=want_html,
                 up_levels=up_val,
                 screenshot_path=screen_val,
                 selector=selector_val,
@@ -59,8 +73,8 @@ def find_cmd(args: argparse.Namespace) -> None:
             target_field=target_val,
             selector=selector_val,
             include_options=args.options,
-            query=args.query,
-            include_html=args.html or (up_val > 0),
+            query=opt_query,
+            include_html=want_html,
             up_levels=up_val,
             screenshot_path=screen_val,
             headed=args.headed,
@@ -75,6 +89,40 @@ def find_cmd(args: argparse.Namespace) -> None:
             sys.exit(1)
 
         details = resp.field_details or {}
+
+    processed_html: Optional[str] = None
+    outer_html = details.get("outerHTML") or details.get("html")
+    if want_html:
+        if outer_html:
+            try:
+                from services.html_diagnostic_service import (
+                    HTMLDiagnosticService,
+                    DiagnosticSearchNotFoundError,
+                )
+                pretty_mode = not getattr(args, "raw", False)
+                show_all = getattr(args, "all_options", False)
+                processed_html = HTMLDiagnosticService.process_html_pipeline(
+                    raw_html=outer_html,
+                    search_query=search_val,
+                    include_tags=getattr(args, "include", None),
+                    exclude_tags=getattr(args, "exclude", None),
+                    pretty=pretty_mode,
+                    lines_slice=getattr(args, "lines", None),
+                    chars_slice=getattr(args, "chars", None),
+                    max_chars=getattr(args, "max_chars", 20000),
+                    show_all=show_all,
+                )
+                if "outerHTML" in details:
+                    details["outerHTML"] = processed_html
+                if "html" in details:
+                    details["html"] = processed_html
+            except DiagnosticSearchNotFoundError as e:
+                print(f"\n[!] Error: {e}", file=sys.stderr)
+                sys.exit(1)
+        elif search_val:
+            print(f"\n[!] Error: Search target '{search_val}' not found within element boundary", file=sys.stderr)
+            sys.exit(1)
+
     if getattr(args, "json", False):
         print(json.dumps(details, indent=2, ensure_ascii=False))
         return
@@ -172,9 +220,9 @@ def find_cmd(args: argparse.Namespace) -> None:
             next_page_hint = f"--page {(page or 1) + 1}" if page is not None else f"--from {end_idx}"
             print(f"   ... and {remaining} more options (use --all, --show <N>, {next_page_hint}, or -q to filter).")
 
-    outer_html = details.get("outerHTML") or details.get("html")
-    if (args.html or up_val > 0) and outer_html:
+    final_html = processed_html or outer_html
+    if (want_html or getattr(args, "html", False) or up_val > 0) and final_html:
         max_str = " - PAGE ROOT" if max_reached else ""
         header_lvl = f" (Level +{ancestor_d}{max_str})" if ancestor_d > 0 else ""
-        print(f"\n 🌐 Outer HTML{header_lvl}:\n{outer_html}")
+        print(f"\n 🌐 Outer HTML{header_lvl}:\n{final_html}")
     print("═" * 70 + "\n")
