@@ -6,9 +6,11 @@ Implements a 5-stage linear pipeline:
 
 from __future__ import annotations
 
+import json
+import os
 import re
-from typing import Any, Dict, List, Optional, Set
-from bs4 import BeautifulSoup, Tag, NavigableString
+from typing import Any, Dict, List, Optional, Set, Tuple
+from bs4 import BeautifulSoup, Tag, NavigableString, Comment
 
 
 class DiagnosticSearchNotFoundError(Exception):
@@ -18,6 +20,166 @@ class DiagnosticSearchNotFoundError(Exception):
 
 class HTMLDiagnosticService:
     """Multi-stage surgical HTML filtering and formatting pipeline."""
+
+    _pruned_registry: Dict[str, Dict[str, Any]] = {}
+    _exc_counter: int = 0
+    PRUNED_STORE_DIR: str = os.path.expanduser("~/.webpilot")
+    PRUNED_STORE_FILE: str = os.path.join(PRUNED_STORE_DIR, "pruned_nodes.json")
+
+    @classmethod
+    def clear_pruned_store(cls) -> None:
+        """Clears both in-memory registry and disk cache for pruned nodes."""
+        cls._pruned_registry.clear()
+        cls._exc_counter = 0
+        if os.path.exists(cls.PRUNED_STORE_FILE):
+            try:
+                os.remove(cls.PRUNED_STORE_FILE)
+            except Exception:
+                pass
+
+    @classmethod
+    def _save_pruned_store(cls) -> None:
+        """Persists in-memory pruned registry to disk."""
+        try:
+            os.makedirs(cls.PRUNED_STORE_DIR, exist_ok=True)
+            with open(cls.PRUNED_STORE_FILE, "w", encoding="utf-8") as f:
+                json.dump(cls._pruned_registry, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass
+
+    @classmethod
+    def _load_pruned_store(cls) -> None:
+        """Loads pruned registry from disk cache if file exists."""
+        if os.path.exists(cls.PRUNED_STORE_FILE):
+            try:
+                with open(cls.PRUNED_STORE_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        cls._pruned_registry.update(data)
+            except Exception:
+                pass
+
+    @classmethod
+    def _compute_depth(cls, tag: Tag) -> int:
+        """Calculates the maximum tree depth of descendants inside tag."""
+        max_depth = 0
+        for desc in tag.find_all():
+            d = 0
+            curr = desc
+            while curr != tag and curr is not None:
+                d += 1
+                curr = curr.parent
+            if d > max_depth:
+                max_depth = d
+        return max_depth
+
+    @classmethod
+    def register_pruned_node(
+        cls,
+        node: Tag,
+        include_tags: Optional[str] = None,
+    ) -> str:
+        """Analyzes a pruned node, registers it with an @exc-N ID, and returns the ID."""
+        cls._exc_counter += 1
+        exc_id = f"@exc-{cls._exc_counter}"
+
+        tag_name = node.name.lower() if node.name else "unknown"
+        dom_id = node.get("id")
+        raw_classes = node.get("class", [])
+        classes = (
+            [c.lower() for c in raw_classes]
+            if isinstance(raw_classes, list)
+            else [str(raw_classes).lower()]
+        ) if raw_classes else []
+
+        raw_html = str(node)
+        chars = len(raw_html)
+        lines = len(raw_html.splitlines())
+        depth = cls._compute_depth(node)
+
+        element_counts: Dict[str, int] = {}
+        field_types: Dict[str, int] = {}
+
+        for el in node.find_all():
+            t_name = el.name.lower()
+            element_counts[t_name] = element_counts.get(t_name, 0) + 1
+            if t_name == "input":
+                inp_type = el.get("type", "text").lower()
+                field_types[inp_type] = field_types.get(inp_type, 0) + 1
+
+        matching_include = 0
+        if include_tags:
+            inc_set = {t.strip().lower() for t in include_tags.split(",") if t.strip()}
+            matching_include = sum(element_counts.get(t, 0) for t in inc_set)
+
+        selector_parts = [tag_name]
+        if classes:
+            selector_parts.append("." + ".".join(classes[:3]))
+        if dom_id:
+            selector_parts.append(f"#{dom_id}")
+        selector_desc = "".join(selector_parts)
+
+        meta = {
+            "exc_id": exc_id,
+            "tag": tag_name,
+            "dom_id": dom_id,
+            "classes": classes,
+            "selector_desc": selector_desc,
+            "raw_html": raw_html,
+            "chars": chars,
+            "lines": lines,
+            "depth": depth,
+            "element_counts": element_counts,
+            "field_types": field_types,
+            "matching_include": matching_include,
+        }
+
+        cls._pruned_registry[exc_id] = meta
+        cls._save_pruned_store()
+        return exc_id
+
+    @classmethod
+    def get_pruned_node(cls, exc_id: str) -> Optional[Dict[str, Any]]:
+        """Retrieves pruned node metadata by @exc-N identifier."""
+        if exc_id in cls._pruned_registry:
+            return cls._pruned_registry[exc_id]
+        cls._load_pruned_store()
+        return cls._pruned_registry.get(exc_id)
+
+    @classmethod
+    def format_pruned_info(cls, meta: Dict[str, Any]) -> str:
+        """Formats pruned node metadata into a concise, token-saving diagnostic block."""
+        exc_id = meta.get("exc_id", "@exc")
+        selector_desc = meta.get("selector_desc", "element")
+        chars = meta.get("chars", 0)
+        lines = meta.get("lines", 0)
+        depth = meta.get("depth", 0)
+        element_counts = meta.get("element_counts", {})
+        field_types = meta.get("field_types", {})
+        matching_include = meta.get("matching_include", 0)
+
+        out = [f"{exc_id}  ({selector_desc})"]
+        out.append(f"  chars: {chars:,}   lines: {lines}   depth: {depth} levels")
+
+        if matching_include > 0:
+            out.append(f"  include matches: {matching_include}")
+
+        if element_counts:
+            out.append("  inner elements:")
+            priority_order = ["input", "select", "textarea", "button", "label", "table", "div", "span"]
+            sorted_tags = sorted(
+                element_counts.keys(),
+                key=lambda t: (priority_order.index(t) if t in priority_order else 99, -element_counts[t])
+            )
+            for t in sorted_tags[:10]:
+                cnt = element_counts[t]
+                extra = ""
+                if t == "input" and field_types:
+                    types_str = ", ".join(f"{k}: {v}" for k, v in list(field_types.items())[:4])
+                    extra = f"   (types: {types_str})"
+                out.append(f"    • {t:<8} x{cnt}{extra}")
+
+        return "\n".join(out)
 
     FIELD_CONTAINER_CLASSES: Set[str] = {
         "form-group",
@@ -222,11 +384,12 @@ class HTMLDiagnosticService:
         matched_node: Tag,
         upper_include: Optional[str] = None,
         upper_exclude: Optional[str] = None,
+        include_tags: Optional[str] = None,
     ) -> Tuple[Tag, Tag]:
         """
         Prunes all sibling branches outside the ancestral spine down to the field container,
         sparing upper uncle branches matching upper_include, and purging child elements matching upper_exclude
-        from inside spared upper-tier elements.
+        from inside spared upper-tier elements. Pruned elements are indexed with @exc-N identifiers.
         Returns: (root, field_container)
         """
         if matched_node == root:
@@ -267,7 +430,10 @@ class HTMLDiagnosticService:
                         if upper_exc_tokens:
                             cls._apply_upper_exclude(child, upper_exc_tokens)
                     else:
-                        child.decompose()
+                        exc_id = cls.register_pruned_node(child, include_tags=include_tags)
+                        meta = cls._pruned_registry[exc_id]
+                        comment_text = f" [PRUNED: {exc_id} ({meta['tag']}) | {meta['chars']:,} chars | {meta['lines']} lines] "
+                        child.replace_with(Comment(comment_text))
 
             curr = parent
 
@@ -280,7 +446,11 @@ class HTMLDiagnosticService:
         include_tags: Optional[str] = None,
         exclude_tags: Optional[str] = None,
     ) -> Tag:
-        """Applies Stage 3 include/exclude structural tag filters with include > exclude precedence."""
+        """
+        Applies Stage 3 include/exclude structural tag filters.
+        Precedence: Exclude takes priority over Include upon conflict (Exclude > Include).
+        Result = (Include elements) - (Exclude elements).
+        """
         inc_set: Optional[Set[str]] = (
             {t.strip().lower() for t in include_tags.split(",") if t.strip()}
             if include_tags
@@ -292,10 +462,14 @@ class HTMLDiagnosticService:
             else None
         )
 
-        # 1. Exclude pass (only for tags not explicitly protected by whitelist)
+        # 1. Effective include whitelist is stripped of any explicitly excluded tags
+        effective_inc: Optional[Set[str]] = None
+        if inc_set is not None:
+            effective_inc = inc_set - exc_set if exc_set else inc_set
+
+        # 2. Exclude pass (strips or stubs tags matching exc_set)
         if exc_set:
-            active_excludes = exc_set - inc_set if inc_set else exc_set
-            for tag_name in active_excludes:
+            for tag_name in exc_set:
                 for el in list(root.find_all(tag_name)):
                     if el.parent is None:
                         continue
@@ -306,21 +480,24 @@ class HTMLDiagnosticService:
                     else:
                         el.decompose()
 
-        # 2. Include pass (whitelist)
-        if inc_set:
+        # 3. Include pass (whitelist) using effective_inc
+        if effective_inc is not None:
             for el in list(root.find_all()):
                 if el.parent is None or el == root:
                     continue
                 tag_lower = el.name.lower()
-                if tag_lower not in inc_set:
+                # If this tag was already handled as a stubbed tag in exclude pass, preserve the stub
+                if exc_set and tag_lower in exc_set and tag_lower in cls.STUBBED_TAGS:
+                    continue
+                if tag_lower not in effective_inc:
                     # If this is a child of a composite tag (e.g. circle in svg, option in select) and the parent is included
                     if tag_lower in cls.COMPOSITE_INNER_TAGS and any(
-                        p.name and p.name.lower() in inc_set for p in el.parents
+                        p.name and p.name.lower() in effective_inc for p in el.parents
                     ):
                         continue
                     # Check if this element holds any descendants that ARE included
                     has_included_child = any(
-                        ch.name and ch.name.lower() in inc_set for ch in el.find_all()
+                        ch.name and ch.name.lower() in effective_inc for ch in el.find_all()
                     )
                     if has_included_child:
                         # Unwrap non-included container to retain nested included elements
@@ -427,25 +604,26 @@ class HTMLDiagnosticService:
         return f"{streamed_text}{notice}"
 
     @classmethod
-    def apply_line_slice(
+    def apply_line_slice_with_banner(
         cls,
         text: str,
         slice_str: Optional[str],
         max_chars: Optional[int] = 20000,
         show_all: bool = False,
-    ) -> str:
+    ) -> Tuple[str, Optional[str]]:
         """
-        Applies 1-indexed Python slice notation to line-formatted output
-        implementing all 5 Stage 5 variants and differential ceiling rules.
+        Applies 1-indexed Python slice notation to line-formatted output,
+        returning a tuple of (content_body, optional_banner).
+        This guarantees the banner is completely isolated and never clipped by subsequent --chars.
         """
         if not slice_str or not slice_str.strip():
-            return text
+            return text, None
 
         s = slice_str.strip()
         lines = text.splitlines()
         total_lines = len(lines)
         if total_lines == 0:
-            return text
+            return text, None
 
         # Variant 2 (bare integer <X>) or negative tail integer (-<X>)
         if ":" not in s:
@@ -455,19 +633,19 @@ class HTMLDiagnosticService:
                     # Variant 5 equivalent without colon: tail lines (-<X>)
                     tail_val = abs(val)
                     candidate = lines[-tail_val:] if total_lines > tail_val else lines
-                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all)
+                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all), None
                 else:
                     # Variant 2: Head as bare integer <X> -> Target-anchored backwards window
                     collected, start_line, end_line, truncated = cls._collect_lines_backwards(
                         lines, target_line=val, max_chars=max_chars, show_all=show_all
                     )
                     content = "\n".join(collected)
+                    banner = None
                     if truncated:
                         banner = f"[Note: Displaying target-anchored window preceding line {val} (lines {start_line} to {end_line}). Use --all to view from line 1]"
-                        return f"{banner}\n{content}"
-                    return content
+                    return content, banner
             except ValueError:
-                return text
+                return text, None
 
         parts = s.split(":", 1)
         start_str, end_str = parts[0].strip(), parts[1].strip()
@@ -485,12 +663,12 @@ class HTMLDiagnosticService:
                     lines, target_line=target_line, max_chars=max_chars, show_all=show_all
                 )
                 content = "\n".join(collected)
+                banner = None
                 if truncated:
                     banner = f"[Note: Displaying target-anchored window preceding line {target_line} (lines {start_line} to {end_line}). Use --all to view from line 1]"
-                    return f"{banner}\n{content}"
-                return content
+                return content, banner
             except ValueError:
-                return text
+                return text, None
 
         # Variant 4 (<X>:) or Variant 5 (-<X>:)
         if start_str and not end_str:
@@ -500,14 +678,14 @@ class HTMLDiagnosticService:
                     # Variant 5: Tail slice (-<X>:) -> CLAMPED BY DEFAULT CEILING (20,000)
                     tail_val = abs(start_val)
                     candidate = lines[-tail_val:] if total_lines > tail_val else lines
-                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all)
+                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all), None
                 else:
                     # Variant 4: Offset to end (<X>:) -> CLAMPED BY DEFAULT CEILING (20,000)
                     start_idx = max(0, start_val - 1) if start_val > 0 else 0
                     candidate = lines[start_idx:]
-                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all)
+                    return cls._stream_lines_forward_clamped(candidate, max_chars, show_all), None
             except ValueError:
-                return text
+                return text, None
 
         # Variant 1: Explicit Range (<start>:<end>) -> UNCONSTRAINED
         try:
@@ -515,9 +693,26 @@ class HTMLDiagnosticService:
             end_val = int(end_str)
             start_idx = max(0, start_val - 1) if start_val > 0 else max(total_lines + start_val, 0)
             end_idx = min(total_lines, end_val) if end_val >= 0 else max(total_lines + end_val, 0)
-            return "\n".join(lines[start_idx:end_idx])
+            return "\n".join(lines[start_idx:end_idx]), None
         except ValueError:
-            return text
+            return text, None
+
+    @classmethod
+    def apply_line_slice(
+        cls,
+        text: str,
+        slice_str: Optional[str],
+        max_chars: Optional[int] = 20000,
+        show_all: bool = False,
+    ) -> str:
+        """
+        Applies 1-indexed Python slice notation to line-formatted output
+        implementing all 5 Stage 5 variants and differential ceiling rules.
+        """
+        content, banner = cls.apply_line_slice_with_banner(text, slice_str, max_chars, show_all)
+        if banner:
+            return f"{banner}\n{content}"
+        return content
 
     @classmethod
     def apply_char_slice(
@@ -642,9 +837,10 @@ class HTMLDiagnosticService:
                 matched_node,
                 upper_include=upper_include,
                 upper_exclude=upper_exclude,
+                include_tags=include_tags,
             )
 
-        # Stage 3: Structural Tag Filtering (include > exclude)
+        # Stage 3: Structural Tag Filtering (exclude > include)
         # Lower-tier filter applies strictly to field_container (if search was performed)
         if include_tags or exclude_tags:
             target_filter_root = field_container if field_container is not None else root
@@ -656,14 +852,9 @@ class HTMLDiagnosticService:
         # Stage 5: Final Slicing & Safety Guard (Sequential Pipeline: [Apply --lines slice] -> [Apply --chars slice])
         banner: Optional[str] = None
         if lines_slice:
-            formatted = cls.apply_line_slice(
+            formatted, banner = cls.apply_line_slice_with_banner(
                 formatted, lines_slice, max_chars=max_chars, show_all=show_all
             )
-            # If target-anchored window prepended a diagnostic banner, preserve it so --chars trims the lines block
-            if formatted.startswith("[Note:"):
-                parts = formatted.split("\n", 1)
-                banner = parts[0]
-                formatted = parts[1] if len(parts) > 1 else ""
 
         if chars_slice:
             # The character offsets in --chars are relative to the block of lines extracted by --lines

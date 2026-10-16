@@ -168,24 +168,54 @@ def test_structural_tag_filter_exclude_stubbing():
     assert "Username" in result
 
 
-def test_include_over_exclude_precedence():
-    """Verify include whitelist takes precedence over exclude blacklist."""
+def test_exclude_over_include_precedence():
+    """Verify exclude takes precedence over include upon direct tag conflict and cleans container interiors."""
     sample_html = """
     <div class="container">
       <svg><circle cx="50" cy="50" r="40"/></svg>
       <label>Test</label>
+      <p>Description paragraph</p>
     </div>
     """
-    # If svg is in both include and exclude, include takes precedence
+    # 1. Direct tag conflict: If svg and p are in both include and exclude, exclude wins
     result = HTMLDiagnosticService.process_html_pipeline(
         raw_html=sample_html,
-        include_tags="svg,label",
-        exclude_tags="svg",
+        include_tags="svg,label,p",
+        exclude_tags="svg,p",
         pretty=False,
     )
-    assert "<svg" in result
-    assert "circle" in result
+    # svg is stubbed per STUBBED_TAGS, circle is gone
+    assert "[SVG ICON]" in result
+    assert "circle" not in result
+    # p is completely decomposed
+    assert "<p" not in result
+    assert "Description paragraph" not in result
+    # label is preserved
     assert "<label" in result
+    assert "Test" in result
+
+    # 2. Level 2: include retains containers while exclude purges interior noisy tags
+    form_html = """
+    <form id="login">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" />
+        <svg class="icon"><path d="M0 0"/></svg>
+        <script>track();</script>
+      </div>
+    </form>
+    """
+    res_form = HTMLDiagnosticService.process_html_pipeline(
+        raw_html=form_html,
+        include_tags="form,div,input,label",
+        exclude_tags="svg,script",
+        pretty=False,
+    )
+    assert "<label>Username</label>" in res_form
+    assert "<input" in res_form
+    assert "[SVG ICON]" in res_form
+    assert "[SCRIPT]" in res_form
+    assert "track();" not in res_form
 
 
 def test_line_slicing_5_variants():
@@ -607,5 +637,244 @@ def test_upper_and_lower_tier_independence():
     # Lower tier field container only retains whitelisted tags
     assert "user_email" in res
     assert "Email Address" in res
+
+
+def test_pruned_nodes_indexing_and_placeholders():
+    """Verify pruned sibling branches are indexed with @exc-N and replaced by comments."""
+    HTMLDiagnosticService.clear_pruned_store()
+    res = HTMLDiagnosticService.process_html_pipeline(
+        ACCORDION_HTML,
+        search_query="Current Salary",
+        pretty=True,
+    )
+    # Target field is retained
+    assert "Current Salary" in res
+    assert "cur_salary" in res
+
+    # Pruned siblings are replaced with clean comments containing @exc-N IDs
+    assert "<!-- [PRUNED: @exc-1" in res
+    assert "<!-- [PRUNED: @exc-2" in res
+
+    # Sibling fields are indexed in pruned registry
+    node1 = HTMLDiagnosticService.get_pruned_node("@exc-1")
+    assert node1 is not None
+    assert node1["exc_id"] == "@exc-1"
+    assert node1["chars"] > 0
+    assert node1["lines"] > 0
+    assert "Expected Salary" in node1["raw_html"]
+
+
+def test_pruned_node_info_query():
+    """Verify --info formatting returns concise, structured metadata for @exc-N nodes."""
+    HTMLDiagnosticService.clear_pruned_store()
+    HTMLDiagnosticService.process_html_pipeline(
+        ACCORDION_HTML,
+        search_query="Current Salary",
+        include_tags="input,label,select",
+        pretty=True,
+    )
+
+    node = HTMLDiagnosticService.get_pruned_node("@exc-1")
+    assert node is not None
+    info_text = HTMLDiagnosticService.format_pruned_info(node)
+
+    assert "@exc-1" in info_text
+    assert "chars:" in info_text
+    assert "lines:" in info_text
+    assert "depth:" in info_text
+    assert "inner elements:" in info_text
+    assert "input" in info_text
+    assert "label" in info_text
+
+
+def test_robust_banner_tuple_isolation():
+    """Verify banner tuple isolation ensures --chars does NOT clip or count banner characters."""
+    # 500 lines of 100 characters each
+    large_lines = "\n".join([f"Line {i:03d}: " + "Z" * 90 for i in range(1, 501)])
+    sample_html = f"<div>\n{large_lines}\n</div>"
+
+    # Slicing line :500 anchors target window backwards and generates a banner
+    # Chars 0:50 must slice EXACTLY 50 characters of the body, leaving the banner intact
+    res = HTMLDiagnosticService.process_html_pipeline(
+        sample_html,
+        lines_slice=":500",
+        chars_slice="0:50",
+        pretty=False,
+    )
+
+    lines = res.splitlines()
+    assert lines[0].startswith("[Note: Displaying target-anchored window preceding line 500")
+    # Body starts immediately on line 1 and has exactly 50 characters
+    body_part = "\n".join(lines[1:])
+    assert len(body_part) == 50
+
+
+def test_max_chars_negative_rejection_and_zero_bypass():
+    """Verify --max-chars 0 bypasses truncation ceiling and negative values are rejected."""
+    long_text = "B" * 50000
+
+    # max_chars = 0 -> completely unconstrained (bypasses default 20,000 ceiling)
+    unconstrained = HTMLDiagnosticService.apply_safety_guard(long_text, max_chars=0, show_all=False)
+    assert len(unconstrained) == 50000
+    assert "Truncated" not in unconstrained
+
+    # find_cmd rejects negative --max-chars
+    args = argparse.Namespace(
+        target="@sec-1",
+        selector=None,
+        search=None,
+        upper_include=None,
+        upper_exclude=None,
+        max_chars=-100,
+        html=True,
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        find_cmd(args)
+    assert exc_info.value.code == 1
+
+
+def test_upper_controls_without_search_notice(capsys):
+    """Verify informative notice is output on stderr when --upper-* is passed without --search."""
+    HTMLDiagnosticService.clear_pruned_store()
+    # Register dummy @exc-1 so find_cmd terminates cleanly without launching Playwright/supervisor
+    HTMLDiagnosticService._pruned_registry["@exc-1"] = {
+        "exc_id": "@exc-1",
+        "tag": "div",
+        "dom_id": None,
+        "classes": [],
+        "selector_desc": "div",
+        "raw_html": "<div>Test</div>",
+        "chars": 15,
+        "lines": 1,
+        "depth": 1,
+        "element_counts": {},
+        "field_types": {},
+        "matching_include": 0,
+    }
+
+    args = argparse.Namespace(
+        target="@exc-1",
+        selector=None,
+        search=None,
+        upper_include="header",
+        upper_exclude="svg",
+        max_chars=20000,
+        html=True,
+        raw=False,
+        info=True,
+        json=False,
+        all_options=False,
+        options=False,
+        query=None,
+        include=None,
+        exclude=None,
+        lines=None,
+        chars=None,
+        up=0,
+        screenshot=None,
+    )
+    find_cmd(args)
+    captured = capsys.readouterr()
+    assert "[i] Notice: --upper-* controls require --search/-q to establish an ancestral spine (ignored)." in captured.err
+
+
+def test_find_cmd_pruned_node_info_and_html(capsys):
+    """Verify find_cmd directly serves @exc-N nodes via --info and --html."""
+    HTMLDiagnosticService.clear_pruned_store()
+    HTMLDiagnosticService._pruned_registry["@exc-1"] = {
+        "exc_id": "@exc-1",
+        "tag": "div",
+        "dom_id": "salary-box",
+        "classes": ["form-group", "field-wrapper"],
+        "selector_desc": "div.form-group.field-wrapper#salary-box",
+        "raw_html": '<div id="salary-box" class="form-group"><label>Bonus</label><input name="bonus" type="number"/></div>',
+        "chars": 86,
+        "lines": 1,
+        "depth": 2,
+        "element_counts": {"label": 1, "input": 1},
+        "field_types": {"number": 1},
+        "matching_include": 1,
+    }
+
+    # 1. Inspect metadata via --info
+    args_info = argparse.Namespace(
+        target="@exc-1",
+        selector=None,
+        search=None,
+        upper_include=None,
+        upper_exclude=None,
+        max_chars=20000,
+        html=False,
+        raw=False,
+        info=True,
+        json=False,
+        all_options=False,
+        options=False,
+        query=None,
+        include=None,
+        exclude=None,
+        lines=None,
+        chars=None,
+        up=0,
+        screenshot=None,
+    )
+    find_cmd(args_info)
+    captured_info = capsys.readouterr()
+    assert "WEBPILOT PRUNED NODE METADATA | @exc-1" in captured_info.out
+    assert "depth: 2 levels" in captured_info.out
+    assert "number: 1" in captured_info.out
+
+    # 2. Retrieve outerHTML via --html
+    args_html = argparse.Namespace(
+        target="@exc-1",
+        selector=None,
+        search=None,
+        upper_include=None,
+        upper_exclude=None,
+        max_chars=20000,
+        html=True,
+        raw=False,
+        info=False,
+        json=False,
+        all_options=False,
+        options=False,
+        query=None,
+        include=None,
+        exclude=None,
+        lines=None,
+        chars=None,
+        up=0,
+        screenshot=None,
+    )
+    find_cmd(args_html)
+    captured_html = capsys.readouterr()
+    assert "Outer HTML:" in captured_html.out
+    assert '<input name="bonus" type="number"/>' in captured_html.out
+
+    # 3. Missing @exc-999 exits with error 1
+    args_missing = argparse.Namespace(
+        target="@exc-999",
+        selector=None,
+        search=None,
+        upper_include=None,
+        upper_exclude=None,
+        max_chars=20000,
+        html=False,
+        raw=False,
+        info=True,
+        json=False,
+        all_options=False,
+        options=False,
+        query=None,
+        include=None,
+        exclude=None,
+        lines=None,
+        chars=None,
+        up=0,
+        screenshot=None,
+    )
+    with pytest.raises(SystemExit) as exc_err:
+        find_cmd(args_missing)
+    assert exc_err.value.code == 1
 
 

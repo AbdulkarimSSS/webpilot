@@ -23,7 +23,16 @@ def find_cmd(args: argparse.Namespace) -> None:
         print("[!] Error: You must specify a target or provide a --selector (e.g. wp find --selector 'div.datePicker').", file=sys.stderr)
         sys.exit(1)
 
+    max_chars_val = getattr(args, "max_chars", 20000)
+    if max_chars_val is not None and max_chars_val < 0:
+        print("[!] Error: --max-chars cannot be negative. Use 0 or --all to disable the ceiling.", file=sys.stderr)
+        sys.exit(1)
+
     search_val = getattr(args, "search", None)
+    has_upper = bool(getattr(args, "upper_include", None) or getattr(args, "upper_exclude", None))
+    if has_upper and not search_val:
+        print("[i] Notice: --upper-* controls require --search/-q to establish an ancestral spine (ignored).", file=sys.stderr)
+
     want_html = bool(
         getattr(args, "html", False)
         or up_val > 0
@@ -37,7 +46,39 @@ def find_cmd(args: argparse.Namespace) -> None:
     if not opt_query and not (getattr(args, "html", False) or up_val > 0) and search_val:
         opt_query = search_val
 
-    if getattr(args, "standalone", False) and args.url:
+    details: Dict[str, Any] = {}
+    if target_val and str(target_val).startswith("@exc-"):
+        from services.html_diagnostic_service import HTMLDiagnosticService
+        exc_id = str(target_val).strip()
+        node_meta = HTMLDiagnosticService.get_pruned_node(exc_id)
+        if not node_meta:
+            print(f"\n[!] Error: Pruned node '{exc_id}' not found in session cache.", file=sys.stderr)
+            sys.exit(1)
+
+        want_info = getattr(args, "info", False)
+        # If user explicitly asked for --info, or did not ask for --html/slicing/filtering
+        if want_info or (not want_html and not getattr(args, "html", False)):
+            if getattr(args, "json", False):
+                print(json.dumps(node_meta, indent=2, ensure_ascii=False))
+            else:
+                print("\n" + "═" * 70)
+                print(f" WEBPILOT PRUNED NODE METADATA | {exc_id}")
+                print("═" * 70)
+                print(HTMLDiagnosticService.format_pruned_info(node_meta))
+                print("═" * 70 + "\n")
+            return
+
+        outer_html = node_meta["raw_html"]
+        details = {
+            "local_id": exc_id,
+            "id": node_meta.get("dom_id") or "",
+            "type": "pruned_node",
+            "outerHTML": outer_html,
+            "html": outer_html,
+            "found": True,
+            "label": node_meta.get("selector_desc"),
+        }
+    elif getattr(args, "standalone", False) and args.url:
         from playwright.sync_api import sync_playwright
         from services.field_interaction_service import FieldInteractionService
         from services.inspection_service import InspectionService

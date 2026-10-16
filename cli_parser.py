@@ -414,7 +414,13 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "--max-chars",
         type=int,
         default=20000,
-        help="Maximum character ceiling before truncation (default: 20000; bypass with --all)",
+        help="Maximum character ceiling before truncation (default: 20000; set to 0 or use --all to disable ceiling)",
+    )
+    p_find.add_argument(
+        "--info",
+        action="store_true",
+        default=False,
+        help="Display structural metadata summary (chars, lines, depth, inner elements) for pruned node (@exc-N) or element",
     )
     p_find.add_argument(
         "--pretty",
