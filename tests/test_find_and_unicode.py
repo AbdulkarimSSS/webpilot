@@ -945,4 +945,38 @@ def test_inspect_page_dom_script_sections_and_state():
         browser.close()
 
 
+def test_probe_section_container_classification():
+    """Verify that probing a section/container does NOT misclassify as child datepicker/input."""
+    from playwright.sync_api import sync_playwright
+    from adapters.dom.probe import PROBE_FIELD_DOM_SCRIPT
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.set_content("""
+        <html><body>
+            <div id="sec-1" data-wp-id="@sec-2" class="rcmFormSection">
+                <div class="rcmFormSectionHeader">Personal Details</div>
+                <div class="rcmFormField">
+                    <label>Date of Birth</label>
+                    <div id="dob_datepicker" class="datePicker">
+                        <input id="dob_input" value="01/01/2001" />
+                    </div>
+                </div>
+            </div>
+        </body></html>
+        """)
+
+        res = page.evaluate(PROBE_FIELD_DOM_SCRIPT, ["@sec-2", False, "", True, 0, ""])
+        assert res["found"] is True
+        assert res["type"] == "section"
+        assert res["label"] == "Personal Details"
+        assert res["value"] == ""
+        assert res["input_type"] == ""
+        assert res["required"] is False
+
+        browser.close()
+
+
+
 

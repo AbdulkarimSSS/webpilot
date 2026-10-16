@@ -5,6 +5,31 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.6] - 2026-10-16
+
+### Precision HTML Diagnostics & Probe Hardening
+
+#### 1. Container Identification & Leaf Tag Ascent (`_identify_field_container`)
+- **Resolved Substring Matching Collision**: Replaced partial substring checks (`fc in class_str`) with exact class token set comparisons (`fc in classes_set`), preventing `<label class="rcmFormFieldLabel">` from self-identifying as its own field container and erroneously pruning companion inputs.
+- **Leaf & Inline Tag Ascent**: If the search leaf target is an inline or leaf element (`label`, `input`, `textarea`, `select`, `span`, `b`, `strong`, `em`, `i`, `p`, `a`), the algorithm automatically ascends to its parent before scanning container boundaries, guaranteeing companion inputs inside `.rcmFormField` or `.form-group` are always preserved.
+
+#### 2. Spatial Sibling Stub Collapsing
+- **Consecutive Pruned Runs Collapsing**: Consecutive runs of pruned siblings are merged into a single compact line preserving spatial position (`before target` vs `after target`), e.g.:
+  `<!-- [PRUNED: @exc-1..@exc-41 (41 items) | 38,400 chars | before target] -->`
+- **Granular Pruned Store Retained**: Individual nodes within collapsed ranges remain fully indexed and accessible via `@exc-N` in `webpilot find @exc-N --info` and `--html`.
+
+#### 3. Standalone `--exclude` Informative Stubbing
+- **Eliminated Silent Deletions**: Elements excluded via `--exclude` or filtered out via `--include` that contain form fields/widgets (`input`, `select`, `textarea`, `button`) are no longer destroyed silently; they are registered with `@exc-N` and stubbed with informative comments:
+  `<!-- [EXCLUDED: @exc-N (table) | 2,450 chars | contains: 4 input(s)] -->`
+
+#### 4. Probe Section Misclassification & `--strip-header`
+- **Section & Container Isolation**: Probing section containers (`@sec-X`, `<section>`, `.rcmFormSection`, `<fieldset>`, `<form>`) now explicitly guards against child web component traversal. Sets `widgetType = 'section'`, resolves section heading text for `label`, and clears input values and datepicker flags.
+- **Header Suppression (`--strip-header`)**: Honors `--strip-header` across `find_cmd` to suppress the diagnostic banner box and output pure clean HTML. When the banner is shown, prints `• Match: <selector>` to pinpoint search targets.
+
+#### 5. Upper-Tier Precision & Selector Escaping
+- **Removed Descendant Leakage in `--upper-include`**: Eliminated recursive descendant matching (`node.find`), ensuring `--upper-include label` does not inadvertently match large container blocks.
+- **Safe ID Escaping & Exact Casing**: Preserves original case for class selectors and escapes colons and special characters in IDs using `[id="..."]` syntax.
+
 ## [2.6.0] - 2026-10-16
 
 ### Adversarial Benchmark Full Remediation (WPB-010 - WPB-015)

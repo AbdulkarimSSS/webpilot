@@ -73,6 +73,13 @@ class HTMLDiagnosticService:
                 max_depth = d
         return max_depth
 
+    _last_search_match: Optional[str] = None
+
+    @classmethod
+    def get_last_search_match(cls) -> Optional[str]:
+        """Returns the selector description of the most recent search match."""
+        return cls._last_search_match
+
     @classmethod
     def register_pruned_node(
         cls,
@@ -87,10 +94,10 @@ class HTMLDiagnosticService:
         dom_id = node.get("id")
         raw_classes = node.get("class", [])
         classes = (
-            [c.lower() for c in raw_classes]
+            [str(c).strip() for c in raw_classes if c]
             if isinstance(raw_classes, list)
-            else [str(raw_classes).lower()]
-        ) if raw_classes else []
+            else [str(raw_classes).strip()] if raw_classes else []
+        )
 
         raw_html = str(node)
         chars = len(raw_html)
@@ -99,13 +106,31 @@ class HTMLDiagnosticService:
 
         element_counts: Dict[str, int] = {}
         field_types: Dict[str, int] = {}
+        inner_fields: List[Dict[str, Any]] = []
 
         for el in node.find_all():
-            t_name = el.name.lower()
+            t_name = el.name.lower() if el.name else ""
             element_counts[t_name] = element_counts.get(t_name, 0) + 1
             if t_name == "input":
                 inp_type = el.get("type", "text").lower()
                 field_types[inp_type] = field_types.get(inp_type, 0) + 1
+
+            wp_id = el.get("data-wp-id")
+            if wp_id:
+                inner_fields.append({
+                    "local_id": wp_id,
+                    "tag": t_name,
+                    "id": el.get("id"),
+                    "name": el.get("name"),
+                    "type": el.get("type"),
+                })
+            elif t_name in ("input", "select", "textarea", "button"):
+                inner_fields.append({
+                    "tag": t_name,
+                    "id": el.get("id"),
+                    "name": el.get("name"),
+                    "type": el.get("type"),
+                })
 
         matching_include = 0
         if include_tags:
@@ -116,7 +141,10 @@ class HTMLDiagnosticService:
         if classes:
             selector_parts.append("." + ".".join(classes[:3]))
         if dom_id:
-            selector_parts.append(f"#{dom_id}")
+            if re.match(r'^[a-zA-Z_][a-zA-Z0-9_-]*$', str(dom_id)):
+                selector_parts.append(f"#{dom_id}")
+            else:
+                selector_parts.append(f'[id="{dom_id}"]')
         selector_desc = "".join(selector_parts)
 
         meta = {
@@ -132,6 +160,7 @@ class HTMLDiagnosticService:
             "element_counts": element_counts,
             "field_types": field_types,
             "matching_include": matching_include,
+            "inner_fields": inner_fields,
         }
 
         cls._pruned_registry[exc_id] = meta
@@ -157,12 +186,24 @@ class HTMLDiagnosticService:
         element_counts = meta.get("element_counts", {})
         field_types = meta.get("field_types", {})
         matching_include = meta.get("matching_include", 0)
+        inner_fields = meta.get("inner_fields", [])
 
         out = [f"{exc_id}  ({selector_desc})"]
         out.append(f"  chars: {chars:,}   lines: {lines}   depth: {depth} levels")
 
         if matching_include > 0:
             out.append(f"  include matches: {matching_include}")
+
+        if inner_fields:
+            out.append(f"  contained fields ({len(inner_fields)}):")
+            for f in inner_fields[:5]:
+                loc_part = f"[{f['local_id']}] " if f.get("local_id") else ""
+                t = f.get("tag", "field")
+                tp = f" type={f['type']}" if f.get("type") else ""
+                fid = f" id={f['id']}" if f.get("id") else ""
+                out.append(f"    • {loc_part}<{t}{tp}{fid}>")
+            if len(inner_fields) > 5:
+                out.append(f"    ... and {len(inner_fields) - 5} more fields")
 
         if element_counts:
             out.append("  inner elements:")
@@ -184,7 +225,6 @@ class HTMLDiagnosticService:
     FIELD_CONTAINER_CLASSES: Set[str] = {
         "form-group",
         "rcmformfield",
-        "rcmformsection",
         "form-field",
         "form-item",
         "form-row",
@@ -202,6 +242,20 @@ class HTMLDiagnosticService:
         "fieldset",
         "details",
         "li",
+    }
+
+    LEAF_OR_INLINE_TAGS: Set[str] = {
+        "label",
+        "input",
+        "textarea",
+        "select",
+        "span",
+        "b",
+        "strong",
+        "em",
+        "i",
+        "p",
+        "a",
     }
 
     STUBBED_TAGS: Dict[str, str] = {
@@ -274,35 +328,60 @@ class HTMLDiagnosticService:
         if not matched_elements:
             # Check root itself
             if cls._is_match(root, pattern, is_regex):
+                t = root.name.lower() if root.name else "root"
+                cls._last_search_match = f"<{t}>"
                 return root
             return None
 
         # Sort by depth / fewest descendants to target the deepest, most specific element
         matched_elements.sort(key=lambda e: len(e.find_all()))
-        return matched_elements[0]
+        best_match = matched_elements[0]
+        t = best_match.name.lower() if best_match.name else "element"
+        bid = best_match.get("id")
+        raw_classes = best_match.get("class", [])
+        cls_list = (
+            [str(c).strip() for c in raw_classes if c]
+            if isinstance(raw_classes, list)
+            else [str(raw_classes).strip()] if raw_classes else []
+        )
+        c_str = "." + ".".join(cls_list[:2]) if cls_list else ""
+        if bid:
+            if re.match(r'^[a-zA-Z_][a-zA-Z0-9_-]*$', str(bid)):
+                cls._last_search_match = f"<{t}#{bid}{c_str}>"
+            else:
+                cls._last_search_match = f'<{t}[id="{bid}"]{c_str}>'
+        else:
+            cls._last_search_match = f"<{t}{c_str}>"
+        return best_match
 
     @classmethod
     def _identify_field_container(cls, matched_node: Tag, root_boundary: Tag) -> Tag:
         """Finds the immediate enclosing field container (e.g. .form-group, tr, fieldset)."""
         curr = matched_node
+        # If matched leaf is an inline/leaf tag, ascend to its parent first
+        if curr.name and curr.name.lower() in cls.LEAF_OR_INLINE_TAGS and curr.parent and curr.parent != root_boundary:
+            curr = curr.parent
+
         while curr and curr != root_boundary:
-            # Check class names
-            class_val = curr.get("class", [])
-            class_str = " ".join(class_val).lower() if isinstance(class_val, list) else str(class_val).lower()
-            if any(fc in class_str for fc in cls.FIELD_CONTAINER_CLASSES):
+            raw_classes = curr.get("class", [])
+            classes_list = raw_classes if isinstance(raw_classes, list) else [raw_classes]
+            classes_set = {str(c).strip().lower() for c in classes_list if c}
+            if any(fc in classes_set for fc in cls.FIELD_CONTAINER_CLASSES):
                 return curr
 
-            # Check tag names
-            if curr.name.lower() in cls.FIELD_CONTAINER_TAGS:
+            if curr.name and curr.name.lower() in cls.FIELD_CONTAINER_TAGS:
                 return curr
 
             curr = curr.parent
 
-        # Fallback: parent container (or matched node itself if already top-level)
+        # Fallback: ascend from matched_node to parent, skipping leaf tags
         if matched_node.parent and matched_node.parent != root_boundary:
             p = matched_node.parent
-            if p.name.lower() in ("label", "span", "strong", "b", "em") and p.parent and p.parent != root_boundary:
-                return p.parent
+            while p and p != root_boundary and p.name and p.name.lower() in cls.LEAF_OR_INLINE_TAGS:
+                if p.parent and p.parent != root_boundary:
+                    p = p.parent
+                else:
+                    break
             return p
         return matched_node
 
@@ -316,15 +395,15 @@ class HTMLDiagnosticService:
             return False
 
         # 1. Direct tag name match (e.g. 'header', 'h2', 'button')
-        if node.name.lower() == clean_token:
+        if node.name and node.name.lower() == clean_token:
             return True
 
         # 2. Class match (e.g. '.section-toolbar' or 'section-toolbar')
         class_target = clean_token[1:] if clean_token.startswith(".") else clean_token
         node_classes = (
-            [c.lower() for c in node.get("class", [])]
+            [str(c).strip().lower() for c in node.get("class", []) if c]
             if isinstance(node.get("class"), list)
-            else [str(node.get("class", "")).lower()]
+            else [str(node.get("class", "")).strip().lower()]
         )
         if class_target in node_classes:
             return True
@@ -334,15 +413,6 @@ class HTMLDiagnosticService:
             id_target = clean_token[1:]
             if node.get("id", "").lower() == id_target:
                 return True
-
-        # 4. Check if node contains a matching descendant
-        if node.find(clean_token):
-            return True
-        try:
-            if node.select_one(clean_token):
-                return True
-        except Exception:
-            pass
 
         return False
 
@@ -390,6 +460,7 @@ class HTMLDiagnosticService:
         Prunes all sibling branches outside the ancestral spine down to the field container,
         sparing upper uncle branches matching upper_include, and purging child elements matching upper_exclude
         from inside spared upper-tier elements. Pruned elements are indexed with @exc-N identifiers.
+        Consecutive runs of pruned siblings are collapsed into compact single-line stubs.
         Returns: (root, field_container)
         """
         if matched_node == root:
@@ -408,33 +479,60 @@ class HTMLDiagnosticService:
             else None
         )
 
-        # From field_container up to root, prune irrelevant siblings unless spared by upper_include
         curr = field_container
         while curr and curr != root:
             parent = curr.parent
             if not parent:
                 break
+
             for child in list(parent.children):
-                if child != curr:
-                    if isinstance(child, NavigableString):
-                        child.extract()
-                        continue
-                    if not isinstance(child, Tag):
-                        continue
+                if isinstance(child, NavigableString):
+                    child.extract()
 
-                    spared = False
-                    if upper_inc_tokens:
-                        spared = any(cls._matches_upper_token(child, tok) for tok in upper_inc_tokens)
+            children_tags = [c for c in parent.children if isinstance(c, Tag)]
 
-                    if spared:
-                        if upper_exc_tokens:
-                            cls._apply_upper_exclude(child, upper_exc_tokens)
-                    else:
-                        exc_id = cls.register_pruned_node(child, include_tags=include_tags)
-                        meta = cls._pruned_registry[exc_id]
-                        comment_text = f" [PRUNED: {exc_id} ({meta['tag']}) | {meta['chars']:,} chars | {meta['lines']} lines] "
-                        child.replace_with(Comment(comment_text))
+            current_run: List[Tuple[Tag, str, Dict[str, Any]]] = []
+            run_rel_pos = "before target"
 
+            def flush_run(run: List[Tuple[Tag, str, Dict[str, Any]]], rel_pos: str) -> None:
+                if not run:
+                    return
+                if len(run) == 1:
+                    first_tag, exc_id, meta = run[0]
+                    comment_text = f" [PRUNED: {exc_id} ({meta['tag']}) | {meta['chars']:,} chars | {meta['lines']} lines] "
+                    first_tag.replace_with(Comment(comment_text))
+                else:
+                    first_tag, first_id, _ = run[0]
+                    _, last_id, _ = run[-1]
+                    count = len(run)
+                    total_chars = sum(m["chars"] for _, _, m in run)
+                    comment_text = f" [PRUNED: {first_id}..{last_id} ({count} items) | {total_chars:,} chars | {rel_pos}] "
+                    first_tag.replace_with(Comment(comment_text))
+                    for item_tag, _, _ in run[1:]:
+                        item_tag.decompose()
+
+            for child in children_tags:
+                if child == curr:
+                    flush_run(current_run, run_rel_pos)
+                    current_run = []
+                    run_rel_pos = "after target"
+                    continue
+
+                spared = False
+                if upper_inc_tokens:
+                    spared = any(cls._matches_upper_token(child, tok) for tok in upper_inc_tokens)
+
+                if spared:
+                    flush_run(current_run, run_rel_pos)
+                    current_run = []
+                    if upper_exc_tokens:
+                        cls._apply_upper_exclude(child, upper_exc_tokens)
+                else:
+                    exc_id = cls.register_pruned_node(child, include_tags=include_tags)
+                    meta = cls._pruned_registry[exc_id]
+                    current_run.append((child, exc_id, meta))
+
+            flush_run(current_run, run_rel_pos)
             curr = parent
 
         return root, field_container
@@ -450,6 +548,8 @@ class HTMLDiagnosticService:
         Applies Stage 3 include/exclude structural tag filters.
         Precedence: Exclude takes priority over Include upon conflict (Exclude > Include).
         Result = (Include elements) - (Exclude elements).
+        Non-empty excluded elements containing inputs/widgets are registered as @exc-N
+        and replaced with stub comments instead of silent deletion.
         """
         inc_set: Optional[Set[str]] = (
             {t.strip().lower() for t in include_tags.split(",") if t.strip()}
@@ -462,48 +562,58 @@ class HTMLDiagnosticService:
             else None
         )
 
-        # 1. Effective include whitelist is stripped of any explicitly excluded tags
         effective_inc: Optional[Set[str]] = None
         if inc_set is not None:
             effective_inc = inc_set - exc_set if exc_set else inc_set
+
+        def remove_or_stub(el: Tag, tag_name: str) -> None:
+            if el.parent is None:
+                return
+            stub = cls.STUBBED_TAGS.get(tag_name)
+            if stub:
+                el.clear()
+                el.string = stub
+                return
+
+            inputs = el.find_all(["input", "select", "textarea", "button"])
+            if el.name and el.name.lower() in ("input", "select", "textarea", "button"):
+                inputs = [el] + list(inputs)
+            if inputs:
+                exc_id = cls.register_pruned_node(el, include_tags=include_tags)
+                meta = cls._pruned_registry[exc_id]
+                inp_types = [inp.get("type", inp.name).lower() for inp in inputs[:3]]
+                types_str = f" ({', '.join(inp_types)})" if inp_types else ""
+                comment_text = f" [EXCLUDED: {exc_id} ({tag_name}) | {meta['chars']:,} chars | contains: {len(inputs)} input(s){types_str}] "
+                el.replace_with(Comment(comment_text))
+            else:
+                el.decompose()
 
         # 2. Exclude pass (strips or stubs tags matching exc_set)
         if exc_set:
             for tag_name in exc_set:
                 for el in list(root.find_all(tag_name)):
-                    if el.parent is None:
-                        continue
-                    stub = cls.STUBBED_TAGS.get(tag_name)
-                    if stub:
-                        el.clear()
-                        el.string = stub
-                    else:
-                        el.decompose()
+                    remove_or_stub(el, tag_name)
 
         # 3. Include pass (whitelist) using effective_inc
         if effective_inc is not None:
             for el in list(root.find_all()):
                 if el.parent is None or el == root:
                     continue
-                tag_lower = el.name.lower()
-                # If this tag was already handled as a stubbed tag in exclude pass, preserve the stub
+                tag_lower = el.name.lower() if el.name else ""
                 if exc_set and tag_lower in exc_set and tag_lower in cls.STUBBED_TAGS:
                     continue
                 if tag_lower not in effective_inc:
-                    # If this is a child of a composite tag (e.g. circle in svg, option in select) and the parent is included
                     if tag_lower in cls.COMPOSITE_INNER_TAGS and any(
                         p.name and p.name.lower() in effective_inc for p in el.parents
                     ):
                         continue
-                    # Check if this element holds any descendants that ARE included
                     has_included_child = any(
                         ch.name and ch.name.lower() in effective_inc for ch in el.find_all()
                     )
                     if has_included_child:
-                        # Unwrap non-included container to retain nested included elements
                         el.unwrap()
                     else:
-                        el.decompose()
+                        remove_or_stub(el, tag_lower)
 
         return root
 

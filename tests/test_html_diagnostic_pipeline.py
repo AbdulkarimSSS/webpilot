@@ -405,6 +405,9 @@ def test_find_cmd_successful_search_pipeline(monkeypatch, capsys):
             class Resp:
                 success = True
                 message = "OK"
+                browser_pid = None
+                worker_pid = None
+                active_url = None
                 field_details = {
                     "found": True,
                     "label": "Compensation",
@@ -417,7 +420,43 @@ def test_find_cmd_successful_search_pipeline(monkeypatch, capsys):
     find_cmd_mod = sys.modules["cli_commands.find_cmd"]
     monkeypatch.setattr(find_cmd_mod, "get_supervisor_client", lambda args: DummyClient())
 
-    args = argparse.Namespace(
+    # 1. With strip_header=False: diagnostic header, match, and Outer HTML are shown
+    args_with_header = argparse.Namespace(
+        target="@sec-2",
+        selector=None,
+        standalone=False,
+        url=None,
+        cookies=None,
+        tab=None,
+        options=False,
+        query=None,
+        search="Current Salary",
+        html=True,
+        up=0,
+        screenshot=None,
+        headed=False,
+        timeout_minutes=30,
+        strip_header=False,
+        json=False,
+        include=None,
+        exclude=None,
+        lines="1:15",
+        chars=None,
+        max_chars=20000,
+        raw=False,
+        all_options=False,
+    )
+
+    find_cmd(args_with_header)
+    captured = capsys.readouterr()
+    assert "WEBPILOT ELEMENT DIAGNOSTIC" in captured.out
+    assert "• Match" in captured.out
+    assert "Outer HTML" in captured.out
+    assert "Current Salary" in captured.out
+    assert "Annual Bonus" not in captured.out
+
+    # 2. With strip_header=True: diagnostic header is suppressed and only clean HTML is printed
+    args_stripped = argparse.Namespace(
         target="@sec-2",
         selector=None,
         standalone=False,
@@ -442,12 +481,12 @@ def test_find_cmd_successful_search_pipeline(monkeypatch, capsys):
         raw=False,
         all_options=False,
     )
-
-    find_cmd(args)
-    captured = capsys.readouterr()
-    assert "Outer HTML" in captured.out
-    assert "Current Salary" in captured.out
-    assert "Annual Bonus" not in captured.out
+    find_cmd(args_stripped)
+    captured_stripped = capsys.readouterr()
+    assert "WEBPILOT ELEMENT DIAGNOSTIC" not in captured_stripped.out
+    assert "Outer HTML" not in captured_stripped.out
+    assert "Current Salary" in captured_stripped.out
+    assert "Annual Bonus" not in captured_stripped.out
 
 
 def test_sequential_lines_then_chars_pipeline():
@@ -876,5 +915,168 @@ def test_find_cmd_pruned_node_info_and_html(capsys):
     with pytest.raises(SystemExit) as exc_err:
         find_cmd(args_missing)
     assert exc_err.value.code == 1
+
+
+def test_sap_successfactors_container_identification():
+    """Verify that searching for Salary in SAP SuccessFactors DOM does NOT prune companion input as @exc-1."""
+    HTMLDiagnosticService.clear_pruned_store()
+    sf_html = """
+    <div id="sec-comp" class="rcmFormSection">
+      <div class="rcmFormSectionHeader">Compensation</div>
+      <div class="rcmFormField">
+        <label class="rcmFormFieldLabel">Salary</label>
+        <div class="fieldComponentInput">
+          <input id="salary_field" name="salary" type="text" placeholder="Enter base salary" />
+        </div>
+      </div>
+      <div class="rcmFormField">
+        <label class="rcmFormFieldLabel">Bonus</label>
+        <div class="fieldComponentInput">
+          <input id="bonus_field" name="bonus" type="text" />
+        </div>
+      </div>
+    </div>
+    """
+    result = HTMLDiagnosticService.process_html_pipeline(
+        raw_html=sf_html,
+        search_query="Salary",
+        pretty=True,
+    )
+    # Target field container and its input MUST be preserved
+    assert "Salary" in result
+    assert "salary_field" in result
+    assert "Enter base salary" in result
+    assert "rcmFormFieldLabel" in result
+    assert "fieldComponentInput" in result
+    # Unrelated sibling (Bonus) should be pruned
+    assert "bonus_field" not in result
+
+
+def test_adjacent_stub_collapsing():
+    """Verify consecutive pruned siblings are collapsed into compact range comments."""
+    HTMLDiagnosticService.clear_pruned_store()
+    fields_html = '<div id="root">\n'
+    # 5 fields before target
+    for i in range(1, 6):
+        fields_html += f'  <div class="form-group" id="fld-{i}"><label>Field {i}</label><input name="f{i}"/></div>\n'
+    # Target field
+    fields_html += '  <div class="form-group" id="target"><label>Target Goal</label><input name="target_val"/></div>\n'
+    # 4 fields after target
+    for i in range(7, 11):
+        fields_html += f'  <div class="form-group" id="fld-{i}"><label>Field {i}</label><input name="f{i}"/></div>\n'
+    fields_html += '</div>'
+
+    result = HTMLDiagnosticService.process_html_pipeline(
+        raw_html=fields_html,
+        search_query="Target Goal",
+        pretty=True,
+    )
+
+    # Must contain collapsed comments before and after target
+    assert "[PRUNED: @exc-1..@exc-5 (5 items)" in result
+    assert "before target" in result
+    assert "[PRUNED: @exc-6..@exc-9 (4 items)" in result
+    assert "after target" in result
+
+    # Target element is preserved
+    assert "Target Goal" in result
+    assert "target_val" in result
+
+    # Verify that individual nodes are registered in the pruned store
+    node_3 = HTMLDiagnosticService.get_pruned_node("@exc-3")
+    assert node_3 is not None
+    assert node_3["dom_id"] == "fld-3"
+    assert "Field 3" in node_3["raw_html"]
+
+
+def test_standalone_exclude_no_silent_deletion():
+    """Verify that excluding an element containing inputs creates an informative @exc stub."""
+    HTMLDiagnosticService.clear_pruned_store()
+    form_html = """
+    <div id="main-form">
+      <table class="grid-table">
+        <tr><th>Col</th></tr>
+        <tr><td><input name="grid_user" type="text" /></td></tr>
+      </table>
+      <div class="form-group">
+        <label>Status</label>
+        <input name="status" type="text" />
+      </div>
+    </div>
+    """
+    result = HTMLDiagnosticService.process_html_pipeline(
+        raw_html=form_html,
+        exclude_tags="table",
+        pretty=True,
+    )
+
+    # Table containing input must be replaced with EXCLUDED stub, not silently deleted
+    assert "[EXCLUDED: @exc-" in result
+    assert "(table)" in result
+    assert "contains: 1 input" in result
+    # Other field preserved
+    assert "Status" in result
+    assert "grid_user" not in result
+
+
+def test_upper_include_no_descendant_leakage():
+    """Verify --upper-include matches only the direct uncle node, not arbitrary containers with descendant labels."""
+    HTMLDiagnosticService.clear_pruned_store()
+    nested_html = """
+    <div id="page-root">
+      <div class="irrelevant-uncle-panel">
+        <div><span>Some Text</span><label>Uncle Label</label></div>
+      </div>
+      <div class="target-container">
+        <div class="form-group">
+          <label>Target Field</label>
+          <input name="target_field" />
+        </div>
+      </div>
+    </div>
+    """
+    # If upper_include is "label", it should NOT spare .irrelevant-uncle-panel because the panel tag is "div"
+    result = HTMLDiagnosticService.process_html_pipeline(
+        raw_html=nested_html,
+        search_query="Target Field",
+        upper_include="label",
+        pretty=True,
+    )
+
+    assert "Target Field" in result
+    # Irrelevant uncle panel must be pruned despite containing a nested <label>
+    assert "irrelevant-uncle-panel" not in result
+    assert "[PRUNED:" in result
+
+
+def test_exc_casing_and_id_escaping():
+    """Verify exact class casing and [id="..."] escaping for IDs with colons or special chars."""
+    HTMLDiagnosticService.clear_pruned_store()
+    special_html = """
+    <div id="page">
+      <div id="250:_datepicker" class="rcmFormField SpecialWrapper">
+        <label>Date of Birth</label>
+        <input name="dob" />
+      </div>
+      <div class="form-group" id="target">
+        <label>Other Field</label>
+        <input name="other" />
+      </div>
+    </div>
+    """
+    result = HTMLDiagnosticService.process_html_pipeline(
+        raw_html=special_html,
+        search_query="Other Field",
+        pretty=True,
+    )
+
+    # Pruned node @exc-1 should preserve class casing and escape the colon in ID
+    node_1 = HTMLDiagnosticService.get_pruned_node("@exc-1")
+    assert node_1 is not None
+    assert "rcmFormField" in node_1["classes"]
+    assert "SpecialWrapper" in node_1["classes"]
+    assert '[id="250:_datepicker"]' in node_1["selector_desc"]
+    assert "#250:_datepicker" not in node_1["selector_desc"]
+
 
 

@@ -132,6 +132,7 @@ def find_cmd(args: argparse.Namespace) -> None:
         details = resp.field_details or {}
 
     processed_html: Optional[str] = None
+    search_match_desc: Optional[str] = None
     outer_html = details.get("outerHTML") or details.get("html")
     if want_html:
         if outer_html:
@@ -155,6 +156,8 @@ def find_cmd(args: argparse.Namespace) -> None:
                     max_chars=getattr(args, "max_chars", 20000),
                     show_all=show_all,
                 )
+                if search_val:
+                    search_match_desc = HTMLDiagnosticService.get_last_search_match()
                 if "outerHTML" in details:
                     details["outerHTML"] = processed_html
                 if "html" in details:
@@ -170,6 +173,12 @@ def find_cmd(args: argparse.Namespace) -> None:
         print(json.dumps(details, indent=2, ensure_ascii=False))
         return
 
+    final_html = processed_html or outer_html
+    if strip_header:
+        if final_html:
+            print(final_html)
+        return
+
     print("\n" + "═" * 70)
     local_id_str = details.get("local_id") or "@fld"
     type_str = (details.get("type") or "element").upper()
@@ -183,6 +192,8 @@ def find_cmd(args: argparse.Namespace) -> None:
     print(f" • Required    : {details.get('required')}")
     print(f" • Disabled    : {details.get('disabled')}")
     print(f" • Visible     : {details.get('visible')}")
+    if search_val and search_match_desc:
+        print(f" • Match       : {search_match_desc}")
 
     dep = details.get("dependency")
     if dep and dep.get("is_dependent"):

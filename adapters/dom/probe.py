@@ -103,23 +103,44 @@ _PROBE_LOGIC: Final[str] = r"""
     }
 
     const tag = (el.tagName || '').toLowerCase();
-    const wc = (tag !== 'input' && tag !== 'select' && tag !== 'textarea' && tag !== 'button' && !el.isContentEditable) ? (resolveWebComponent(el) || el) : null;
-    const shadowInp = wc ? resolveShadowInput(el) : null;
-    const elType = (el.type || el.getAttribute('role') || tag).toLowerCase();
-    const fmt = (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || el.getAttribute('placeholder') || '';
-    const isDatePicker = el.classList.contains('datePicker') || (el.id && el.id.includes('datepicker')) || (wc && (wc.tagName || '').toLowerCase().includes('date')) || (fmt && (fmt.toLowerCase().includes('dd/mm') || fmt.toLowerCase().includes('yyyy-mm')));
-    let widgetType = 'input';
-    if (isDatePicker) widgetType = 'date';
-    else if (tag === 'select') widgetType = 'select';
-    else if (el.id && el.id.endsWith(':_input')) widgetType = 'picklist';
-    else if (elType === 'combobox') widgetType = 'picklist';
-    else if (elType === 'radio') widgetType = 'radio';
-    else if (elType === 'checkbox') widgetType = 'checkbox';
-    else if (elType === 'switch') widgetType = 'switch';
-    else if (el.isContentEditable || el.getAttribute('contenteditable') !== null) widgetType = 'contenteditable';
-    else if (tag === 'button' || elType === 'button' || elType === 'submit') widgetType = 'button';
+    const wpId = (el.getAttribute && el.getAttribute('data-wp-id')) || '';
+    const isSectionContainer = wpId.startsWith('@sec-') || 
+        ['section', 'form', 'fieldset', 'details', 'article', 'main'].includes(tag) ||
+        (el.classList && (el.classList.contains('rcmFormSection') || el.classList.contains('form-section'))) ||
+        (el.getAttribute && el.getAttribute('role') === 'region');
 
-    const label = getUniversalLabel(el, false);
+    let widgetType = 'input';
+    let wc = null;
+    let shadowInp = null;
+    let isDatePicker = false;
+    let label = '';
+
+    if (isSectionContainer) {
+        widgetType = wpId.startsWith('@sec-') || tag === 'section' || (el.classList && el.classList.contains('rcmFormSection')) ? 'section' : 'container';
+        const headingEl = el.querySelector ? el.querySelector('h1, h2, h3, h4, h5, h6, legend, .accordion-header, .rcmFormSectionHeader, .rcmFormSectionTopBar, summary, [role="heading"], th') : null;
+        if (headingEl) {
+            label = (headingEl.innerText || headingEl.textContent || '').trim();
+        } else {
+            label = (el.getAttribute && (el.getAttribute('aria-label') || el.getAttribute('title'))) || '';
+        }
+    } else {
+        wc = (tag !== 'input' && tag !== 'select' && tag !== 'textarea' && tag !== 'button' && !el.isContentEditable) ? (resolveWebComponent(el) || el) : null;
+        shadowInp = wc ? resolveShadowInput(el) : null;
+        const elType = (el.type || el.getAttribute('role') || tag).toLowerCase();
+        const fmt = (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || el.getAttribute('placeholder') || '';
+        isDatePicker = el.classList.contains('datePicker') || (el.id && el.id.includes('datepicker')) || (wc && (wc.tagName || '').toLowerCase().includes('date')) || (fmt && (fmt.toLowerCase().includes('dd/mm') || fmt.toLowerCase().includes('yyyy-mm')));
+        if (isDatePicker) widgetType = 'date';
+        else if (tag === 'select') widgetType = 'select';
+        else if (el.id && el.id.endsWith(':_input')) widgetType = 'picklist';
+        else if (elType === 'combobox') widgetType = 'picklist';
+        else if (elType === 'radio') widgetType = 'radio';
+        else if (elType === 'checkbox') widgetType = 'checkbox';
+        else if (elType === 'switch') widgetType = 'switch';
+        else if (el.isContentEditable || el.getAttribute('contenteditable') !== null) widgetType = 'contenteditable';
+        else if (tag === 'button' || elType === 'button' || elType === 'submit') widgetType = 'button';
+
+        label = getUniversalLabel(el, false);
+    }
 
     let optionsList = [];
     if (includeOptions) {
@@ -235,28 +256,34 @@ _PROBE_LOGIC: Final[str] = r"""
         }
     }
 
-    let curVal = (el.value !== undefined && el.value !== '') ? el.value : '';
-    if (!curVal && wc) {
-        curVal = wc.value || (wc.getAttribute && wc.getAttribute('value')) || '';
-    }
-    if (!curVal && shadowInp) {
-        curVal = shadowInp.value || '';
-    }
-    if (!curVal && (el.isContentEditable || el.getAttribute('contenteditable') !== null)) {
-        curVal = el.textContent || el.innerText || '';
-    }
-    if (!curVal && el.value === undefined && !wc) {
-        curVal = el.innerText || '';
+    let curVal = '';
+    if (!isSectionContainer) {
+        curVal = (el.value !== undefined && el.value !== '') ? el.value : '';
+        if (!curVal && wc) {
+            curVal = wc.value || (wc.getAttribute && wc.getAttribute('value')) || '';
+        }
+        if (!curVal && shadowInp) {
+            curVal = shadowInp.value || '';
+        }
+        if (!curVal && (el.isContentEditable || el.getAttribute('contenteditable') !== null)) {
+            curVal = el.textContent || el.innerText || '';
+        }
+        if (!curVal && el.value === undefined && !wc) {
+            curVal = el.innerText || '';
+        }
     }
 
-    let isReq = Boolean(el.required || el.getAttribute('aria-required') === 'true' || (wc && (wc.required || wc.getAttribute('required') !== null || wc.getAttribute('aria-required') === 'true')));
-    if (!isReq && el.id) {
-        const root = el.getRootNode ? el.getRootNode() : document;
-        const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
-        if (l && ((l.innerText || '').includes('*') || l.querySelector('.required, .requiredField, .mandatory'))) isReq = true;
-        if (el.id.endsWith('_datepicker') && window.juic && window.juic.Component && window.juic.Component._registry) {
-            const jc = window.juic.Component._registry[el.id.replace('_datepicker', '')];
-            if (jc && jc._isRequired) isReq = true;
+    let isReq = false;
+    if (!isSectionContainer) {
+        isReq = Boolean(el.required || el.getAttribute('aria-required') === 'true' || (wc && (wc.required || wc.getAttribute('required') !== null || wc.getAttribute('aria-required') === 'true')));
+        if (!isReq && el.id) {
+            const root = el.getRootNode ? el.getRootNode() : document;
+            const l = (root.querySelector ? root.querySelector('label[for="' + el.id + '"]') : null) || document.querySelector('label[for="' + el.id + '"]');
+            if (l && ((l.innerText || '').includes('*') || l.querySelector('.required, .requiredField, .mandatory'))) isReq = true;
+            if (el.id.endsWith('_datepicker') && window.juic && window.juic.Component && window.juic.Component._registry) {
+                const jc = window.juic.Component._registry[el.id.replace('_datepicker', '')];
+                if (jc && jc._isRequired) isReq = true;
+            }
         }
     }
 
@@ -269,7 +296,7 @@ _PROBE_LOGIC: Final[str] = r"""
         name: el.name || '',
         tag: tag,
         type: widgetType,
-        input_type: isDatePicker ? 'date' : (el.type || ''),
+        input_type: isSectionContainer ? '' : (isDatePicker ? 'date' : (el.type || '')),
         format_pattern: (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || '',
         label: label,
         value: curVal,
