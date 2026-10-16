@@ -547,16 +547,26 @@ class HTMLDiagnosticService:
         # Stage 4: DOM Formatting & Indentation
         formatted = cls.format_html(root, pretty=pretty)
 
-        # Stage 5: Final Slicing & Safety Guard (with Differential Ceiling Rules)
+        # Stage 5: Final Slicing & Safety Guard (Sequential Pipeline: [Apply --lines slice] -> [Apply --chars slice])
+        banner: Optional[str] = None
         if lines_slice:
             formatted = cls.apply_line_slice(
                 formatted, lines_slice, max_chars=max_chars, show_all=show_all
             )
+            # If target-anchored window prepended a diagnostic banner, preserve it so --chars trims the lines block
+            if formatted.startswith("[⚠️ Note:"):
+                parts = formatted.split("\n", 1)
+                banner = parts[0]
+                formatted = parts[1] if len(parts) > 1 else ""
 
         if chars_slice:
+            # The character offsets in --chars are relative to the block of lines extracted by --lines
             formatted = cls.apply_char_slice(
                 formatted, chars_slice, max_chars=max_chars, show_all=show_all
             )
+
+        if banner:
+            formatted = f"{banner}\n{formatted}"
 
         if not lines_slice and not chars_slice:
             formatted = cls.apply_safety_guard(

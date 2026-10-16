@@ -418,3 +418,53 @@ def test_find_cmd_successful_search_pipeline(monkeypatch, capsys):
     assert "Outer HTML" in captured.out
     assert "Current Salary" in captured.out
     assert "Annual Bonus" not in captured.out
+
+
+def test_sequential_lines_then_chars_pipeline():
+    """Verify that --lines sets structural window and --chars acts as subsequent byte-budget trimmer."""
+    # 50 lines of 100 characters each
+    raw_lines = "\n".join([f"Line {i:02d}: " + "Z" * 90 for i in range(1, 51)])
+    sample_html = f"<div>\n{raw_lines}\n</div>"
+
+    # Step 1: Extract lines 10:30 only
+    lines_only = HTMLDiagnosticService.process_html_pipeline(
+        sample_html,
+        lines_slice="10:30",
+        pretty=False,
+    )
+    first_extracted_line = lines_only.splitlines()[0]
+    assert len(lines_only) > 1500
+
+    # Step 2: Combined --lines 10:30 --chars :1500
+    combined = HTMLDiagnosticService.process_html_pipeline(
+        sample_html,
+        lines_slice="10:30",
+        chars_slice=":1500",
+        pretty=False,
+    )
+
+    # Must start with first line of extracted block (relative to lines window, NOT un-sliced document start)
+    assert combined.startswith(first_extracted_line)
+    # Must be exactly 1500 characters
+    assert len(combined) == 1500
+    # Must equal lines_only trimmed to 1500 characters
+    assert combined == lines_only[:1500]
+
+
+def test_sequential_target_anchored_lines_with_chars_trimmer():
+    """Verify target-anchored banner is preserved when --chars trims the lines block."""
+    large_lines = "\n".join([f"Line {i:03d}: " + "Y" * 90 for i in range(1, 501)])
+    sample_html = f"<div>\n{large_lines}\n</div>"
+
+    combined = HTMLDiagnosticService.process_html_pipeline(
+        sample_html,
+        lines_slice=":500",
+        chars_slice=":500",
+        pretty=False,
+    )
+
+    lines = combined.splitlines()
+    assert lines[0].startswith("[⚠️ Note: Displaying target-anchored window preceding line 500")
+    # Content starts with line from the window
+    assert "Line" in lines[1]
+
