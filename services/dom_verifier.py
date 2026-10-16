@@ -202,8 +202,19 @@ class DOMDataMatcher:
                 return _test_regex(val)
             if not val:
                 return expected_str == ""
+
+            # WPB-011: Honor HTML maxlength constraint independently
+            max_len = actual.get("max_length")
+            if max_len is not None and isinstance(max_len, int) and max_len >= 0:
+                if len(val) > max_len:
+                    # Value in DOM exceeds physical maxlength attribute: constraint violation
+                    return False
+                if len(expected_str) > max_len and val_lower == expected_str[:max_len]:
+                    return True
+
             if expected_str == val_lower:
                 return True
+
             # Date normalization: YYYY-MM-DD <-> DD/MM/YYYY
             iso_exp = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", expected_str)
             slash_val = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{4})$", val_lower)

@@ -190,6 +190,15 @@ class MasterSupervisor:
                 message="Master Supervisor and all worker tiers shut down.",
             )
 
+        # Fast Layer 1 handling for status and ping (prevents head-of-line blocking by slow worker operations)
+        if req.action in ("status", "ping"):
+            return SupervisorActionResponse(
+                success=True,
+                action=req.action,
+                message="Master Supervisor alive and responsive.",
+                reactive_event=self.get_status(),
+            )
+
         with self.rpc_lock:
             worker = self._ensure_worker()
             if worker.stdin is None or self.worker_response_queue is None:
@@ -200,16 +209,18 @@ class MasterSupervisor:
                 worker.stdin.write(req_line)
                 worker.stdin.flush()
 
-                rpc_timeout_env = os.environ.get("WEBPILOT_RPC_TIMEOUT_SECONDS")
+                rpc_timeout_env = os.environ.get("WEBPILOT_RPC_TIMEOUT_SECONDS") or os.environ.get("WEBPILOT_REQUEST_TIMEOUT_SECONDS")
                 if rpc_timeout_env:
                     try:
                         rpc_timeout_seconds = float(rpc_timeout_env)
                     except ValueError:
-                        rpc_timeout_seconds = 1800.0
+                        rpc_timeout_seconds = 30.0
                 elif getattr(req, "timeout_minutes", None):
-                    rpc_timeout_seconds = max(float(req.timeout_minutes) * 60.0, 60.0)
+                    rpc_timeout_seconds = max(float(req.timeout_minutes) * 60.0, 10.0)
                 else:
-                    rpc_timeout_seconds = 1800.0
+                    # Default per-request operational budget: 35s (comfortably bounds slow page navigations)
+                    rpc_timeout_seconds = 35.0
+
                 data = None
                 start_t = time.time()
                 while True:
@@ -283,11 +294,16 @@ class MasterSupervisor:
         )
 
     def terminate_worker(self) -> None:
-        """Forcefully kills the Layer 2 Worker process tree via ProcessManager."""
+        """Forcefully kills the Layer 2 Worker process tree via ProcessManager and cleans temp profiles."""
         proc = self.worker_process
         self.worker_process = None
         if proc and proc.poll() is None:
             get_process_manager().kill_process_tree(proc.pid, force=True)
+        try:
+            from adapters.live_session_manager import LiveSessionManager
+            LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
+        except Exception:
+            pass
 
     def get_status(self) -> Dict[str, Any]:
         """Returns telemetry for Supervisor and Worker."""
@@ -308,8 +324,41 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] 
     sys.stdout = LogWriter(LOG_FILE)
     sys.stderr = LogWriter(LOG_FILE)
     log_daemon(f"run_master_daemon starting on port {port} (PID: {os.getpid()})")
+
+    # Startup sweep: reclaim any leftover Chromium temp profiles (WPB-013)
+    try:
+        from adapters.live_session_manager import LiveSessionManager
+        LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
+    except Exception:
+        pass
+
     supervisor = None
     bound_successfully = False
+    server = None
+
+    import signal
+
+    def _sig_handler(signum, frame):
+        log_daemon(f"Master Supervisor received signal {signum}, initiating graceful shutdown.")
+        if server:
+            try:
+                server.shutdown()
+            except Exception:
+                pass
+        if supervisor:
+            try:
+                supervisor.terminate_worker()
+            except Exception:
+                pass
+        sys.exit(0)
+
+    try:
+        signal.signal(signal.SIGINT, _sig_handler)
+        if hasattr(signal, "SIGTERM"):
+            signal.signal(signal.SIGTERM, _sig_handler)
+    except Exception:
+        pass
+
     try:
         eff_token = (
             token
@@ -334,8 +383,14 @@ def run_master_daemon(port: int = DEFAULT_SUPERVISOR_PORT, token: Optional[str] 
                 supervisor.terminate_worker()
             except Exception:
                 pass
+        try:
+            from adapters.live_session_manager import LiveSessionManager
+            LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
+        except Exception:
+            pass
         if bound_successfully:
             remove_supervisor_token()
+
 
 
 __all__ = [

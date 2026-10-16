@@ -5,7 +5,36 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-10-16
+
+### Adversarial Benchmark Full Remediation (WPB-010 - WPB-015)
+
+#### 1. Integrity & Release Cleanliness (WPB-010)
+- **Tag Realignment & Packaged Delivery**: Shipped official `v2.6.0` release including the unescaped `%` argparse fix (`%%`), the honeypot decoy rejection enhancements, and combobox inner-text resolution, ensuring `webpilot --help` and `--close-session` execute flawlessly out-of-the-box.
+
+#### 2. Strict HTML `maxlength` Constraint Enforcement (WPB-011)
+- **Zero Silent Wrong Results**: Enforced physical `maxlength` truncation in `set_field.py` prior to JavaScript property and prototype descriptor assignment, matching browser typing mechanics.
+- **Independent DOM Verification**: Hardened `DOMDataMatcher` to independently inspect `max_length`; values exceeding physical length constraints are strictly rejected as invalid, and expected inputs exceeding length constraints confirm only against the clamped prefix.
+
+#### 3. Advanced SSRF Defense & IP Canonicalization (WPB-012)
+- **Encoding & Alias Neutralization**: Overhauled `validate_safe_url` in `common/paths.py` with multi-stage resolution via `socket.getaddrinfo` and `ipaddress`. Blocked decimal integers (`2852039166`), hex (`0xA9FEA9FE`), dotted octal (`0177.0.0.1`), IPv4-mapped IPv6 (`[::ffff:...]`), DNS wildcard aliases (`*.nip.io`), and trailing-dot hostnames.
+- **Strict CIDR Denylists**: Enforced link-local / IMDS blocks for `169.254.0.0/16`, `fd00:ec2::/32` (AWS IMDSv6), and `fe80::/10`. Enforced private IP (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) and loopback (`127.0.0.0/8`) blocks by default unless explicitly allowed via `WEBPILOT_ALLOW_INTERNAL_URLS=1`.
+- **Post-Redirect Validation**: Added post-redirect URL re-validation in `browser_adapter.py::navigate` to eliminate redirect-based SSRF.
+
+#### 4. Complete Chromium Temp Profile Reclamation (WPB-013)
+- **Unbounded Leak Elimination**: Hooked `LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)` into the operational worker's `try ... finally` block, the supervisor's `terminate_worker()` path, `client.stop_service()`, and startup sweeps.
+- **Signal Handling Safety**: Added `SIGTERM` and `SIGINT` signal handlers in both supervisor master daemon and worker processes to guarantee profile directory deletion upon service termination.
+
+#### 5. Head-of-Line Blocking Mitigation & Fast-Path Telemetry (WPB-014)
+- **Layer 1 Zero-Latency Fast Path**: Handled `status` and `ping` actions directly at the Master Supervisor daemon without waiting on the worker RPC lock, ensuring liveness telemetry is always responsive.
+- **Configurable Request Budget**: Added `WEBPILOT_REQUEST_TIMEOUT_SECONDS` (defaulting to 35s) bounding individual navigation delays and preventing worker lockups.
+
+#### 6. Extended Custom Widget Coverage (WPB-015)
+- **Custom ARIA Radio Groups**: Enhanced `set_field.py` and `locator_fallbacks.py` to match `role="radiogroup"` containers by `aria-label`, `accessible-name`, and `title`, and select radio options by accessible name, updating `aria-checked="true"`.
+- **Guarded ContentEditable Editors**: Added selection range preparation and `document.execCommand('insertText')` dispatching for ProseMirror, Lexical, and Quill rich text editors, with keyboard sequential typing fallbacks in Playwright.
+
 ## [2.5.9] - 2026-10-16
+
 
 ### Adversarial Benchmark Audit & Truth Barrier Hardening (WPB-001 - WPB-009)
 

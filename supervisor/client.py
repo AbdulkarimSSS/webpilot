@@ -244,26 +244,36 @@ class SupervisorClient:
             )
 
     def stop_service(self) -> SupervisorActionResponse:
-        """Completely terminates Master Supervisor and all worker tiers."""
+        """Completely terminates Master Supervisor and all worker tiers and reclaims temp profiles."""
+        result = None
         if not self.is_running():
-            return SupervisorActionResponse(
+            result = SupervisorActionResponse(
                 success=True,
                 action="stop",
                 message="Master Supervisor is already stopped.",
             )
+        else:
+            headers = self._get_headers({"Content-Type": "application/json"})
+            req = urllib.request.Request(f"{self.base_url}/stop", data=b"{}", headers=headers, method="POST")
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    result = SupervisorActionResponse.from_dict(data)
+            except Exception as exc:
+                result = SupervisorActionResponse(
+                    success=False,
+                    action="stop",
+                    message=f"Error stopping service: {exc}",
+                )
 
-        headers = self._get_headers({"Content-Type": "application/json"})
-        req = urllib.request.Request(f"{self.base_url}/stop", data=b"{}", headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                return SupervisorActionResponse.from_dict(data)
-        except Exception as exc:
-            return SupervisorActionResponse(
-                success=False,
-                action="stop",
-                message=f"Error stopping service: {exc}",
-            )
+            from adapters.live_session_manager import LiveSessionManager
+            LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
+        except Exception:
+            pass
+
+        return result
+
 
     def get_status(self) -> Dict[str, Any]:
         """Retrieves runtime health and PID telemetry."""

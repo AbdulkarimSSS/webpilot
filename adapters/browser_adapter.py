@@ -409,7 +409,21 @@ class BrowserAdapter(BrowserAdapterProtocol):
                 print(f"[!] Notice: Navigation event delayed by tracker/network: {exc}. Continuing with page state...")
                 break
         self._page.wait_for_timeout(PAUSE_DOM_CONTENT_LOADED_MS)
+
+        # Verify post-redirect target URL against SSRF / safe URL rules (WPB-012)
+        final_url = self._page.url
+        if final_url and final_url not in ("", "about:blank") and final_url != url:
+            try:
+                validate_safe_url(final_url)
+            except Exception as exc:
+                try:
+                    self._page.goto("about:blank")
+                except Exception:
+                    pass
+                raise NavigationError(f"Security restriction: redirected URL '{final_url}' violates safe URL policy: {exc}") from exc
+
         self.print_page_telemetry()
+
 
     def capture_screenshot(self, output_path: str, full_page: bool = False, allow_overwrite: bool = True) -> None:
         """Captures a screenshot to the specified disk path with overwrite validation."""

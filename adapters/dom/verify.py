@@ -363,13 +363,17 @@ _VERIFY_LOGIC: Final[str] = r"""
             }
         }
 
+        const maxLen = (targetText.maxLength !== undefined && targetText.maxLength >= 0) ? targetText.maxLength : parseInt(targetText.getAttribute('maxlength') || '-1', 10);
+
         return {
             found: true,
             type: wc ? 'date' : (targetText.isContentEditable ? 'contenteditable' : tag),
             value: v,
+            max_length: maxLen,
             is_invalid: !checkValidity(targetText)
         };
     }
+
 
     return null;
 """

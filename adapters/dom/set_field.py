@@ -312,8 +312,13 @@ _SET_FIELD_LOGIC: Final[str] = r"""
     // 3. Radio / Checkboxes / Switches
     if (!hint || hint === 'choice' || hint === 'radio' || hint === 'checkbox' || hint === 'switch') {
         const choices = deepQueryAll(parentScope, 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], [role="switch"]');
-        const matchingChoices = choices.filter(c => !isHoneypotOrHidden(c) && (matchElement(c) || (c.name && c.name.toLowerCase().includes(lowerTarget))));
+        const matchingChoices = choices.filter(c => !isHoneypotOrHidden(c) && (
+            matchElement(c) ||
+            (c.name && c.name.toLowerCase().includes(lowerTarget)) ||
+            (c.closest && c.closest('[role="radiogroup"]') && matchElement(c.closest('[role="radiogroup"]')))
+        ));
         if (matchingChoices.length > 0) {
+
             const strVal = String(val).toLowerCase();
 
             function getChoiceText(c) {
@@ -429,23 +434,32 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             }
         }
 
-        // Custom Radio Groups in containers
+        // Custom Radio Groups in containers (WPB-015)
         const customGroups = deepQueryAll(parentScope, '[role="radiogroup"], .radioGroup, .rcmFormQuestionElement, .RCMFormField');
-        const matchingGroup = customGroups.find(g => (g.innerText || '').toLowerCase().includes(lowerTarget));
+        const matchingGroup = customGroups.find(g => {
+            const aria = (g.getAttribute('aria-label') || g.getAttribute('accessible-name') || g.getAttribute('title') || '').toLowerCase();
+            const txt = (g.innerText || g.textContent || '').toLowerCase();
+            return checkText(aria) || checkText(txt) || matchElement(g);
+        });
         if (matchingGroup) {
             const strVal = String(val).toLowerCase();
             const radioOptions = Array.from(matchingGroup.querySelectorAll('.globalRadio, [role="radio"], .radioCheck, .sfRadioInputField, .radioLabel'));
             for (let opt of radioOptions) {
                 const optText = (opt.innerText || opt.textContent || '').trim().toLowerCase();
-                const optVal = (opt.getAttribute('data-val') || '').toLowerCase();
-                if (optText === strVal || optText.startsWith(strVal) || optVal === strVal) {
+                const optAria = (opt.getAttribute('aria-label') || opt.getAttribute('accessible-name') || opt.getAttribute('title') || '').trim().toLowerCase();
+                const optVal = (opt.getAttribute('data-val') || opt.getAttribute('value') || '').toLowerCase();
+                if (optText === strVal || optText.startsWith(strVal) || optAria === strVal || optAria.startsWith(strVal) || optVal === strVal) {
                     opt.click();
+                    try {
+                        opt.setAttribute('aria-checked', 'true');
+                    } catch(e){}
                     markActiveForm(opt);
                     return { success: true, type: 'custom_radio', id: opt.id || '', value: strVal };
                 }
             }
         }
     }
+
 
     // 4. Text / Textarea / DatePicker / ContentEditable / Custom Web Components
     if (!hint || hint === 'text' || hint === 'input' || hint === 'textarea' || hint === 'string' || hint === 'number' || hint === 'date' || hint === 'datepicker' || hint === 'contenteditable') {
@@ -498,16 +512,32 @@ _SET_FIELD_LOGIC: Final[str] = r"""
 
             let toSet = String(val);
 
-            // Handle ContentEditable (Rich Text / Div Soup S41)
+            // Handle ContentEditable (Rich Text / Div Soup S41, ProseMirror WPB-015)
             if (targetText.isContentEditable || targetText.getAttribute('contenteditable') !== null) {
                 targetText.focus();
-                targetText.textContent = toSet;
+                try {
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(targetText);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                } catch(e){}
+
+                let execSuccess = false;
+                try {
+                    execSuccess = document.execCommand('insertText', false, toSet);
+                } catch(e){}
+
+                if (!execSuccess || (targetText.textContent || '').trim() !== toSet.trim()) {
+                    targetText.textContent = toSet;
+                }
                 targetText.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, composed: true, inputType: 'insertText', data: toSet }));
                 targetText.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: toSet }));
                 targetText.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
                 targetText.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
                 return { success: true, type: 'contenteditable', id: targetText.id || '', value: toSet };
             }
+
 
             // Handle ReadOnly input with Calendar Button fallback (S07)
             if (targetText.readOnly || (wc && (wc.readOnly || wc.getAttribute('readonly') !== null))) {
@@ -565,6 +595,12 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 }
             } catch(e){}
 
+            // WPB-011: Honor HTML maxlength constraint. Direct JS assignment ignores maxlength unless clamped.
+            const maxLen = (targetText.maxLength !== undefined && targetText.maxLength >= 0) ? targetText.maxLength : parseInt(targetText.getAttribute('maxlength') || '-1', 10);
+            if (maxLen >= 0 && toSet.length > maxLen) {
+                toSet = toSet.substring(0, maxLen);
+            }
+
             // Invoke native prototype descriptor setter for React / controlled synthetic state (S22, S33)
             try {
                 const proto = Object.getPrototypeOf(targetText);
@@ -573,6 +609,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                     protoDesc.set.call(targetText, toSet);
                 }
             } catch(e){}
+
             try {
                 targetText.value = toSet;
             } catch(e){}

@@ -119,7 +119,11 @@ def validate_safe_path(
 
 
 def validate_safe_url(url: str | None) -> str | None:
-    """Validates that a URL does not attempt Local File Inclusion (LFI) or cloud metadata SSRF."""
+    """Validates that a URL does not attempt Local File Inclusion (LFI) or cloud metadata SSRF.
+
+    Protects against direct literals, decimal/hex/octal encodings, DNS aliases,
+    IPv4-mapped IPv6, and link-local cloud metadata (AWS IMDSv4/v6, GCP, Azure, Oracle).
+    """
     if url is None:
         return None
     raw = url.strip()
@@ -129,10 +133,12 @@ def validate_safe_url(url: str | None) -> str | None:
     if raw in ("about:blank", "chrome://newtab"):
         return raw
 
-    from urllib.parse import urlparse
+    import ipaddress
+    import socket
+    from urllib.parse import urlsplit
 
-    parsed = urlparse(raw)
-    scheme = (parsed.scheme or "").lower()
+    split = urlsplit(raw)
+    scheme = (split.scheme or "").lower()
 
     if scheme == "file":
         if os.environ.get("WEBPILOT_ALLOW_FILE_URLS") == "1":
@@ -151,11 +157,93 @@ def validate_safe_url(url: str | None) -> str | None:
             f"Security restriction: scheme '{scheme}:' is not supported. Only http and https URLs are allowed."
         )
 
-    hostname = (parsed.hostname or "").lower()
-    if hostname in ("169.254.169.254", "metadata.google.internal", "metadata.internal"):
+    hostname = (split.hostname or "").strip().rstrip(".").lower()
+    if not hostname:
+        raise ValidationError("Security restriction: URL host cannot be empty.")
+
+    # Explicit metadata domain denylist
+    if hostname in ("metadata.google.internal", "metadata.internal", "instance-data"):
         raise ValidationError(
             f"Security restriction: access to cloud instance metadata at '{hostname}' is strictly prohibited."
         )
 
+    allow_internal = os.environ.get("WEBPILOT_ALLOW_INTERNAL_URLS") == "1" or os.environ.get("WEBPILOT_ALLOW_LOCAL_URLS") == "1"
+
+    # Cloud metadata networks (always blocked, even if WEBPILOT_ALLOW_INTERNAL_URLS=1)
+    METADATA_NETWORKS = [
+        ipaddress.ip_network("169.254.0.0/16"),       # IPv4 link-local & AWS/GCP/Azure/OCI IMDSv4
+        ipaddress.ip_network("fd00:ec2::/32"),        # AWS IMDSv6
+        ipaddress.ip_network("fe80::/10"),            # IPv6 link-local
+    ]
+
+    # Resolve IP addresses (handles decimal IP, hex IP, octal IP, DNS aliases like nip.io, IPv6)
+    clean_host = hostname.strip("[]")
+    addr_infos = []
+
+    # Check integer/hex literal representation (e.g. 0xA9FEA9FE, 2852039166, 0x7f000001)
+    try:
+        val = int(clean_host, 0)
+        if 0 <= val <= 0xFFFFFFFF:
+            addr_infos.append((socket.AF_INET, None, None, None, (str(ipaddress.IPv4Address(val)), 0)))
+    except (ValueError, TypeError):
+        pass
+
+    # Check dotted octal/hex/decimal (e.g. 0177.0.0.1, 127.0.0.1)
+    if not addr_infos and "." in clean_host:
+        parts = clean_host.split(".")
+        if len(parts) == 4:
+            try:
+                b = [int(p, 0) for p in parts]
+                if all(0 <= x <= 255 for x in b):
+                    addr_infos.append((socket.AF_INET, None, None, None, (str(ipaddress.IPv4Address(bytes(b))), 0)))
+            except (ValueError, TypeError):
+                pass
+
+    if not addr_infos:
+        try:
+            addr_infos = socket.getaddrinfo(clean_host, split.port or (443 if scheme == "https" else 80), proto=socket.IPPROTO_TCP)
+        except socket.gaierror:
+            try:
+                addr = ipaddress.ip_address(clean_host)
+                addr_infos = [(socket.AF_INET6 if addr.version == 6 else socket.AF_INET, None, None, None, (str(addr), 0))]
+            except ValueError:
+                if any(c.isdigit() for c in clean_host) and ("x" in clean_host.lower() or clean_host.replace(".", "").isdigit()):
+                    raise ValidationError(f"Security restriction: invalid or malformed numeric host '{hostname}'.")
+                return raw
+
+
+    for addr_info in addr_infos:
+        sock_addr = addr_info[4]
+        ip_str = sock_addr[0]
+        try:
+            ip_obj = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+
+        # Unwrap IPv4-mapped IPv6 (e.g. ::ffff:169.254.169.254)
+        if isinstance(ip_obj, ipaddress.IPv6Address) and ip_obj.ipv4_mapped:
+            ip_obj = ip_obj.ipv4_mapped
+
+        # 1. Enforce strict cloud metadata block
+        for meta_net in METADATA_NETWORKS:
+            if ip_obj in meta_net:
+                raise ValidationError(
+                    f"Security restriction: access to cloud instance metadata / link-local address '{ip_obj}' is strictly prohibited."
+                )
+
+        # 2. Enforce private / loopback restriction unless explicitly allowed for testing
+        if not allow_internal:
+            if (
+                ip_obj.is_loopback
+                or ip_obj.is_private
+                or ip_obj.is_reserved
+                or ip_obj.is_multicast
+                or ip_obj.is_unspecified
+            ):
+                raise ValidationError(
+                    f"Security restriction: access to internal or private IP address '{ip_obj}' is blocked. Set WEBPILOT_ALLOW_INTERNAL_URLS=1 to permit local lab testing."
+                )
+
     return raw
+
 

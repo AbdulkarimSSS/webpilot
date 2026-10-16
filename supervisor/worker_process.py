@@ -545,51 +545,80 @@ def run_worker_loop():
     # Redirect all print/logging to stderr to keep JSON-RPC channel strictly pure
     sys.stdout = sys.stderr
 
+    import signal
     worker = OperationalWorker(headed=False)
 
-    while True:
+    def _sig_handler(signum, frame):
         try:
-            line = sys.stdin.readline()
-            if not line:
-                break
+            worker.shutdown()
+            from adapters.live_session_manager import LiveSessionManager
+            LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
+        except Exception:
+            pass
+        sys.exit(0)
 
-            line = line.strip()
-            if not line:
-                continue
+    try:
+        signal.signal(signal.SIGINT, _sig_handler)
+        if hasattr(signal, "SIGTERM"):
+            signal.signal(signal.SIGTERM, _sig_handler)
+    except Exception:
+        pass
 
-            payload = json.loads(line)
-            req = SupervisorActionRequest.from_dict(payload)
-            resp = worker.handle_request(req)
-
+    try:
+        while True:
             try:
-                out_payload = json.dumps(resp.to_dict())
+                line = sys.stdin.readline()
+                if not line:
+                    break
+
+                line = line.strip()
+                if not line:
+                    continue
+
+                payload = json.loads(line)
+                req = SupervisorActionRequest.from_dict(payload)
+                resp = worker.handle_request(req)
+
+                try:
+                    out_payload = json.dumps(resp.to_dict())
+                except RecursionError:
+                    resp.reactive_event = {"result": "[Circular]"}
+                    out_payload = json.dumps(resp.to_dict())
+
+                rpc_out.write(out_payload + "\n")
+                rpc_out.flush()
+
+                if req.action.lower().strip() in ("stop", "shutdown"):
+                    break
+
             except RecursionError:
-                resp.reactive_event = {"result": "[Circular]"}
-                out_payload = json.dumps(resp.to_dict())
-
-            rpc_out.write(out_payload + "\n")
-            rpc_out.flush()
-
-            if req.action.lower().strip() in ("stop", "shutdown"):
-                break
-
-        except RecursionError:
-            err_resp = SupervisorActionResponse(
-                success=False,
-                action="error",
-                message="Worker loop fatal error: maximum recursion depth exceeded",
-            )
-            rpc_out.write(json.dumps(err_resp.to_dict()) + "\n")
-            rpc_out.flush()
-        except Exception as exc:
-            err_resp = SupervisorActionResponse(
-                success=False,
-                action="error",
-                message=f"Worker loop fatal error: {exc}",
-            )
-            rpc_out.write(json.dumps(err_resp.to_dict()) + "\n")
-            rpc_out.flush()
+                err_resp = SupervisorActionResponse(
+                    success=False,
+                    action="error",
+                    message="Worker loop fatal error: maximum recursion depth exceeded",
+                )
+                rpc_out.write(json.dumps(err_resp.to_dict()) + "\n")
+                rpc_out.flush()
+            except Exception as exc:
+                err_resp = SupervisorActionResponse(
+                    success=False,
+                    action="error",
+                    message=f"Worker loop fatal error: {exc}",
+                )
+                rpc_out.write(json.dumps(err_resp.to_dict()) + "\n")
+                rpc_out.flush()
+    finally:
+        try:
+            worker.shutdown()
+        except Exception:
+            pass
+        try:
+            from adapters.live_session_manager import LiveSessionManager
+            LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
     run_worker_loop()
+

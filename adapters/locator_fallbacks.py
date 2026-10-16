@@ -193,18 +193,22 @@ class PlaywrightLocatorFallback:
         except Exception:
             pass
 
-        # 3. Custom ARIA radioLabel spans (SuccessFactors)
+        # 3. Custom ARIA radio groups and radioLabel spans (WPB-015)
         for selector in [
+            f'[role="radiogroup"][aria-label*="{safe_target}" i] [role="radio"][aria-label*="{safe_strval}" i]',
+            f'[role="radiogroup"][aria-label*="{safe_target}" i] [role="radio"]:has-text("{safe_strval}")',
+            f'[role="radio"][aria-label*="{safe_strval}" i]',
             f'.radioLabel:text-is("{safe_strval}")',
             f'.radioLabel:has-text("{safe_strval}")',
         ]:
             try:
                 spans = page.locator(selector)
-                if spans.count() > 0:
+                if spans.count() > 0 and spans.first.is_visible(timeout=300):
                     spans.first.click()
                     return True
             except Exception:
                 pass
+
 
         # 4. Text / Textarea via label (strictly avoid clicking checkboxes or switches)
         try:
@@ -273,12 +277,32 @@ class PlaywrightLocatorFallback:
                 f = page.locator('input[type="password"]')
                 if f.count() > 0 and f.first.is_visible(timeout=300):
                     f.first.fill(strval)
+                    return True
+            except Exception:
+                pass
+
+        # 8. ContentEditable / Rich Text editors (ProseMirror, Lexical, Quill - WPB-015)
+
+        for ce_sel in [
+            f'[contenteditable="true"][aria-label*="{safe_target}" i]',
+            f'[contenteditable=""][aria-label*="{safe_target}" i]',
+            f'[role="textbox"][aria-label*="{safe_target}" i]',
+            f'#{safe_target}[contenteditable="true"]',
+            f'#{safe_target}[contenteditable=""]',
+            f'[name="{safe_target}"][contenteditable="true"]',
+            f'[data-placeholder*="{safe_target}" i]',
+        ]:
+            try:
+                ed = page.locator(ce_sel)
+                if ed.count() > 0 and ed.first.is_visible(timeout=300):
+                    ed.first.click()
                     try:
-                        f.first.evaluate("el => { const f = el.form || (el.closest ? el.closest('form') : null); if (f) f.setAttribute('data-wp-active-form', 'true'); }")
+                        ed.first.press_sequentially(strval, delay=15)
                     except Exception:
-                        pass
+                        page.keyboard.type(strval)
                     return True
             except Exception:
                 pass
 
         return False
+
