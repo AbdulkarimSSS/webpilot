@@ -100,8 +100,29 @@ _VERIFY_LOGIC: Final[str] = r"""
         exactEl = null;
     }
 
+    function isActionable(el) {
+        if (!el) return false;
+        try {
+            let curr = el;
+            while (curr && curr !== document && curr.nodeType === 1) {
+                const style = window.getComputedStyle ? window.getComputedStyle(curr) : null;
+                if (style && (style.display === 'none' || style.visibility === 'hidden')) {
+                    return false;
+                }
+                curr = curr.parentElement || (curr.getRootNode ? curr.getRootNode().host : null);
+            }
+            if (el.offsetWidth === 0 && el.offsetHeight === 0 && (!el.getClientRects || el.getClientRects().length === 0)) {
+                if (el.tagName !== 'INPUT' || (el.type || '').toLowerCase() !== 'hidden') {
+                    return false;
+                }
+            }
+        } catch(e) {}
+        return true;
+    }
+
     function checkValidity(el) {
         if (!el) return true;
+        if (!isActionable(el)) return false;
         if (el.getAttribute && (el.getAttribute('aria-invalid') === 'true' || el.getAttribute('data-invalid') === 'true' || el.getAttribute('data-error') === 'true')) return false;
         try {
             if (el.validity && el.validity.valid === false) return false;

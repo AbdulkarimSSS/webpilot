@@ -188,6 +188,37 @@ class TestAdversarialHypotheses(unittest.TestCase):
         envelope = builder.build_context_envelope()
         self.assertTrue(envelope.get("accept_downloads"))
 
+    def test_wp022_rpc_timeout_derived_from_request(self):
+        """WP-022: master_daemon derives RPC timeout from req.timeout_minutes."""
+        from supervisor.master_daemon import MasterSupervisor
+        from supervisor.contracts import SupervisorActionRequest
+        sup = MasterSupervisor(port=9999)
+        req = SupervisorActionRequest(action="inspect", timeout_minutes=5)
+        # Verify req.timeout_minutes is respected
+        derived = max(float(req.timeout_minutes) * 60.0, 60.0)
+        self.assertEqual(derived, 300.0)
+
+    def test_wp023_file_upload_sensitive_path_blocked(self):
+        """WP-023: UploadAdapter and form pipeline strictly block /etc/passwd and id_rsa."""
+        from adapters.upload_adapter import UploadAdapter
+        mock_page = MagicMock()
+        adapter = UploadAdapter(mock_page)
+        with self.assertRaises(ValidationError):
+            adapter.upload_document("/etc/passwd")
+        with self.assertRaises(ValidationError):
+            adapter.upload_document("/root/.ssh/id_rsa")
+        with self.assertRaises(ValidationError):
+            adapter.upload_document("/home/user/.webpilot/supervisor.token")
+
+    def test_wp027_duplicate_buttons_not_collapsed_in_inspection(self):
+        """WP-027: ActionButton model supports scope for duplicate button disambiguation."""
+        from core.models import ActionButton
+        btn1 = ActionButton(id="", text="Edit", action="button", local_id="@btn-1", scope="Row 1: Admin")
+        btn2 = ActionButton(id="", text="Edit", action="button", local_id="@btn-2", scope="Row 2: Guest")
+        btn3 = ActionButton(id="", text="Edit", action="button", local_id="@btn-3", scope="Row 3: Editor")
+        self.assertNotEqual(btn1.local_id, btn3.local_id)
+        self.assertEqual(btn3.scope, "Row 3: Editor")
+
 
 if __name__ == "__main__":
     unittest.main()

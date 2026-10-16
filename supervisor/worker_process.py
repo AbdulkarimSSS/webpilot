@@ -304,7 +304,7 @@ class OperationalWorker:
             )
         if req.url:
             coord.adapter.navigate(req.url)
-        safe_eval_wrapper = """([code, args]) => {
+        safe_eval_wrapper = """async ([code, args]) => {
             let raw;
             try {
                 const fn = new Function('args', 'return (' + code + ')');
@@ -312,6 +312,30 @@ class OperationalWorker:
             } catch (e) {
                 const fn2 = new Function('args', code);
                 raw = fn2(args);
+            }
+            if (typeof raw === 'function') {
+                try {
+                    raw = raw(args);
+                } catch (e) {}
+            }
+            if (raw && typeof raw.then === 'function') {
+                try {
+                    raw = await raw;
+                } catch (e) {
+                    throw e;
+                }
+            }
+            if (typeof raw === 'function') {
+                try {
+                    raw = raw(args);
+                } catch (e) {}
+            }
+            if (raw && typeof raw.then === 'function') {
+                try {
+                    raw = await raw;
+                } catch (e) {
+                    throw e;
+                }
             }
             const seen = new Set();
             function sanitize(val, depth) {

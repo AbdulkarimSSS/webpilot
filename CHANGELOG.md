@@ -5,6 +5,32 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.6] - 2026-10-16
+
+### Benchmark Adversarial Catalog Remediation (WP-022 - WP-027)
+
+#### 1. Dynamic Worker RPC Timeout (WP-022)
+- **Request-Derived Timeout**: `MasterSupervisor` now derives RPC queue deadlines dynamically from `req.timeout_minutes` (bounded below by 60s) and supports configurable overrides via `WEBPILOT_RPC_TIMEOUT_SECONDS`, preventing premature worker termination during long-running tasks.
+
+#### 2. Arbitrary File Read & Exfiltration Prevention (WP-023)
+- **Strict Upload Path Confinement**: Enforced `validate_safe_path(file_path, for_write=False)` at both `UploadAdapter.upload_document` and `FormApplicationPipeline.execute_uploads`.
+- **Expanded Sensitive Blocklist**: Prohibited reading and uploading sensitive stores (`/etc/passwd`, `/etc/shadow`, `~/.ssh/id_*`, `~/.webpilot/supervisor.token`, `.netrc`, `.git-credentials`).
+
+#### 3. Strict Truth Barrier & Non-Actionable Element Rejection (WP-024)
+- **Eliminated Arbitrary Button Fallback**: Removed `|| b.tagName === 'BUTTON'` fallback from `CLICK_BUTTON_DOM_SCRIPT`, preventing false clicks on unrelated buttons (e.g. `Next` when `Submit` is requested).
+- **Actionability Enforcement**: Filtered non-actionable elements (`isActionable` checking `display:none` and zero client rects) across `reactive.py`, `set_field.py`, and `verify.py`, preventing false verification of controls in inactive wizard steps.
+- **Async Typeahead Synchronization**: Increased typeahead suggestion wait timeout and added label-based synchronization for companion hidden inputs.
+
+#### 4. Async Function & Promise Handling in Safe Eval (WP-025)
+- **Async Eval Wrapper**: Transformed `safe_eval_wrapper` into an `async` function that directly invokes returned functions (`raw(args)`) and resolves Promises (`await raw`), ensuring async workflows and arrow functions return real values instead of `[Function anonymous]` or `{}`.
+
+#### 5. Dynamic Version Assertion in SDK Tests (WP-026)
+- **CI Hygiene**: Updated `test_package_exports_and_aliases` in `tests/test_python_sdk.py` to assert version consistency dynamically across `__version__`, `webpilot`, and `webpilot_engine` rather than asserting a stale literal.
+
+#### 6. Action Button Duplicate Preservation & Context Scoping (WP-027)
+- **Node-Based Deduplication**: Replaced string-key deduplication in `adapters/dom/inspection.py` with DOM-node set tracking, surfacing all repeating buttons (e.g. row action buttons in tables).
+- **Scope Context Enrichment**: Added `scope` attribute to `ActionButton` capturing enclosing container context (`tr`, `li`, `role="row"`, `.card`), enabling unambiguous targeting (`Row 3 >> Edit` or `@btn-3`).
+
 ## [2.5.5] - 2026-10-15
 
 ### Benchmark Adversarial Catalog Remediation (WP-001 - WP-010)

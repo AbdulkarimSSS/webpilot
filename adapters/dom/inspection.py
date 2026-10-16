@@ -471,9 +471,12 @@ _INSPECT_LOGIC: Final[str] = r"""
 
     // 6. Action Buttons
     const buttonEls = deepQueryAll(document, 'button, input[type="submit"], input[type="button"], a.btn, [role="button"], span[id$="_submitBtn"], span[id$="_saveBtn"]');
-    const seenButtons = new Set();
+    const seenButtonNodes = new Set();
     buttonEls.forEach(btn => {
         if (isHoneypotOrHidden(btn)) return;
+        if (seenButtonNodes.has(btn)) return;
+        seenButtonNodes.add(btn);
+
         const id = btn.id || '';
         if (id.endsWith(':_selectButton')) return;
         const text = clean(btn.innerText || btn.value || btn.title);
@@ -495,9 +498,12 @@ _INSPECT_LOGIC: Final[str] = r"""
         else if (lower.includes('cancel') || lower.includes('close')) action = 'cancel';
         else action = 'button';
 
-        const key = text + '_' + action;
-        if (seenButtons.has(key)) return;
-        seenButtons.add(key);
+        let scopeContext = '';
+        const rowOrContainer = btn.closest ? btn.closest('tr, li, [role="row"], .card, fieldset') : null;
+        if (rowOrContainer) {
+            const rawRowText = clean(rowOrContainer.innerText || rowOrContainer.textContent || '');
+            scopeContext = rawRowText.replace(new RegExp(text, 'gi'), '').trim().slice(0, 60);
+        }
 
         const localId = getOrCreateLocalId(btn, 'btn', 'btn');
 
@@ -505,6 +511,7 @@ _INSPECT_LOGIC: Final[str] = r"""
             local_id: localId,
             id: id,
             label: text,
+            scope: scopeContext || '',
             action: action,
             ...(isSecToggle ? { section_local_id: sectionToggleMap.get(btn) || '' } : {})
         });

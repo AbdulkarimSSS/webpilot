@@ -19,9 +19,42 @@ SENSITIVE_TARGETS = (
     "/etc/passwd",
     "/etc/sudoers",
     "/etc/master.passwd",
+    "/etc/gshadow",
+    "/etc/security",
+    "/etc/pam.d",
+    "\\.netrc",
+    "/.netrc",
+    "\\.git-credentials",
+    "/.git-credentials",
+    "\\.bash_history",
+    "/.bash_history",
+    "\\.zsh_history",
+    "/.zsh_history",
     "\\windows\\system32",
     "/windows/system32",
     "\\windows\\system32\\config",
+)
+
+SENSITIVE_PATTERNS = (
+    "id_rsa",
+    "id_ed25519",
+    "id_ecdsa",
+    "id_dsa",
+    "supervisor.token",
+)
+
+SYSTEM_WRITE_ROOTS = (
+    "/etc",
+    "/usr",
+    "/bin",
+    "/sbin",
+    "/lib",
+    "/lib64",
+    "/boot",
+    "/dev",
+    "/proc",
+    "/sys",
+    "c:\\windows",
 )
 
 
@@ -44,5 +77,19 @@ def validate_safe_path(path: str, for_write: bool = False) -> str:
             raise ValidationError(
                 f"Security restriction: access to protected or sensitive path '{path}' is strictly prohibited."
             )
+
+    base_name = os.path.basename(norm_path)
+    for pattern in SENSITIVE_PATTERNS:
+        if pattern in base_name:
+            raise ValidationError(
+                f"Security restriction: access to protected key/token '{path}' is strictly prohibited."
+            )
+
+    if for_write:
+        for sys_root in SYSTEM_WRITE_ROOTS:
+            if norm_path == sys_root or norm_path.startswith(sys_root + os.sep) or norm_path.startswith(sys_root + "/"):
+                raise ValidationError(
+                    f"Security restriction: writing into system directory '{path}' is strictly prohibited."
+                )
 
     return clean_path

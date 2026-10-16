@@ -200,7 +200,16 @@ class MasterSupervisor:
                 worker.stdin.write(req_line)
                 worker.stdin.flush()
 
-                rpc_timeout_seconds = 60.0
+                rpc_timeout_env = os.environ.get("WEBPILOT_RPC_TIMEOUT_SECONDS")
+                if rpc_timeout_env:
+                    try:
+                        rpc_timeout_seconds = float(rpc_timeout_env)
+                    except ValueError:
+                        rpc_timeout_seconds = 1800.0
+                elif getattr(req, "timeout_minutes", None):
+                    rpc_timeout_seconds = max(float(req.timeout_minutes) * 60.0, 60.0)
+                else:
+                    rpc_timeout_seconds = 1800.0
                 data = None
                 start_t = time.time()
                 while True:

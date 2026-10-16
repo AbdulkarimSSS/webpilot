@@ -42,12 +42,30 @@ CLICK_BUTTON_DOM_SCRIPT: Final[str] = """(t) => {
         return results;
     }
 
+    function isActionable(b) {
+        if (!b) return false;
+        try {
+            let curr = b;
+            while (curr && curr !== document && curr.nodeType === 1) {
+                const style = window.getComputedStyle ? window.getComputedStyle(curr) : null;
+                if (style && (style.display === 'none' || style.visibility === 'hidden')) {
+                    return false;
+                }
+                curr = curr.parentElement || (curr.getRootNode ? curr.getRootNode().host : null);
+            }
+            if (b.offsetWidth === 0 && b.offsetHeight === 0 && (!b.getClientRects || b.getClientRects().length === 0)) {
+                return false;
+            }
+        } catch(e) {}
+        return true;
+    }
+
     // 0. Priority: Search inside active forms (marked during field population)
     const activeForms = deepQueryAll(document, 'form[data-wp-active-form="true"]');
     if (activeForms.length > 0) {
         for (const frm of activeForms) {
             const btns = deepQueryAll(frm, 'button, input[type="button"], input[type="submit"], a, [role="button"], span[id$="_submitBtn"], span[id$="_saveBtn"]')
-                .filter(b => b.offsetWidth > 0 || b.offsetHeight > 0 || (b.getClientRects && b.getClientRects().length > 0));
+                .filter(b => isActionable(b));
             let chosen = btns.find(b => {
                 const text = cleanText(b.innerText || b.value || b.title || b.getAttribute('aria-label') || '');
                 return text === lower || (b.id && b.id.toLowerCase() === lower);
@@ -59,9 +77,9 @@ CLICK_BUTTON_DOM_SCRIPT: Final[str] = """(t) => {
                 });
             }
             if (!chosen && ['submit', 'apply', 'send', 'save', 'confirm'].includes(lower)) {
-                chosen = btns.find(b => (b.getAttribute('type') || '').toLowerCase() === 'submit' || b.tagName === 'BUTTON');
+                chosen = btns.find(b => (b.getAttribute('type') || '').toLowerCase() === 'submit');
             }
-            if (chosen) {
+            if (chosen && isActionable(chosen)) {
                 if (chosen.scrollIntoViewIfNeeded) chosen.scrollIntoViewIfNeeded();
                 chosen.click();
                 return true;
@@ -71,25 +89,34 @@ CLICK_BUTTON_DOM_SCRIPT: Final[str] = """(t) => {
 
     let searchRoot = document;
     if (scopeText) {
-        const sections = Array.from(document.querySelectorAll('fieldset, section, .rcmFormSection, .form-section, .panel, .card, [id$=":sectionContent"], div'));
+        const sections = Array.from(document.querySelectorAll('fieldset, section, tr, li, [role="row"], .rcmFormSection, .form-section, .panel, .card, [id$=":sectionContent"], div'));
         const matchedSec = sections.find(sec => {
-            const h = sec.querySelector('legend, h1, h2, h3, h4, .sectionHeader, .panel-title, [id$=":topBar"]');
-            return h && cleanText(h.innerText || h.textContent).includes(scopeText);
+            const h = sec.querySelector('legend, h1, h2, h3, h4, .sectionHeader, .panel-title, td, th, [id$=":topBar"]');
+            const secText = cleanText(sec.innerText || sec.textContent || '');
+            return (h && cleanText(h.innerText || h.textContent || '').includes(scopeText)) || secText.includes(scopeText);
         });
         if (matchedSec) searchRoot = matchedSec;
     }
 
     if (rawTarget.startsWith('@')) {
-        const byWpId = searchRoot.querySelector('[data-wp-id="' + rawTarget + '"]');
-        if (byWpId) { byWpId.click(); return true; }
+        const byWpId = searchRoot.querySelector ? searchRoot.querySelector('[data-wp-id="' + rawTarget + '"]') : null;
+        if (byWpId && isActionable(byWpId)) {
+            if (byWpId.scrollIntoViewIfNeeded) byWpId.scrollIntoViewIfNeeded();
+            byWpId.click();
+            return true;
+        }
     }
     if (!scopeText) {
         const direct = document.getElementById(rawTarget);
-        if (direct) { direct.click(); return true; }
+        if (direct && isActionable(direct)) {
+            if (direct.scrollIntoViewIfNeeded) direct.scrollIntoViewIfNeeded();
+            direct.click();
+            return true;
+        }
     }
 
-    const btns = deepQueryAll(searchRoot, 'button, input[type="button"], input[type="submit"], a, [role="button"], [onclick], span[id$="_submitBtn"], span[id$="_saveBtn"], .modal-footer *, .modal-close, [class*="close"], [aria-label*="close" i], p, span')
-        .filter(b => b.offsetWidth > 0 || b.offsetHeight > 0 || (b.getClientRects && b.getClientRects().length > 0));
+    const btns = deepQueryAll(searchRoot, 'button, input[type="button"], input[type="submit"], a, [role="button"], [onclick], span[id$="_submitBtn"], span[id$="_saveBtn"], .modal-footer *, .modal-close, [class*="close"], [aria-label*="close" i]')
+        .filter(b => isActionable(b));
     let chosen = btns.find(b => {
         const text = cleanText(b.innerText || b.value || b.title || b.getAttribute('aria-label') || '');
         return text === lower || (b.id && b.id.toLowerCase() === lower);
@@ -100,7 +127,10 @@ CLICK_BUTTON_DOM_SCRIPT: Final[str] = """(t) => {
             return text.includes(lower);
         });
     }
-    if (chosen) {
+    if (!chosen && ['submit', 'apply', 'send', 'save', 'confirm'].includes(lower)) {
+        chosen = btns.find(b => (b.getAttribute('type') || '').toLowerCase() === 'submit');
+    }
+    if (chosen && isActionable(chosen)) {
         if (chosen.scrollIntoViewIfNeeded) chosen.scrollIntoViewIfNeeded();
         chosen.click();
         return true;

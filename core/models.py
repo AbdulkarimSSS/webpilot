@@ -163,6 +163,7 @@ class ActionButton:
     text: str
     action: str = "action"
     local_id: str = ""
+    scope: str = ""
 
 
 @dataclass

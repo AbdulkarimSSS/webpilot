@@ -137,7 +137,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
     // 1. SELECT
     if (!hint || hint === 'select' || hint === 'dropdown') {
         const selects = deepQueryAll(parentScope, 'select');
-        const targetSelect = exactEl && exactEl.tagName === 'SELECT' ? exactEl : selects.find(matchElement);
+        const targetSelect = exactEl && exactEl.tagName === 'SELECT' ? exactEl : selects.find(s => !isHoneypotOrHidden(s) && matchElement(s));
         if (targetSelect) {
             if (targetSelect.disabled || targetSelect.getAttribute('aria-disabled') === 'true') {
                 return { success: false, type: 'select', id: targetSelect.id, reason: 'Field is disabled (awaiting dependency)' };
@@ -271,7 +271,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
         const picklistInputs = deepQueryAll(parentScope, 'input, [role="combobox"], [aria-haspopup="listbox"]').filter(i => 
             (i.id && i.id.endsWith(':_input')) || i.getAttribute('role') === 'combobox' || (i.getAttribute('data-wp-id') && i.getAttribute('data-wp-id').startsWith('@drop-'))
         );
-        const targetPicklist = (exactEl && picklistInputs.includes(exactEl)) ? exactEl : picklistInputs.find(matchElement);
+        const targetPicklist = (exactEl && picklistInputs.includes(exactEl)) ? exactEl : picklistInputs.find(p => !isHoneypotOrHidden(p) && matchElement(p));
         if (targetPicklist) {
             if (targetPicklist.disabled || targetPicklist.getAttribute('aria-disabled') === 'true') {
                 return { success: false, type: 'picklist', id: targetPicklist.id, reason: 'Picklist is disabled (awaiting dependency)' };
@@ -293,7 +293,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
     // 3. Radio / Checkboxes / Switches
     if (!hint || hint === 'choice' || hint === 'radio' || hint === 'checkbox' || hint === 'switch') {
         const choices = deepQueryAll(parentScope, 'input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"], [role="switch"]');
-        const matchingChoices = choices.filter(c => matchElement(c) || (c.name && c.name.toLowerCase().includes(lowerTarget)));
+        const matchingChoices = choices.filter(c => !isHoneypotOrHidden(c) && (matchElement(c) || (c.name && c.name.toLowerCase().includes(lowerTarget))));
         if (matchingChoices.length > 0) {
             const strVal = String(val).toLowerCase();
 
@@ -462,10 +462,10 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 const tag = (i.tagName || '').toLowerCase();
                 return tag === 'input' || tag === 'textarea' || i.isContentEditable || ['textbox', 'searchbox'].includes(i.getAttribute('role'));
             });
-            targetText = primaryInputs.find(i => !isHoneypotOrHidden(i) && matchElement(i)) || primaryInputs.find(matchElement);
+            targetText = primaryInputs.find(i => !isHoneypotOrHidden(i) && matchElement(i));
         }
         if (!targetText) {
-            targetText = textCandidates.find(i => !isHoneypotOrHidden(i) && matchElement(i)) || textCandidates.find(matchElement);
+            targetText = textCandidates.find(i => !isHoneypotOrHidden(i) && matchElement(i));
         }
         if (targetText) {
             const tag = (targetText.tagName || '').toLowerCase();
@@ -580,11 +580,20 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 const frm = (targetText.closest ? targetText.closest('form') : null) || targetText.form;
                 if (frm) {
                     const hiddenInputs = Array.from(frm.querySelectorAll('input[type="hidden"]'));
+                    let lblText = (targetText.labels && targetText.labels[0] ? targetText.labels[0].innerText : '') || '';
+                    if (!lblText && targetText.id) {
+                        try {
+                            const esc = (window.CSS && CSS.escape) ? CSS.escape(targetText.id) : targetText.id;
+                            const lEl = document.querySelector('label[for="' + esc + '"]');
+                            if (lEl) lblText = lEl.innerText || lEl.textContent || '';
+                        } catch(e) {}
+                    }
+                    const targetsToCheck = [lowerTarget, lblText.trim().toLowerCase()].filter(Boolean);
                     for (let h of hiddenInputs) {
                         const hName = (h.name || '').toLowerCase();
                         const hId = (h.id || '').toLowerCase();
-                        const tLower = lowerTarget.toLowerCase();
-                        if (hName === tLower || hId === tLower || (hName && tLower && (hName.includes(tLower) || tLower.includes(hName)))) {
+                        const isMatch = targetsToCheck.some(t => hName === t || hId === t || (hName && t && (hName.includes(t) || t.includes(hName))));
+                        if (isMatch) {
                             h.value = toSet;
                             h.dispatchEvent(new Event('input', { bubbles: true }));
                             h.dispatchEvent(new Event('change', { bubbles: true }));

@@ -284,11 +284,12 @@ class FieldInteractionService:
                 if has_sug:
                     sug_loc = self.page.locator('#sug div, .sug div, [role="listbox"] [role="option"], .tt-suggestion, .autocomplete-suggestion').filter(has_text=str(value))
                     try:
-                        sug_loc.first.wait_for(state="visible", timeout=1500)
+                        sug_loc.first.wait_for(state="visible", timeout=3000)
                     except Exception:
                         pass
                     if sug_loc.count() > 0 and sug_loc.first.is_visible():
                         sug_loc.first.click(force=True)
+                        self.page.wait_for_timeout(100)
                         if debug_lines is not None:
                             debug_lines.append(f"    [debug] Clicked typeahead suggestion for '{value}'")
             except Exception:

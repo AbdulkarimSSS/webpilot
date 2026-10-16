@@ -9,6 +9,7 @@ from playwright.sync_api import BrowserContext, Page
 
 from adapters.upload_adapter import UploadAdapter
 from common.logging import is_sensitive_key
+from common.paths import validate_safe_path
 from services.field_interaction_service import FieldInteractionService
 from services.inspection_service import InspectionService
 from services.reactive_interaction_service import ReactiveInteractionService
@@ -224,15 +225,26 @@ class FormApplicationPipeline:
                 kw, path = kw.strip(), path.strip()
             else:
                 kw, path = "", up.strip()
-            if os.path.isfile(path):
-                lines.append(f"[*] Uploading '{path}' (Keyword: '{kw}')...")
-                ok = upload_adapter.upload_document(path, kw)
+            try:
+                clean_path = validate_safe_path(path, for_write=False)
+            except Exception as exc:
+                all_ok = False
+                lines.append(f"[!] Upload security violation for '{path}': {exc}")
+                continue
+
+            if os.path.isfile(clean_path):
+                lines.append(f"[*] Uploading '{clean_path}' (Keyword: '{kw}')...")
+                try:
+                    ok = upload_adapter.upload_document(clean_path, kw)
+                except Exception as exc:
+                    ok = False
+                    lines.append(f"[!] Upload failed with exception: {exc}")
                 if not ok:
                     all_ok = False
-                    lines.append(f"[!] Upload failed for: '{path}' (Keyword: '{kw}')")
+                    lines.append(f"[!] Upload failed for: '{clean_path}' (Keyword: '{kw}')")
                 else:
-                    lines.append(f"[✓] Upload succeeded for: '{path}'")
+                    lines.append(f"[✓] Upload succeeded for: '{clean_path}'")
             else:
                 all_ok = False
-                lines.append(f"[!] Upload target file not found: '{path}'")
+                lines.append(f"[!] Upload target file not found: '{clean_path}'")
         return all_ok

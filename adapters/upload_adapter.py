@@ -7,6 +7,7 @@ from playwright.sync_api import Page
 from adapters.base import UploadAdapterProtocol
 from constants.timeouts import PAUSE_UPLOAD_DIRECT_MS, PAUSE_UPLOAD_CHOOSER_MS
 from core.exceptions import DocumentUploadError
+from common.paths import validate_safe_path
 
 
 class UploadAdapter(UploadAdapterProtocol):
@@ -17,10 +18,11 @@ class UploadAdapter(UploadAdapterProtocol):
 
     def upload_document(self, file_path: str, document_type_keyword: str = "") -> bool:
         """Attaches a local document to the form using direct input or file chooser dialogs."""
-        if not os.path.isfile(file_path):
+        clean_path = validate_safe_path(file_path, for_write=False)
+        if not os.path.isfile(clean_path):
             raise FileNotFoundError(f"Target document not found: {file_path}")
 
-        print(f"Uploading document '{file_path}' (Keyword: '{document_type_keyword}')...")
+        print(f"Uploading document '{clean_path}' (Keyword: '{document_type_keyword}')...")
 
         # 1. Native input[type="file"]
         file_inputs = self.page.locator("input[type='file']").all()
