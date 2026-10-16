@@ -140,6 +140,7 @@ def find_cmd(args: argparse.Namespace) -> None:
                 from services.html_diagnostic_service import (
                     HTMLDiagnosticService,
                     DiagnosticSearchNotFoundError,
+                    DiagnosticInputError,
                 )
                 pretty_mode = not getattr(args, "raw", False)
                 show_all = getattr(args, "all_options", False)
@@ -162,7 +163,7 @@ def find_cmd(args: argparse.Namespace) -> None:
                     details["outerHTML"] = processed_html
                 if "html" in details:
                     details["html"] = processed_html
-            except DiagnosticSearchNotFoundError as e:
+            except (DiagnosticSearchNotFoundError, DiagnosticInputError) as e:
                 print(f"\n[!] Error: {e}", file=sys.stderr)
                 sys.exit(1)
         elif search_val:

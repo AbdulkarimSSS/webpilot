@@ -5,6 +5,25 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.7] - 2026-10-17
+
+### Precision Diagnostics Hardening & Stable Identifier Storage
+
+#### 1. Stable `@exc-N` Identifier Architecture
+- **Content Digest Deduplication**: Generates deterministic SHA-1 content digests for pruned nodes. Re-pruning identical HTML subtrees returns existing `@exc-N` IDs consistently rather than generating new keys.
+- **Cross-Process Synchronization & Atomic State**: Implements atomic temporary-file persistence (`_save_pruned_store` via `os.replace`) and process synchronization (`_sync_from_disk`), ensuring multi-process runs share immutable `@exc-N` references without torn reads or counter drift.
+
+#### 2. Deduplicated Structural Exclusion & No Silent Deletions
+- **Top-Level Stub Deduplication**: Enforces ancestor-set tracking (`removed: Set[int]`) in `apply_structural_tag_filter`. Nested tags matching exclusion criteria are collapsed into a single top-level stub comment carrying its `@exc-N` ID, preventing duplicate sub-stubs.
+- **Non-Silent Exclusions**: Excluded nodes (including text-only nodes) are registered and retrievable via `@exc-N`. Nodes containing inputs/widgets include enriched diagnostic metadata.
+
+#### 3. Strict Input Validation & Clean CLI Error Propagation
+- **`DiagnosticInputError`**: Enforces strict validation across the diagnostics pipeline. Raises descriptive errors on malformed regular expressions (`re.error`), invalid slice expressions in `--lines` / `--chars` (`ValueError`), and negative `--max-chars` values.
+- **CLI Clean Exit**: `webpilot find` catches `DiagnosticInputError` alongside `DiagnosticSearchNotFoundError` and exits cleanly with status code 1.
+
+#### 4. CSS Selector Matching in `--upper-include`
+- **Soupsieve Direct Evaluation**: Integrates direct CSS selector evaluation against upper-tier uncle nodes via `soupsieve.match(token, node)`.
+
 ## [2.6.6] - 2026-10-16
 
 ### Precision HTML Diagnostics & Probe Hardening

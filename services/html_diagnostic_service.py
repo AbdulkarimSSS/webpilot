@@ -6,11 +6,14 @@ Implements a 5-stage linear pipeline:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 from bs4 import BeautifulSoup, Tag, NavigableString, Comment
+import soupsieve
 
 
 class DiagnosticSearchNotFoundError(Exception):
@@ -18,10 +21,16 @@ class DiagnosticSearchNotFoundError(Exception):
     pass
 
 
+class DiagnosticInputError(Exception):
+    """Raised for invalid user input: bad regex, bad --lines/--chars slice, negative --max-chars."""
+    pass
+
+
 class HTMLDiagnosticService:
     """Multi-stage surgical HTML filtering and formatting pipeline."""
 
     _pruned_registry: Dict[str, Dict[str, Any]] = {}
+    _hash_index: Dict[str, str] = {}
     _exc_counter: int = 0
     PRUNED_STORE_DIR: str = os.path.expanduser("~/.webpilot")
     PRUNED_STORE_FILE: str = os.path.join(PRUNED_STORE_DIR, "pruned_nodes.json")
@@ -30,6 +39,7 @@ class HTMLDiagnosticService:
     def clear_pruned_store(cls) -> None:
         """Clears both in-memory registry and disk cache for pruned nodes."""
         cls._pruned_registry.clear()
+        cls._hash_index.clear()
         cls._exc_counter = 0
         if os.path.exists(cls.PRUNED_STORE_FILE):
             try:
@@ -38,12 +48,40 @@ class HTMLDiagnosticService:
                 pass
 
     @classmethod
+    def _reindex(cls) -> None:
+        """Rebuilds the content-hash index and advances the counter past every known ID."""
+        cls._hash_index = {
+            m["digest"]: k for k, m in cls._pruned_registry.items() if m.get("digest")
+        }
+        nums = [int(k.split("-")[1]) for k in cls._pruned_registry if re.fullmatch(r"@exc-\d+", k)]
+        cls._exc_counter = max([cls._exc_counter] + nums)
+
+    @classmethod
+    def _sync_from_disk(cls) -> None:
+        """Merges entries written by other processes. Existing IDs are immutable and never overwritten."""
+        if not os.path.exists(cls.PRUNED_STORE_FILE):
+            return
+        try:
+            with open(cls.PRUNED_STORE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            return
+        if not isinstance(data, dict):
+            return
+        for key, meta in data.items():
+            if key not in cls._pruned_registry and isinstance(meta, dict):
+                cls._pruned_registry[key] = meta
+        cls._reindex()
+
+    @classmethod
     def _save_pruned_store(cls) -> None:
-        """Persists in-memory pruned registry to disk."""
+        """Persists the registry atomically (tmp file + replace) so concurrent runs never read a torn file."""
         try:
             os.makedirs(cls.PRUNED_STORE_DIR, exist_ok=True)
-            with open(cls.PRUNED_STORE_FILE, "w", encoding="utf-8") as f:
+            tmp = f"{cls.PRUNED_STORE_FILE}.{os.getpid()}.tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(cls._pruned_registry, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, cls.PRUNED_STORE_FILE)
         except Exception:
             pass
 
@@ -86,7 +124,15 @@ class HTMLDiagnosticService:
         node: Tag,
         include_tags: Optional[str] = None,
     ) -> str:
-        """Analyzes a pruned node, registers it with an @exc-N ID, and returns the ID."""
+        """Analyzes a pruned node, registers it with a stable @exc-N ID, and returns the ID."""
+        raw_html = str(node)
+        digest = hashlib.sha1(raw_html.encode("utf-8")).hexdigest()
+
+        cls._sync_from_disk()
+        existing = cls._hash_index.get(digest)
+        if existing and existing in cls._pruned_registry:
+            return existing
+
         cls._exc_counter += 1
         exc_id = f"@exc-{cls._exc_counter}"
 
@@ -99,7 +145,6 @@ class HTMLDiagnosticService:
             else [str(raw_classes).strip()] if raw_classes else []
         )
 
-        raw_html = str(node)
         chars = len(raw_html)
         lines = len(raw_html.splitlines())
         depth = cls._compute_depth(node)
@@ -149,6 +194,8 @@ class HTMLDiagnosticService:
 
         meta = {
             "exc_id": exc_id,
+            "digest": digest,
+            "created_at": time.time(),
             "tag": tag_name,
             "dom_id": dom_id,
             "classes": classes,
@@ -164,7 +211,29 @@ class HTMLDiagnosticService:
         }
 
         cls._pruned_registry[exc_id] = meta
+        cls._hash_index[digest] = exc_id
         cls._save_pruned_store()
+        return exc_id
+
+    @classmethod
+    def _replace_with_stub(cls, node: Tag, include_tags: Optional[str] = None) -> str:
+        """Removes the whole node and leaves ONE top-level stub comment carrying its @exc-N ID."""
+        exc_id = cls.register_pruned_node(node, include_tags=include_tags)
+        meta = cls._pruned_registry[exc_id]
+
+        inputs = node.find_all(["input", "select", "textarea", "button"])
+        if node.name and node.name.lower() in ("input", "select", "textarea", "button"):
+            inputs = [node] + list(inputs)
+
+        if inputs:
+            inp_types = [inp.get("type", inp.name).lower() for inp in inputs[:3]]
+            types_str = f" ({', '.join(inp_types)})" if inp_types else ""
+            extra = f" | [EXCLUDED: {exc_id} ({meta['tag']}) | contains: {len(inputs)} input(s){types_str}]"
+        else:
+            extra = ""
+
+        comment_text = f" [PRUNED: {exc_id} ({meta['tag']}) | {meta['chars']:,} chars | {meta['lines']} lines{extra}] "
+        node.replace_with(Comment(comment_text))
         return exc_id
 
     @classmethod
@@ -172,7 +241,7 @@ class HTMLDiagnosticService:
         """Retrieves pruned node metadata by @exc-N identifier."""
         if exc_id in cls._pruned_registry:
             return cls._pruned_registry[exc_id]
-        cls._load_pruned_store()
+        cls._sync_from_disk()
         return cls._pruned_registry.get(exc_id)
 
     @classmethod
@@ -316,7 +385,10 @@ class HTMLDiagnosticService:
         is_regex = clean_query.startswith(("re:", "regex:"))
         if is_regex:
             raw_pat = clean_query.split(":", 1)[1].strip()
-            pattern = re.compile(raw_pat, re.IGNORECASE)
+            try:
+                pattern = re.compile(raw_pat, re.IGNORECASE)
+            except re.error as exc:
+                raise DiagnosticInputError(f"Invalid --search regex {raw_pat!r}: {exc}") from exc
         else:
             pattern = clean_query.lower()
 
@@ -413,6 +485,13 @@ class HTMLDiagnosticService:
             id_target = clean_token[1:]
             if node.get("id", "").lower() == id_target:
                 return True
+
+        # 4. Full CSS selector matched against the node ITSELF
+        try:
+            if soupsieve.match(token.strip(), node):
+                return True
+        except Exception:
+            pass
 
         return False
 
@@ -566,33 +645,30 @@ class HTMLDiagnosticService:
         if inc_set is not None:
             effective_inc = inc_set - exc_set if exc_set else inc_set
 
-        def remove_or_stub(el: Tag, tag_name: str) -> None:
-            if el.parent is None:
-                return
-            stub = cls.STUBBED_TAGS.get(tag_name)
-            if stub:
-                el.clear()
-                el.string = stub
-                return
-
-            inputs = el.find_all(["input", "select", "textarea", "button"])
-            if el.name and el.name.lower() in ("input", "select", "textarea", "button"):
-                inputs = [el] + list(inputs)
-            if inputs:
-                exc_id = cls.register_pruned_node(el, include_tags=include_tags)
-                meta = cls._pruned_registry[exc_id]
-                inp_types = [inp.get("type", inp.name).lower() for inp in inputs[:3]]
-                types_str = f" ({', '.join(inp_types)})" if inp_types else ""
-                comment_text = f" [EXCLUDED: {exc_id} ({tag_name}) | {meta['chars']:,} chars | contains: {len(inputs)} input(s){types_str}] "
-                el.replace_with(Comment(comment_text))
-            else:
-                el.decompose()
-
-        # 2. Exclude pass (strips or stubs tags matching exc_set)
+        # 2. Exclude pass. Exclude wins over include. Noisy tags (svg/script/style/noscript) get an
+        #    inline stub; every other excluded tag is removed with its subtree and replaced by a single
+        #    top-level stub carrying an @exc-N ID, so nothing disappears silently.
         if exc_set:
-            for tag_name in exc_set:
+            stub_tags = exc_set & set(cls.STUBBED_TAGS)
+            block_tags = exc_set - stub_tags
+
+            if block_tags:
+                removed: Set[int] = set()
+                matches = root.find_all(lambda t: bool(t.name) and t.name.lower() in block_tags)
+                for el in list(matches):
+                    if el is root or el.parent is None:
+                        continue
+                    if any(id(p) in removed for p in el.parents):
+                        continue  # already inside a removed subtree: covered by that one stub
+                    cls._replace_with_stub(el, include_tags=include_tags)
+                    removed.add(id(el))
+
+            for tag_name in stub_tags:
                 for el in list(root.find_all(tag_name)):
-                    remove_or_stub(el, tag_name)
+                    if el.parent is None:
+                        continue
+                    el.clear()
+                    el.string = cls.STUBBED_TAGS[tag_name]
 
         # 3. Include pass (whitelist) using effective_inc
         if effective_inc is not None:
@@ -613,7 +689,7 @@ class HTMLDiagnosticService:
                     if has_included_child:
                         el.unwrap()
                     else:
-                        remove_or_stub(el, tag_lower)
+                        el.decompose()
 
         return root
 
@@ -755,7 +831,7 @@ class HTMLDiagnosticService:
                         banner = f"[Note: Displaying target-anchored window preceding line {val} (lines {start_line} to {end_line}). Use --all to view from line 1]"
                     return content, banner
             except ValueError:
-                return text, None
+                raise DiagnosticInputError(f'Invalid --lines value: {slice_str!r}')
 
         parts = s.split(":", 1)
         start_str, end_str = parts[0].strip(), parts[1].strip()
@@ -778,7 +854,7 @@ class HTMLDiagnosticService:
                     banner = f"[Note: Displaying target-anchored window preceding line {target_line} (lines {start_line} to {end_line}). Use --all to view from line 1]"
                 return content, banner
             except ValueError:
-                return text, None
+                raise DiagnosticInputError(f'Invalid --lines value: {slice_str!r}')
 
         # Variant 4 (<X>:) or Variant 5 (-<X>:)
         if start_str and not end_str:
@@ -795,7 +871,7 @@ class HTMLDiagnosticService:
                     candidate = lines[start_idx:]
                     return cls._stream_lines_forward_clamped(candidate, max_chars, show_all), None
             except ValueError:
-                return text, None
+                raise DiagnosticInputError(f'Invalid --lines value: {slice_str!r}')
 
         # Variant 1: Explicit Range (<start>:<end>) -> UNCONSTRAINED
         try:
@@ -805,7 +881,7 @@ class HTMLDiagnosticService:
             end_idx = min(total_lines, end_val) if end_val >= 0 else max(total_lines + end_val, 0)
             return "\n".join(lines[start_idx:end_idx]), None
         except ValueError:
-            return text, None
+            raise DiagnosticInputError(f'Invalid --lines value: {slice_str!r}')
 
     @classmethod
     def apply_line_slice(
@@ -853,7 +929,7 @@ class HTMLDiagnosticService:
                     # Variant 2: Head as bare integer <X> -> UNCONSTRAINED [0, X]
                     return text[:val]
             except ValueError:
-                return text
+                raise DiagnosticInputError(f'Invalid --chars value: {slice_str!r}')
 
         parts = s.split(":", 1)
         start_str, end_str = parts[0].strip(), parts[1].strip()
@@ -864,7 +940,7 @@ class HTMLDiagnosticService:
                 val = int(end_str)
                 return text[:val]
             except ValueError:
-                return text
+                raise DiagnosticInputError(f'Invalid --chars value: {slice_str!r}')
 
         # Variant 4 (<X>:) or Variant 5 (-<X>:)
         if start_str and not end_str:
@@ -883,7 +959,7 @@ class HTMLDiagnosticService:
                         return f"{truncated}\n... [Truncated: showing first {max_chars:,} of {slice_total:,} characters. Use --all or --max-chars <N> to view more]"
                     return raw_slice
             except ValueError:
-                return text
+                raise DiagnosticInputError(f'Invalid --chars value: {slice_str!r}')
 
         # Variant 1: Explicit Range (<start>:<end>) -> UNCONSTRAINED
         try:
@@ -891,7 +967,7 @@ class HTMLDiagnosticService:
             end_val = int(end_str)
             return text[start_val:end_val]
         except ValueError:
-            return text
+            raise DiagnosticInputError(f'Invalid --chars value: {slice_str!r}')
 
     @classmethod
     def apply_safety_guard(
@@ -926,6 +1002,8 @@ class HTMLDiagnosticService:
         show_all: bool = False,
     ) -> str:
         """Executes the full 5-stage HTML diagnostics pipeline."""
+        if max_chars is not None and max_chars < 0:
+            raise DiagnosticInputError("--max-chars must be >= 0 (0 disables the ceiling)")
         if not raw_html or not raw_html.strip():
             return ""
 
