@@ -68,6 +68,7 @@ class SupervisorActionResponse:
     output_lines: List[str] = field(default_factory=list)
     field_details: Optional[Dict[str, Any]] = None
     content: Optional[str] = None
+    cookies: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

@@ -273,6 +273,35 @@ class WebPilot:
         """Restarts the Layer 2 Worker process cleanly."""
         return self.client.restart_worker()
 
+    def cookies(
+        self,
+        domain_or_url: Optional[str] = None,
+        output: Optional[str] = None,
+        tab: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Retrieves or exports cookies from the active browser session.
+
+        Args:
+            domain_or_url: Optional domain or URL filter (e.g. 'example.com' or 'https://example.com').
+            output: Optional path to save cookies to disk as a JSON file.
+            tab: Optional 0-based tab index.
+
+        Returns:
+            List of cookie dictionaries.
+        """
+        req = SupervisorActionRequest(
+            action="cookies",
+            query=domain_or_url,
+            output_path=output,
+            tab_index=tab,
+            headed=self.headed,
+            timeout_minutes=self.timeout_minutes,
+        )
+        resp = self.client.execute(req)
+        if not resp.success:
+            raise RuntimeError(f"WebPilot cookies failed: {resp.message}")
+        return resp.cookies or []
+
     def close(self) -> bool:
         """Terminates active browser session cleanly."""
         res = self.client.restart_worker()

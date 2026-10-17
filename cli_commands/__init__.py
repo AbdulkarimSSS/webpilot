@@ -2,6 +2,7 @@
 
 from cli_commands.apply_cmd import apply_cmd
 from cli_commands.common import get_base_url, get_supervisor_client
+from cli_commands.cookies_cmd import cookies_cmd
 from cli_commands.css_cmd import css_cmd
 from cli_commands.eval_cmd import eval_cmd
 from cli_commands.find_cmd import find_cmd
@@ -19,6 +20,7 @@ __all__ = [
     "find_cmd",
     "eval_cmd",
     "css_cmd",
+    "cookies_cmd",
     "tab_cmd",
     "service_cmd",
     "shell_cmd",

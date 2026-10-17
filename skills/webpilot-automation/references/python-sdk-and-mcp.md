@@ -41,6 +41,13 @@ tabs = wp.list_tabs()
 new_tab_info = wp.new_tab("https://example.com/secondary")
 wp.switch_tab(0)
 wp.close_tab(1)
+
+# 6. Session Cookies Export and Management
+cookies = wp.cookies(domain_or_url="example.com")
+print(f"Captured {len(cookies)} cookies")
+
+# Export cookies directly to disk
+wp.cookies(output="session_cookies.json")
 ```
 
 ---

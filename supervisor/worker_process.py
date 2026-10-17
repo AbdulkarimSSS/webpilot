@@ -157,8 +157,8 @@ class OperationalWorker:
             elif action in ("css", "style"):
                 return self._handle_css(req)
 
-            elif action == "eval_py":
-                return self._handle_eval_py(req)
+            elif action in ("cookies", "cookie", "get_cookies", "dump_cookies", "export_cookies"):
+                return self._handle_cookies(req)
 
             elif action in ("stop", "shutdown"):
                 self.shutdown()
@@ -527,6 +527,57 @@ class OperationalWorker:
                 message=f"Failed to inject CSS: {exc}",
                 active_url=coord.page.url,
             )
+
+    def _handle_cookies(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        ctx = coord.context
+        if ctx is None:
+            raise RuntimeError("Browser context is not available.")
+        if req.url is not None and not req.url.strip():
+            return SupervisorActionResponse(
+                success=False,
+                action="cookies",
+                message="Explicit empty URL is invalid.",
+                browser_pid=coord.adapter.browser_pid,
+                worker_pid=os.getpid(),
+            )
+        if req.url:
+            coord.adapter.navigate(req.url)
+
+        urls_filter = None
+        if req.target_field or req.query:
+            target = (req.target_field or req.query or "").strip()
+            if target.startswith("http://") or target.startswith("https://"):
+                urls_filter = [target]
+        elif coord.page and coord.page.url and coord.page.url not in ("about:blank", ""):
+            # If domain or target not explicitly given, still export all context cookies or filter by active URL if desired
+            pass
+
+        cookies = ctx.cookies(urls_filter) if urls_filter else ctx.cookies()
+
+        # If domain filter string given (e.g. "example.com")
+        domain_query = (req.target_field or req.query or "").strip().lower()
+        if domain_query and not (domain_query.startswith("http://") or domain_query.startswith("https://")):
+            cookies = [c for c in cookies if domain_query in str(c.get("domain", "")).lower() or domain_query in str(c.get("name", "")).lower()]
+
+        from common.cookies import save_cookies
+        output_path = req.output_path or req.cookies_path
+        if output_path:
+            save_cookies(output_path, cookies)
+            msg = f"Successfully exported {len(cookies)} cookies to: {output_path}"
+        else:
+            msg = f"Retrieved {len(cookies)} cookies from browser session."
+
+        return SupervisorActionResponse(
+            success=True,
+            action="cookies",
+            message=msg,
+            cookies=cookies,
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+            active_url=coord.page.url if coord.page else "",
+            active_title=coord.page.title() if coord.page else "",
+        )
 
     def shutdown(self) -> None:
         """Terminates Playwright coordinator and all child browser tabs."""

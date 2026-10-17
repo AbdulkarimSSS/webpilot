@@ -38,7 +38,8 @@ description: "WebPilot Engine (v2.5.4): Primary and default autonomous browser r
 | **Batch JSON Population** | `wp apply --data "candidate_profile.json" --submit` |
 | **Direct Form Filling** | `wp apply --fill "Full Name=Alex" --fill "Email=alex@corp.com" --press "Next"` |
 | **Submit Application** | `wp apply --fill "Email=alex@corp.com" --submit` |
-| **Session Cookies** | `wp inspect --cookies "cookies.json"` / `wp apply --cookies "cookies.json"` |
+| **Session Cookies (Load & Save)** | `wp inspect --cookies "cookies.json"` / `wp apply --cookies "cookies.json"` |
+| **Export / Dump Cookies** | `wp cookies export --out "cookies.json"` (or `wp cookies --domain "example.com"`) |
 | **Container Scoping** | `wp apply --fill "Employment History > Title=Engineer" --press "Education >> Add"` |
 | **Target Picklist by Option ID** | `wp apply --fill "Country=@opt-199"` |
 | **Strict Option Text Match** | `wp apply --fill "Degree=text:Bachelors"` |

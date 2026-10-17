@@ -21,6 +21,7 @@ except ImportError:
 try:
     from cli_commands import (
         apply_cmd,
+        cookies_cmd,
         css_cmd,
         eval_cmd,
         find_cmd,
@@ -38,6 +39,7 @@ except ImportError:
     try:
         from .cli_commands import (
             apply_cmd,
+            cookies_cmd,
             css_cmd,
             eval_cmd,
             find_cmd,
@@ -45,6 +47,7 @@ except ImportError:
             get_supervisor_client,
             inspect_cmd,
             install_cmd,
+            read_cmd,
             service_cmd,
             shell_cmd,
             skill_cmd,
@@ -54,6 +57,7 @@ except ImportError:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from cli_commands import (
             apply_cmd,
+            cookies_cmd,
             css_cmd,
             eval_cmd,
             find_cmd,
@@ -68,6 +72,7 @@ except ImportError:
             tab_cmd,
         )
 
+
 DISPATCH_TABLE = {
     "inspect": inspect_cmd,
     "reload": inspect_cmd,
@@ -81,6 +86,8 @@ DISPATCH_TABLE = {
     "exec": eval_cmd,
     "css": css_cmd,
     "style": css_cmd,
+    "cookies": cookies_cmd,
+    "cookie": cookies_cmd,
     "tab": tab_cmd,
     "service": service_cmd,
     "shell": shell_cmd,

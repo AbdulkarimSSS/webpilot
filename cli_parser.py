@@ -621,4 +621,63 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_tab.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_tab.add_argument("--token", help="Explicit Master Supervisor authentication token")
 
+    # 12. Cookies Management Subcommand
+    p_cookies = subparsers.add_parser(
+        "cookies",
+        aliases=["cookie"],
+        help="Export, inspect, or manage browser session cookies",
+    )
+    p_cookies.add_argument(
+        "cookies_action",
+        nargs="?",
+        default="export",
+        choices=["export", "dump", "list", "save", "clear"],
+        help="Action: export/dump (default), list, save, clear",
+    )
+    p_cookies.add_argument(
+        "--output",
+        "--out",
+        "-o",
+        dest="output_path",
+        help="Path to save exported cookies JSON file",
+    )
+    p_cookies.add_argument(
+        "--domain",
+        "-d",
+        dest="query",
+        help="Filter cookies by domain or name substring (e.g. --domain example.com)",
+    )
+    p_cookies.add_argument(
+        "--url",
+        help="Target URL (optional; if specified, navigates or filters by URL)",
+    )
+    p_cookies.add_argument(
+        "--tab",
+        type=int,
+        default=None,
+        help="Target specific tab by index (0-based)",
+    )
+    p_cookies.add_argument(
+        "--json",
+        action="store_true",
+        help="Output raw JSON instead of formatted table",
+    )
+    p_cookies.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output to conserve tokens",
+    )
+    p_cookies.add_argument("--headed", action="store_true", help="Run headed browser")
+    p_cookies.add_argument("--timeout-minutes", type=int, default=30, help="Inactivity timeout in minutes")
+    p_cookies.add_argument("--standalone", action="store_true", help="Run in-process via Playwright instead of Master Supervisor daemon")
+    p_cookies.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_cookies.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_cookies.add_argument("--token", help="Explicit Master Supervisor authentication token")
+
     return parser

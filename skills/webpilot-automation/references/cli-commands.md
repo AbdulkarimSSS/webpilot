@@ -349,7 +349,42 @@ wp skill
 
 ---
 
-## 13. Master Enterprise Automation Workflows
+## 13. Command 12: Session Cookies Management (`wp cookies`)
+
+Inspect, filter, dump, or export session cookies to JSON:
+
+```powershell
+wp cookies [export|dump|list] [OPTIONS]
+# Alias: wp cookie [OPTIONS]
+```
+
+### Options:
+- `--output`, `--out`, `-o <path>`: Path to write the exported cookies JSON file.
+- `--domain`, `-d <string>`: Filter cookies matching domain or cookie name substring.
+- `--url <url>`: Target URL to filter or navigate to before extraction.
+- `--tab <index>`: Target specific tab index.
+- `--json`: Output raw JSON list of cookies to stdout.
+- `--strip-header`: Suppress verbose telemetry banners.
+
+### Cookie Examples:
+```powershell
+# 1. Inspect all cookies in active browser session
+wp cookies
+
+# 2. Filter cookies for a specific domain
+wp cookies --domain "example.com"
+
+# 3. Export cookies directly to a JSON file
+wp cookies export --out "C:\sessions\workday_cookies.json"
+
+# 4. Two-way persistence with wp apply:
+# Loads existing cookies on start AND writes refreshed cookies to the file upon completion!
+wp apply --url "https://portal.com" --cookies "cookies.json" --fill "status=active"
+```
+
+---
+
+## 14. Master Enterprise Automation Workflows
 
 ### Strategy A: Workday Multi-Step Application Wizard
 ```powershell
