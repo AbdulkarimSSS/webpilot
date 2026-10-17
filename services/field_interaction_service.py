@@ -27,18 +27,27 @@ class FieldInteractionService:
     def expand_dynamic_section(self, target_identifier: str, value: Any) -> Tuple[bool, Optional[str]]:
         """Handles dynamic repeating sections by finding and clicking 'Add' buttons to spawn missing inputs."""
         _, clean_target, scoped_parent = self.parse_target_descriptor(target_identifier)
+        # Strict repeating section selectors (WP-104: Never use bare generic "Add" without scoped container)
         add_selectors = [
             '[id$="_addRowBtn"]',
             '[class*="addRowBtn" i]',
             '[class*="add-row" i]',
             '[class*="add_row" i]',
-            'button:has-text("Add")',
-            'button:has-text("+ Add")',
-            'input[type="button"][value*="Add" i]',
-            '[role="button"]:has-text("Add")',
-            'button[aria-label*="Add" i]',
-            'button[title*="Add" i]',
+            '[data-action*="add-row" i]',
+            'button:has-text("+ Add Row")',
+            'button:has-text("Add Row")',
+            'button:has-text("Add Another")',
+            'button:has-text("Add Entry")',
         ]
+        # Only include generic Add buttons if scoped_parent is explicitly provided
+        if scoped_parent:
+            add_selectors.extend([
+                'button:has-text("Add")',
+                'button:has-text("+ Add")',
+                'input[type="button"][value*="Add" i]',
+                '[role="button"]:has-text("Add")',
+            ])
+
         orig_url = self.page.url
         for sel in add_selectors:
             try:
@@ -57,7 +66,7 @@ class FieldInteractionService:
                     should_click = btn.evaluate(
                         """(el, scope) => {
                             const sec = el.closest('.rcmFormSection, [class*="rcmFormSection"], fieldset, section, .form-section');
-                            if (!sec) return true;
+                            if (!sec) return false; // WP-104: Never click an Add button without an explicit section boundary
                             if (scope) {
                                 return (sec.innerText || '').toLowerCase().includes(scope.toLowerCase());
                             }
@@ -285,9 +294,31 @@ class FieldInteractionService:
             return False
 
         # Non-picklist JS success: verify whether the DOM actually accepted the value.
-        # If an input has an isTrusted check or synthetic event rejection,
-        # the JS write will be immediately wiped, so we fall through to Playwright native interaction.
         if res.get("success") and res.get("type") not in ("picklist",):
+            # For checkboxes and choices, dispatch native Playwright check/click to generate trusted CDP events (WP-103)
+            if res.get("type") in ("checkbox", "choice", "radio", "switch"):
+                field_id = res.get("id")
+                if field_id:
+                    try:
+                        loc = self.page.locator(f'[id="{field_id}"]').first
+                        if loc.count() > 0:
+                            str_val = str(value).lower()
+                            is_check = str_val in ("yes", "true", "1", "on", "checked")
+                            if res.get("type") in ("checkbox", "switch"):
+                                if is_check:
+                                    if loc.is_checked():
+                                        loc.uncheck(force=True, timeout=500)
+                                    loc.check(force=True, timeout=1000)
+                                else:
+                                    if not loc.is_checked():
+                                        loc.check(force=True, timeout=500)
+                                    loc.uncheck(force=True, timeout=1000)
+                            else:
+                                loc.click(force=True, timeout=1000)
+                            self.page.wait_for_timeout(100)
+                    except Exception:
+                        pass
+
             # Check for async typeahead suggestion container (e.g. S03, S24)
             try:
                 has_sug = self.page.evaluate("() => !!document.querySelector('#sug, .sug, [role=\"listbox\"], .tt-menu, .autocomplete-suggestions')")
@@ -305,6 +336,16 @@ class FieldInteractionService:
             except Exception:
                 pass
 
+            # Allow async framework controlled-input re-render (React/Vue/Angular 250ms debounces, WP-102)
+            if res.get("type") in ("input", "text", "textarea"):
+                self.page.wait_for_timeout(260)
+                try:
+                    committed = self.page.evaluate("(id) => { const el = document.getElementById(id); return el ? el.value : null; }", res.get("id"))
+                    if committed is not None:
+                        res["value"] = committed
+                except Exception:
+                    pass
+
             verify_target = res.get("id") if (scoped_parent and res.get("id")) else clean_target
             if self.verify_field_value(verify_target, value, settle_delay_ms=20):
                 self.last_failure_reason = ""
@@ -312,6 +353,10 @@ class FieldInteractionService:
             if res.get("type") == "date":
                 self.last_failure_reason = f"Invalid or rejected date value '{value}' for field '{clean_target}'"
                 return False
+            # If verify failed, record the verification mismatch instead of generic not found (WP-108)
+            actual_dom = getattr(self, "last_dom_readback", None)
+            dom_val = actual_dom.get("value") if isinstance(actual_dom, dict) else actual_dom
+            self.last_failure_reason = f"Verification mismatch for '{clean_target}': DOM held '{dom_val}' (expected '{value}')"
 
         # Fallback to Playwright native interaction
         fallback_res = self._playwright_click_fallback(clean_target, value)
@@ -338,6 +383,7 @@ class FieldInteractionService:
                                 break
                         except Exception:
                             pass
+            self.last_dom_readback = actual
             if actual and actual.get("found"):
                 if self._match_actual_dom_data(actual, expected):
                     return True
@@ -358,6 +404,7 @@ class FieldInteractionService:
             if settle_delay_ms > 0:
                 self.page.wait_for_timeout(settle_delay_ms)
                 retry_actual = self.page.evaluate(VERIFY_FIELD_DOM_SCRIPT, [target, expected_str])
+                self.last_dom_readback = retry_actual
                 if retry_actual and retry_actual.get("found"):
                     return self._match_actual_dom_data(retry_actual, expected)
             return False

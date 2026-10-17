@@ -168,8 +168,16 @@ class FormApplicationPipeline:
                         confirmed.append((key, val))
                         lines.append(f"  [✓] Set & Verified '{key}' -> '{display_val}'{pass_tag}")
                     else:
-                        unconfirmed.append((key, val))
-                        lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'{pass_tag}")
+                        # Check if it was truncated by maxlength or sanitized (WP-101)
+                        last_read = getattr(field_svc, "last_dom_readback", None)
+                        dom_val = last_read.get("value") if isinstance(last_read, dict) else ""
+                        max_len = last_read.get("max_length") if isinstance(last_read, dict) else -1
+                        if max_len is not None and isinstance(max_len, int) and max_len >= 0 and len(str(val)) > max_len:
+                            unconfirmed.append((key, dom_val or val))
+                            lines.append(f"  [~] Value truncated by maxlength ({max_len}): '{key}' -> '{dom_val}' (requested '{display_val}'){pass_tag}")
+                        else:
+                            unconfirmed.append((key, val))
+                            lines.append(f"  [?] Set but unconfirmed '{key}' -> '{display_val}'{pass_tag}")
                     pass_succeeded += 1
                 else:
                     reason = getattr(field_svc, "last_failure_reason", "No matching element found")
@@ -200,6 +208,28 @@ class FormApplicationPipeline:
                 failed.append((k, v))
                 lines.append(f"  [~] Failed '{k}' -> '{display_val}' | Reason: Maximum cascading passes reached ({max_passes})")
             remaining_queue.clear()
+
+        # Allow reactive debounce settle before finalizing summary (WP-102: Controlled components)
+        try:
+            page.wait_for_timeout(300)
+        except Exception:
+            pass
+
+        # Post-settle verification for framework-controlled inputs (WP-102)
+        if confirmed:
+            final_confirmed = []
+            for (k, v) in confirmed:
+                type_hint, clean_key, scoped_p = TargetDescriptorParser.parse(k).to_tuple()
+                vk = k if scoped_p else clean_key
+                check = field_svc.verify_field_value(vk, v, settle_delay_ms=0)
+                if check:
+                    final_confirmed.append((k, v))
+                else:
+                    last_read = getattr(field_svc, "last_dom_readback", None)
+                    dom_val = last_read.get("value") if isinstance(last_read, dict) else ""
+                    unconfirmed.append((k, dom_val or v))
+                    lines.append(f"  [~] Value updated by framework sanitization: '{k}' -> '{dom_val}' (initial '{v}')")
+            confirmed = final_confirmed
 
         lines.append(
             f"[*] Fields summary: {len(confirmed)} confirmed | {len(unconfirmed)} unconfirmed | {len(failed)} skipped/failed."

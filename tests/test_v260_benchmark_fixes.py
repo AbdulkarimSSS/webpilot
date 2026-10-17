@@ -46,8 +46,8 @@ def test_wpb_011_maxlength_enforcement_and_verification():
         "max_length": 5,
         "is_invalid": False,
     }
-    # It confirms because it respects the physical browser constraint
-    assert DOMDataMatcher.match(clamped_readback, "ABCDEFGH")
+    # WP-101: Clamped/truncated value does NOT verify against over-long requested string
+    assert not DOMDataMatcher.match(clamped_readback, "ABCDEFGH")
     assert DOMDataMatcher.match(clamped_readback, "ABCDE")
 
 

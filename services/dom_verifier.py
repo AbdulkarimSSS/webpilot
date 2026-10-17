@@ -203,14 +203,27 @@ class DOMDataMatcher:
             if not val:
                 return expected_str == ""
 
-            # WPB-011: Honor HTML maxlength constraint independently
+            # WP-108: ContentEditable markup sanitization and text content matching
+            if ctype == "contenteditable":
+                clean_exp = re.sub(r"<[^>]+>", "", expected_str).strip()
+                if val_lower == clean_exp or val_lower == expected_str:
+                    return True
+                # In case angle brackets were stripped by custom page sanitizer (e.g. replace(/[<>]/g, ''))
+                no_angles = re.sub(r"[<>]", "", expected_str).strip()
+                if val_lower == no_angles:
+                    return True
+                if val_lower == re.sub(r"[<>/]", "", expected_str).strip():
+                    return True
+
+            # WPB-011 / WP-101: Honor HTML maxlength constraint independently
             max_len = actual.get("max_length")
             if max_len is not None and isinstance(max_len, int) and max_len >= 0:
                 if len(val) > max_len:
                     # Value in DOM exceeds physical maxlength attribute: constraint violation
                     return False
-                if len(expected_str) > max_len and val_lower == expected_str[:max_len]:
-                    return True
+                if len(expected_str) > max_len:
+                    # WP-101: Never confirm truncated values as verified when requested string was clamped
+                    return False
 
             if expected_str == val_lower:
                 return True

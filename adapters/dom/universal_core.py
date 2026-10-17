@@ -164,24 +164,31 @@ function isHoneypotOrHidden(el) {
     if (el.getAttribute && el.getAttribute('aria-hidden') === 'true') return true;
     if (el.closest && el.closest('[aria-hidden="true"]')) return true;
 
+    const isClipRect0 = s => s && (/rect\(0(px)?,\s*0(px)?,\s*0(px)?,\s*0(px)?\)/i.test(s) || s.replace(/\s+/g, '') === 'rect(0,0,0,0)' || s.replace(/\s+/g, '') === 'rect(0px,0px,0px,0px)');
+
+    let style = null;
     try {
-        const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
+        style = window.getComputedStyle ? window.getComputedStyle(el) : null;
         if (style) {
             if (style.display === 'none' || style.visibility === 'hidden') return true;
             if (parseFloat(style.opacity) === 0 && !['radio', 'checkbox', 'file'].includes(el.type)) return true;
-            if (style.clip === 'rect(0px, 0px, 0px, 0px)' || style.clip === 'rect(0, 0, 0, 0)') return true;
+            if (isClipRect0(style.clip)) return true;
             if (style.clipPath && (style.clipPath.includes('inset(50%)') || style.clipPath.includes('inset(100%)'))) return true;
+            if ((parseFloat(style.width) <= 1 || style.width === '1px') && (parseFloat(style.height) <= 1 || style.height === '1px') && style.overflow === 'hidden') return true;
         }
     } catch(e) {}
 
-    // Check ancestor chain for display:none, visibility:hidden, or aria-hidden
+    // Check ancestor chain for display:none, visibility:hidden, aria-hidden, vis-hidden, or clip
     try {
         let parent = el.parentElement;
         while (parent && parent !== document.body && parent !== document.documentElement) {
             if (parent.getAttribute && parent.getAttribute('aria-hidden') === 'true') return true;
+            if (parent.classList && (parent.classList.contains('vis-hidden') || parent.classList.contains('visually-hidden') || parent.classList.contains('sr-only') || parent.classList.contains('hidden-hp'))) return true;
             const pStyle = window.getComputedStyle ? window.getComputedStyle(parent) : null;
             if (pStyle) {
                 if (pStyle.display === 'none' || pStyle.visibility === 'hidden') return true;
+                if (isClipRect0(pStyle.clip)) return true;
+                if ((parseFloat(pStyle.width) <= 1 || pStyle.width === '1px') && (parseFloat(pStyle.height) <= 1 || pStyle.height === '1px') && pStyle.overflow === 'hidden') return true;
             }
             parent = parent.parentElement;
         }
@@ -189,7 +196,6 @@ function isHoneypotOrHidden(el) {
 
     if (el.offsetParent === null) {
         try {
-            const style = window.getComputedStyle ? window.getComputedStyle(el) : null;
             if (!style || style.position !== 'fixed') {
                 return true;
             }
@@ -199,7 +205,10 @@ function isHoneypotOrHidden(el) {
     }
 
     const name = ((el.name || '') + ' ' + (el.id || '')).toLowerCase();
-    if (el.getAttribute && el.getAttribute('tabindex') === '-1' && (name.includes('hp_') || name.includes('honeypot') || name.includes('homepage') || name.includes('decoy') || name.includes('bot') || name.includes('trap'))) return true;
+    if (el.getAttribute && el.getAttribute('tabindex') === '-1') {
+        if (name.includes('hp_') || name.includes('honeypot') || name.includes('homepage') || name.includes('decoy') || name.includes('bot') || name.includes('trap')) return true;
+        if (el.offsetWidth <= 1 || el.offsetHeight <= 1) return true;
+    }
 
     try {
         const rect = el.getBoundingClientRect();
@@ -208,9 +217,14 @@ function isHoneypotOrHidden(el) {
         const docX = rect.left + scrollX;
         const docY = rect.top + scrollY;
 
-        // An element is a coordinate honeypot if placed off-canvas in ANY direction:
-        if (docX < -500 || docY < -500 || docX > 5000 || docY > 50000 || (rect.right + scrollX) < 0 || (rect.bottom + scrollY) < 0) {
-            return true;
+        // WP-107: Coordinate honeypot only applies to out-of-flow elements (position: absolute/fixed).
+        // Elements in normal document flow inside scrollable containers are NOT coordinate honeypots.
+        const pos = style ? style.position : '';
+        const isOutOfFlow = pos === 'absolute' || pos === 'fixed';
+        if (isOutOfFlow) {
+            if (docX < -500 || docY < -500 || docX > 5000 || docY > 50000 || (rect.right + scrollX) < 0 || (rect.bottom + scrollY) < 0) {
+                return true;
+            }
         }
         if (rect.width === 0 && rect.height === 0 && !['radio', 'checkbox'].includes(el.type)) return true;
     } catch(e) {}

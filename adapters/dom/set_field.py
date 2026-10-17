@@ -423,14 +423,16 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             }
             if (chosen) {
                 if (chosen.tagName === 'INPUT') {
-                    chosen.checked = true;
-                    chosen.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-                    chosen.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+                    if (!chosen.id) {
+                        chosen.checked = (val === true || strVal === 'yes' || strVal === 'true' || strVal === 'on' || strVal === '1');
+                        chosen.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                        chosen.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+                    }
                 } else {
                     chosen.click();
                 }
                 markActiveForm(chosen);
-                return { success: true, type: chosen.getAttribute('role') || chosen.type || 'choice', id: chosen.id || '' };
+                return { success: true, type: chosen.getAttribute('role') || chosen.type || 'choice', id: chosen.id || '', value: strVal };
             }
         }
 
@@ -489,18 +491,76 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             return false;
         });
 
+        function scoreCandidate(c) {
+            if (!c) return -1000;
+            try {
+                if (c.scrollIntoView && !c.offsetParent && c.getBoundingClientRect().height === 0) {
+                    c.scrollIntoView({ block: 'nearest' });
+                }
+            } catch(e) {}
+            if (isHoneypotOrHidden(c)) return -1000;
+
+            let score = 0;
+            const tag = (c.tagName || '').toLowerCase();
+            const type = (c.type || '').toLowerCase();
+            const id = (c.id || '').toLowerCase();
+            const name = (c.name || '').toLowerCase();
+            const label = getUniversalLabel(c, true).toLowerCase();
+
+            // 1. Exact label match is highest priority
+            if (label === lowerTarget) score += 100;
+            else if (label.startsWith(lowerTarget + ' ') || label.startsWith(lowerTarget + ':')) score += 50;
+            else if (label.includes(lowerTarget)) score += 20;
+
+            // 2. Type matches semantic intent
+            if (lowerTarget.includes('email') && type === 'email') score += 60;
+            if (lowerTarget.includes('phone') && (type === 'tel' || type === 'phone')) score += 60;
+
+            // 3. Penalize secondary / marketing / newsletter qualifiers (WP-106)
+            if (label.includes('(newsletter)') || label.includes('newsletter') || name.includes('newsletter') || id.includes('newsletter')) score -= 80;
+            if (label.includes('optional') || label.includes('(optional)')) score -= 20;
+
+            // 4. Penalize tabindex="-1" (often honeypots or non-focusable decoys, WP-105)
+            if (c.getAttribute && c.getAttribute('tabindex') === '-1') score -= 90;
+
+            // 5. Prefer visible elements with healthy geometry
+            try {
+                const rect = c.getBoundingClientRect();
+                if (rect.width > 20 && rect.height > 15) score += 30;
+            } catch(e) {}
+
+            return score;
+        }
+
         let targetText = exactEl;
         if (!targetText) {
             const primaryInputs = textCandidates.filter(i => {
                 const tag = (i.tagName || '').toLowerCase();
                 return tag === 'input' || tag === 'textarea' || i.isContentEditable || ['textbox', 'searchbox'].includes(i.getAttribute('role'));
             });
-            targetText = primaryInputs.find(i => !isHoneypotOrHidden(i) && matchElement(i));
+            const matching = primaryInputs.filter(matchElement);
+            if (matching.length > 0) {
+                matching.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
+                if (scoreCandidate(matching[0]) > -500) {
+                    targetText = matching[0];
+                }
+            }
         }
         if (!targetText) {
-            targetText = textCandidates.find(i => !isHoneypotOrHidden(i) && matchElement(i));
+            const matching = textCandidates.filter(matchElement);
+            if (matching.length > 0) {
+                matching.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
+                if (scoreCandidate(matching[0]) > -500) {
+                    targetText = matching[0];
+                }
+            }
         }
         if (targetText) {
+            try {
+                if (targetText.scrollIntoView) {
+                    targetText.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }
+            } catch(e){}
             const tag = (targetText.tagName || '').toLowerCase();
             const wc = (tag !== 'input' && tag !== 'textarea' && !targetText.isContentEditable) ? resolveWebComponent(targetText) : null;
             const shadowInp = wc ? resolveShadowInput(targetText) : null;
@@ -535,7 +595,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
                 targetText.dispatchEvent(new InputEvent('input', { bubbles: true, composed: true, inputType: 'insertText', data: toSet }));
                 targetText.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
                 targetText.dispatchEvent(new Event('blur', { bubbles: true, composed: true }));
-                return { success: true, type: 'contenteditable', id: targetText.id || '', value: toSet };
+                return { success: true, type: 'contenteditable', id: targetText.id || '', value: targetText.textContent || toSet };
             }
 
 
@@ -663,7 +723,7 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             } catch(e){}
 
             markActiveForm(targetText);
-            return { success: true, type: targetText.tagName.toLowerCase(), id: targetText.id, value: toSet };
+            return { success: true, type: targetText.tagName.toLowerCase(), id: targetText.id, value: targetText.value || toSet };
         }
     }
 
@@ -672,6 +732,9 @@ _SET_FIELD_LOGIC: Final[str] = r"""
         const allCandidates = deepQueryAll(document, 'input, select, textarea, [role="combobox"], [role="radiogroup"]');
         const cand = allCandidates.find(matchElement);
         if (cand) {
+            try {
+                if (cand.scrollIntoView) cand.scrollIntoView({ block: 'nearest' });
+            } catch(e){}
             if (isHoneypotOrHidden(cand)) {
                 return { success: false, reason: 'Field is hidden or collapsed in DOM', id: cand.id || '' };
             }

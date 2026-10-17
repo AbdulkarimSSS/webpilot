@@ -72,11 +72,23 @@ class BrowserAdapter(BrowserAdapterProtocol):
             self._attach_default_dialog_handler(p)
 
     def _attach_default_dialog_handler(self, target_page: Page) -> None:
-        """Auto-accepts browser modal dialogs (alert, confirm, prompt) preventing headless freeze or unhandled actions."""
+        """Handles browser modal dialogs (alert, confirm, prompt) preventing freeze and logging prompt text (WP-109)."""
         if not target_page:
             return
+
+        def _on_dialog(d: Any) -> None:
+            try:
+                d_type = getattr(d, "type", "alert")
+                d_msg = getattr(d, "message", "")
+                d_def = getattr(d, "default_value", "")
+                print(f"[*] Browser {d_type} dialog encountered: '{d_msg}' (default: '{d_def}')", flush=True)
+                if hasattr(d, "accept"):
+                    d.accept(prompt_text=d_def)
+            except Exception:
+                pass
+
         try:
-            target_page.on("dialog", lambda d: d.accept() if hasattr(d, "accept") else None)
+            target_page.on("dialog", _on_dialog)
         except Exception:
             pass
 

@@ -313,18 +313,76 @@ _VERIFY_LOGIC: Final[str] = r"""
         return false;
     });
 
+    function scoreCandidate(c) {
+        if (!c) return -1000;
+        try {
+            if (c.scrollIntoView && !c.offsetParent && c.getBoundingClientRect().height === 0) {
+                c.scrollIntoView({ block: 'nearest' });
+            }
+        } catch(e) {}
+        if (isHoneypotOrHidden(c)) return -1000;
+
+        let score = 0;
+        const tag = (c.tagName || '').toLowerCase();
+        const type = (c.type || '').toLowerCase();
+        const id = (c.id || '').toLowerCase();
+        const name = (c.name || '').toLowerCase();
+        const label = getUniversalLabel(c, true).toLowerCase();
+
+        // 1. Exact label match is highest priority
+        if (label === lower) score += 100;
+        else if (label.startsWith(lower + ' ') || label.startsWith(lower + ':')) score += 50;
+        else if (label.includes(lower)) score += 20;
+
+        // 2. Type matches semantic intent
+        if (lower.includes('email') && type === 'email') score += 60;
+        if (lower.includes('phone') && (type === 'tel' || type === 'phone')) score += 60;
+
+        // 3. Penalize secondary / marketing / newsletter qualifiers (WP-106)
+        if (label.includes('(newsletter)') || label.includes('newsletter') || name.includes('newsletter') || id.includes('newsletter')) score -= 80;
+        if (label.includes('optional') || label.includes('(optional)')) score -= 20;
+
+        // 4. Penalize tabindex="-1" (often honeypots or non-focusable decoys, WP-105)
+        if (c.getAttribute && c.getAttribute('tabindex') === '-1') score -= 90;
+
+        // 5. Prefer visible elements with healthy geometry
+        try {
+            const rect = c.getBoundingClientRect();
+            if (rect.width > 20 && rect.height > 15) score += 30;
+        } catch(e) {}
+
+        return score;
+    }
+
     let targetText = exactEl;
     if (!targetText) {
         const primaryInputs = textInputs.filter(i => {
             const tag = (i.tagName || '').toLowerCase();
             return tag === 'input' || tag === 'textarea' || i.isContentEditable || ['textbox', 'searchbox'].includes(i.getAttribute('role'));
         });
-        targetText = primaryInputs.find(i => !isHoneypotOrHidden(i) && matchEl(i)) || primaryInputs.find(matchEl);
+        const matching = primaryInputs.filter(matchEl);
+        if (matching.length > 0) {
+            matching.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
+            if (scoreCandidate(matching[0]) > -500) {
+                targetText = matching[0];
+            }
+        }
     }
     if (!targetText) {
-        targetText = textInputs.find(i => !isHoneypotOrHidden(i) && matchEl(i)) || textInputs.find(matchEl);
+        const matching = textInputs.filter(matchEl);
+        if (matching.length > 0) {
+            matching.sort((a, b) => scoreCandidate(b) - scoreCandidate(a));
+            if (scoreCandidate(matching[0]) > -500) {
+                targetText = matching[0];
+            }
+        }
     }
     if (targetText) {
+        try {
+            if (targetText.scrollIntoView) {
+                targetText.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            }
+        } catch(e){}
         const tag = (targetText.tagName || '').toLowerCase();
         const wc = (tag !== 'input' && tag !== 'textarea' && !targetText.isContentEditable) ? resolveWebComponent(targetText) : null;
         const shadowInp = wc ? resolveShadowInput(targetText) : null;
