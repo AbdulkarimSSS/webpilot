@@ -69,6 +69,30 @@ class LiveSessionManager:
             return False
 
     @classmethod
+    def list_all_active_sessions(cls) -> List[Dict[str, Any]]:
+        """Scans USER_DATA_DIR for all .live_session*.json files and returns all active running sessions."""
+        import glob
+        pattern = os.path.join(USER_DATA_DIR, ".live_session*.json")
+        active_sessions: List[Dict[str, Any]] = []
+        for file_path in glob.glob(pattern):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                port = data.get("port")
+                sess_name = data.get("session_name", "default")
+                if port and cls.is_cdp_port_active(port):
+                    active_sessions.append(data)
+                else:
+                    # Clean up inactive/stale file
+                    try:
+                        os.remove(file_path)
+                    except Exception:
+                        pass
+            except Exception:
+                continue
+        return active_sessions
+
+    @classmethod
     def load_session_state(cls, session_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Reads the active session state file if present and valid."""
         path = cls.get_session_file_path(session_name)
@@ -269,6 +293,7 @@ class LiveSessionManager:
             timeout_seconds=timeout_seconds,
             headless=headless,
             viewport={"width": viewport_width, "height": viewport_height},
+            session_name=session_name,
         )
 
         # Launch watchdog supervisor if timeout > 0

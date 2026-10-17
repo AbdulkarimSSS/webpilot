@@ -98,6 +98,7 @@ DISPATCH_TABLE = {
     "cookies": cookies_cmd,
     "cookie": cookies_cmd,
     "tab": tab_cmd,
+    "tabs": tab_cmd,
     "service": service_cmd,
     "shell": shell_cmd,
     "install": install_cmd,

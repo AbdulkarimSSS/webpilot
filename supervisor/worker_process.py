@@ -142,6 +142,9 @@ class OperationalWorker:
             elif action in ("close_tab", "tab_close"):
                 return self._handle_close_tab(req)
 
+            elif action in ("set_tab_timeout", "tab_timeout", "set_timeout"):
+                return self._handle_set_tab_timeout(req)
+
             elif action in ("inspect", "reload", "refresh"):
                 if action in ("reload", "refresh"):
                     req.reload = True
@@ -255,7 +258,7 @@ class OperationalWorker:
 
     def _handle_new_tab(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         coord = self._ensure_session(req)
-        page = coord.create_new_tab(req.url)
+        page = coord.create_new_tab(req.url, tab_timeout_minutes=req.tab_timeout)
         adapter = coord.adapter
         tabs = adapter.list_open_tabs()
         active_idx = adapter.get_active_tab_index()
@@ -271,6 +274,26 @@ class OperationalWorker:
             total_tabs=len(tabs),
             tabs=tabs,
         )
+
+    def _handle_set_tab_timeout(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        idx = req.tab_index if req.tab_index is not None else coord.adapter.get_active_tab_index()
+        to_min = req.tab_timeout if req.tab_timeout is not None else 30
+        ok = coord.set_tab_timeout(idx, to_min)
+        if ok:
+            return SupervisorActionResponse(
+                success=True,
+                action="set_tab_timeout",
+                message=f"Set inactivity timeout for Tab #{idx} to {to_min} minutes.",
+                active_tab_index=idx,
+                tabs=coord.adapter.list_open_tabs(),
+            )
+        else:
+            return SupervisorActionResponse(
+                success=False,
+                action="set_tab_timeout",
+                message=f"Failed to set timeout for Tab #{idx}: index out of range.",
+            )
 
     def _handle_close_tab(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         coord = self._ensure_session(req)

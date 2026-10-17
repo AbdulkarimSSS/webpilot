@@ -41,6 +41,8 @@ class SupervisorActionRequest:
     wait_state: Optional[str] = "visible"
     network_idle: bool = False
     text_only: bool = False
+    tab_timeout: Optional[int] = None
+    all_sessions: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

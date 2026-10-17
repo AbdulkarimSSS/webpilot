@@ -79,9 +79,13 @@ class SessionCoordinator:
         """Switches active page to specified tab index."""
         return self.adapter.switch_to_tab(index)
 
-    def create_new_tab(self, url: Optional[str] = None) -> Page:
+    def create_new_tab(self, url: Optional[str] = None, tab_timeout_minutes: Optional[int] = None) -> Page:
         """Opens a new tab, navigates to url if provided, and brings to front."""
-        return self.adapter.create_new_tab(url)
+        return self.adapter.create_new_tab(url, tab_timeout_minutes=tab_timeout_minutes)
+
+    def set_tab_timeout(self, index: int, timeout_minutes: int) -> bool:
+        """Sets inactivity timeout for a specific tab."""
+        return self.adapter.set_tab_timeout(index, timeout_minutes)
 
     def close_tab(self, index: Optional[int] = None) -> None:
         """Safely closes the target tab, ensuring at least one tab remains open."""

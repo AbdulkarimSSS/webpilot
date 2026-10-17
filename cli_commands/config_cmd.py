@@ -36,7 +36,9 @@ def config_cmd(args: argparse.Namespace) -> None:
             print("\n Tips:")
             print("   wp config set strip_header true     # Always suppress headers to save tokens")
             print("   wp config set exclude svg,script     # Always prune svg and script tags from HTML")
+            print("   wp config set tab_timeout 30         # Auto-close tabs after 30 min of inactivity")
             print("   wp config set session main           # Default to named session 'main'")
+            print("   (Keys are case-insensitive and hyphen-agnostic: Tab-Timeout, strip_header, etc.)")
         else:
             for k, v in prefs.items():
                 print(f" • {k:<18} = {repr(v)}")

@@ -40,24 +40,44 @@ def save_preferences(prefs: Dict[str, Any]) -> None:
         json.dump(prefs, f, indent=2, ensure_ascii=False)
 
 
+def normalize_config_key(key: str) -> str:
+    """Normalizes configuration keys to lower snake_case (e.g. Strip-Header -> strip_header)."""
+    return key.lower().replace("-", "_").strip()
+
+
 def get_preference(key: str, default: Any = None) -> Any:
-    """Gets a specific preference value."""
+    """Gets a specific preference value with case-insensitive and hyphen-tolerant key lookup."""
     prefs = load_preferences()
-    return prefs.get(key, default)
+    norm_key = normalize_config_key(key)
+    # Direct match or scan normalized keys
+    if norm_key in prefs:
+        return prefs[norm_key]
+    for k, v in prefs.items():
+        if normalize_config_key(k) == norm_key:
+            return v
+    return default
 
 
 def set_preference(key: str, value: Any) -> None:
-    """Sets a specific preference value."""
+    """Sets a specific preference value, standardizing key to normalized format."""
     prefs = load_preferences()
-    prefs[key] = value
+    norm_key = normalize_config_key(key)
+    # Clean up any existing variant keys (e.g. Strip-Header vs strip_header)
+    keys_to_remove = [k for k in prefs if normalize_config_key(k) == norm_key]
+    for k in keys_to_remove:
+        del prefs[k]
+    prefs[norm_key] = value
     save_preferences(prefs)
 
 
 def unset_preference(key: str) -> bool:
-    """Removes a specific preference value."""
+    """Removes a specific preference value with case-insensitive key lookup."""
     prefs = load_preferences()
-    if key in prefs:
-        del prefs[key]
+    norm_key = normalize_config_key(key)
+    keys_to_remove = [k for k in prefs if normalize_config_key(k) == norm_key]
+    if keys_to_remove:
+        for k in keys_to_remove:
+            del prefs[k]
         save_preferences(prefs)
         return True
     return False
@@ -80,19 +100,22 @@ def apply_persistent_preferences(args: Any) -> list[str]:
     if getattr(args, "no_persistent_config", False):
         return []
 
-    prefs = load_preferences()
-    if not prefs:
+    raw_prefs = load_preferences()
+    if not raw_prefs:
         return []
+
+    # Map normalized keys to values
+    prefs: Dict[str, Any] = {}
+    for k, v in raw_prefs.items():
+        prefs[normalize_config_key(k)] = v
 
     applied_notices: list[str] = []
 
     # 1. strip_header preference
     if "strip_header" in prefs:
-        # Check if user explicitly asked for header via --with-header or --no-strip-header
         if getattr(args, "with_header", False) or getattr(args, "no_strip_header", False):
             setattr(args, "strip_header", False)
         elif not hasattr(args, "strip_header") or getattr(args, "strip_header", None) is None:
-            # If not explicitly set on CLI, inherit from preferences
             pref_val = bool(prefs["strip_header"])
             setattr(args, "strip_header", pref_val)
             if pref_val:
@@ -107,7 +130,6 @@ def apply_persistent_preferences(args: Any) -> list[str]:
             pref_exc = str(prefs["exclude"]).strip()
             if pref_exc:
                 if cli_exc:
-                    # Merge sets additively
                     cli_tags = [t.strip() for t in cli_exc.split(",") if t.strip()]
                     pref_tags = [t.strip() for t in pref_exc.split(",") if t.strip()]
                     merged = ",".join(sorted(set(pref_tags + cli_tags)))
@@ -140,11 +162,28 @@ def apply_persistent_preferences(args: Any) -> list[str]:
         setattr(args, "session", prefs["session"])
         applied_notices.append(f"session='{prefs['session']}'")
 
-    # 5. default timeout preference
+    # 5. default timeout preference (browser session inactivity)
     if "timeout_minutes" in prefs and hasattr(args, "timeout_minutes"):
         current = getattr(args, "timeout_minutes", 30)
         if current == 30:  # standard default
             setattr(args, "timeout_minutes", int(prefs["timeout_minutes"]))
             applied_notices.append(f"timeout_minutes={prefs['timeout_minutes']}")
+
+    # 6. default tab_timeout preference (per-tab inactivity limit in minutes)
+    if "tab_timeout" in prefs:
+        tab_to_val = int(prefs["tab_timeout"])
+        if hasattr(args, "tab_timeout") and getattr(args, "tab_timeout", None) in (None, 30):
+            setattr(args, "tab_timeout", tab_to_val)
+            applied_notices.append(f"tab_timeout={tab_to_val}m")
+        elif not hasattr(args, "tab_timeout"):
+            setattr(args, "tab_timeout", tab_to_val)
+
+    # 7. default max_chars preference
+    if "max_chars" in prefs and hasattr(args, "max_chars"):
+        current_mc = getattr(args, "max_chars", 20000)
+        if current_mc == 20000:
+            mc_val = int(prefs["max_chars"])
+            setattr(args, "max_chars", mc_val)
+            applied_notices.append(f"max_chars={mc_val}")
 
     return applied_notices

@@ -157,13 +157,20 @@ class BrowserAdapter(BrowserAdapterProtocol):
         print(f"[*] Switched to Tab #{index}: '{self._page.title()}' ({self._page.url})")
         return self._page
 
-    def create_new_tab(self, url: Optional[str] = None) -> Page:
+    def create_new_tab(self, url: Optional[str] = None, tab_timeout_minutes: Optional[int] = None) -> Page:
         """Opens a new tab in BrowserContext, navigates to url if provided, and brings it to front."""
         if self._context is None:
             raise AutomationError("Browser context not initialized.")
         from adapters.tab_manager import TabManager
-        self._page = TabManager.create_new_tab(self._context, url)
+        self._page = TabManager.create_new_tab(self._context, url, tab_timeout_minutes=tab_timeout_minutes)
         return self._page
+
+    def set_tab_timeout(self, index: int, timeout_minutes: int) -> bool:
+        """Sets inactivity timeout for a specific tab."""
+        if self._context is None:
+            raise AutomationError("Browser context not initialized.")
+        from adapters.tab_manager import TabManager
+        return TabManager.set_tab_timeout(self._context, index, timeout_minutes)
 
     def close_tab(self, index: Optional[int] = None) -> None:
         """Safely closes the target tab, ensuring at least one tab remains open."""

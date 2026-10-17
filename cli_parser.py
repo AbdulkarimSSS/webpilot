@@ -648,14 +648,14 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "tab_action",
         nargs="?",
         default="list",
-        choices=["list", "new", "switch", "close"],
-        help="Tab action: list (default), new, switch, close",
+        choices=["list", "new", "switch", "close", "timeout", "set-timeout", "set_timeout"],
+        help="Tab action: list (default), new, switch, close, timeout",
     )
     p_tab.add_argument(
         "tab_target",
         nargs="?",
         default=None,
-        help="Target URL for 'new' or Tab Index for 'switch'/'close'",
+        help="Target URL for 'new', Tab Index for 'switch'/'close', or minutes/index for 'timeout'",
     )
     p_tab.add_argument(
         "--url",
@@ -666,7 +666,14 @@ def build_cli_parser() -> argparse.ArgumentParser:
         dest="tab_index",
         type=int,
         default=None,
-        help="Target tab index (0-based) for switch or close",
+        help="Target tab index (0-based) for switch, close, or timeout",
+    )
+    p_tab.add_argument(
+        "--tab-timeout",
+        dest="tab_timeout",
+        type=int,
+        default=None,
+        help="Inactivity timeout in minutes for tab auto-close (default: 30, 0 = disable)",
     )
     p_tab.add_argument(
         "--json",

@@ -191,6 +191,17 @@ def find_cmd(args: argparse.Namespace) -> None:
         return
 
     final_html = processed_html or outer_html
+    if final_html and not getattr(args, "all_options", False):
+        try:
+            from services.html_diagnostic_service import HTMLDiagnosticService
+            final_html = HTMLDiagnosticService.apply_safety_guard(
+                final_html,
+                max_chars=getattr(args, "max_chars", 20000),
+                show_all=getattr(args, "all_options", False),
+            )
+        except Exception:
+            pass
+
     if strip_header:
         if final_html:
             print(final_html)
