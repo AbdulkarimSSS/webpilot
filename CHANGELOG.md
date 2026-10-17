@@ -5,6 +5,76 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.3] - 2026-10-17
+
+### DNS-over-HTTPS (DoH), DevTools Console Helpers, Real-Time Resource Blocking, Network Sniffing & HAR 1.2 Export
+
+#### 1. DNS-over-HTTPS (DoH) & AdGuard Integration
+- **Default Secure DNS Resolution**: Configured Chromium launch flags (`--enable-features=DnsOverHttps`, `--dns-over-https-servers=https://dns.adguard.com/dns-query`) by default to eliminate ISP DNS poisoning, ad bloat, and tracking scripts at the protocol level.
+- **Dynamic Bypass & Custom Providers**: Added `--no-dns` flag to bypass DoH whenever local intranet or captive portals require local DNS resolution. Added `--dns-over-https-servers` / `--doh-servers` allowing comma or space separated custom DoH endpoints (e.g. AdGuard, Mullvad, Cloudflare).
+- **Persistent Sticky Preferences**: Added `dns` and `doh_servers` preferences to `~/.webpilot/preferences.json` via `wp config set dns <bool>` and `wp config set doh_servers <urls>`.
+
+#### 2. DevTools Console Helpers Injection (`services/console_helpers.py`)
+- **Interactive Console Shortcuts**: Injected standard browser DevTools convenience helpers into `wp eval` / `js` / `exec` script execution:
+  - `$(selector)`: `root.querySelector(selector)`
+  - `$$(selector)`: `Array.from(root.querySelectorAll(selector))`
+  - `$x(xpath)`: Evaluates XPath expressions directly into node arrays.
+  - `$0`: Active focused element or last interacted locator.
+  - `copy(data)`: Clipboard helper.
+- **Strict Validation & Non-Swallowing Wrap**: Wrapped user code in an IIFE preserving trailing comments and validating code types upfront via `InvalidUserCodeError`.
+
+#### 3. Real-Time Resource Blocking (`adapters/network_interceptor.py`)
+- **`--block-images`**: High-speed browsing mode blocking all image formats (`.png`, `.jpg`, `.jpeg`, `.webp`, `.svg`, `.ico`, `.bmp`, `.tiff`, `.avif`) and image resource types across the active CDP browser context, cutting page load times and RAM footprint by ~60%.
+- **`wp block --pattern "<glob>"`**: Dynamically adds URL glob patterns (e.g. `*analytics*.js`, `*/track/*`) to intercept and abort matching requests in real time.
+
+#### 4. Background Network Sniffing, Asset Dumping & HAR Recording
+- **`wp sniff`**: Real-time interception and JSON preview of asynchronous background API calls (`xhr`, `fetch`). Supports filtering by endpoint pattern (`--url "search"` / `--filter "<pat>"`) and custom resource types (`--types xhr,fetch`).
+- **`wp dump`**: Downloads and saves site scripts and assets locally grouped by sanitized filenames (`wp dump --types js -o ./site_scripts/`), combining intercepted network responses with live DOM `<script src>` tags.
+- **`wp capture`**: Selectively captures and serializes background API JSON payloads into structured files (`wp capture --filter "/api/" -o ./api_data/`).
+- **`wp network record`**: Records full network traffic and exports standard HAR 1.2 JSON traces (`wp network record -o session.har`) across both persistent CDP and standalone browser sessions.
+
+---
+
+## [2.7.2] - 2026-10-17
+
+### AJAX Select2 & Dynamic Combobox Typeahead Remote Query Probing
+
+#### 1. Remote AJAX Picklist Discovery
+- **Typeahead Remote Search Simulation**: Extended `FieldInteractionService.probe_field` and `set_field.py` to simulate human typing into dynamic comboboxes, Select2 widgets, and autocomplete picklists (e.g. Siemens ATS, SAP SuccessFactors) that query backend APIs (such as `_wizardPortalDatasetOptionsSearchApi`) on keystrokes.
+- **`wp probe <target> --search "<term>"`**: Automatically triggers keystroke input events, listens for remote suggestion dropdowns in the DOM, extracts internal option IDs (e.g. `@opt-812004`), and maps display labels accurately.
+
+---
+
+## [2.7.1] - 2026-10-17
+
+### Multi-Session Browser Instances, Hierarchical Tabs Tree & Tab Lifecycle Telemetry
+
+#### 1. Isolated Multi-Session Browser Instances (`--session <name>`)
+- **Multi-Instance Support**: Isolated browser context instances (`--session portal1`, `--session portal2`) holding distinct process IDs, profiles, and ports without cross-session cookie or window pollution.
+- **Global Inversion Flags**: Added `--with-header` (`--no-strip-header`), `--no-exclude`, and `--no-include` allowing granular one-time overrides over persistent configuration.
+
+#### 2. Hierarchical Browser Tabs Tree & Real-Time Lifecycle Telemetry
+- **`wp tabs` / `wp tab list`**: Enumerates all running browser instances and their child tabs with full hierarchical ownership and active tab indicators.
+- **Live Tab Telemetry**: Displays real-time `state` (`IDLE` vs `LOADING (loading since Ns)`), `open_since`, `last_activity`, and watchdog timeout metrics.
+- **Per-Tab Inactivity Watchdog**: Added `wp tab timeout <index> <minutes>` and `wp tab new <url> --tab-timeout <min>` configuring per-tab background inactivity reaper (default 30 min) to prevent orphan background memory leaks.
+
+---
+
+## [2.7.0] - 2026-10-17
+
+### Explicit Wait Subcommand, Persistent Preferences & Trafilatura Markdown Reader
+
+#### 1. Explicit Wait Engine (`wp wait`)
+- **State-Driven Wait**: Waits for CSS/XPath selectors to reach explicit target states (`visible`, `attached`, `detached`, `hidden`) or waits for network idle state (`--network-idle`) with bounded timeouts.
+
+#### 2. Persistent User Preferences (`wp config`)
+- **Sticky Flags Storage**: Added `~/.webpilot/preferences.json` managing persistent user preferences (`strip_header`, `exclude`, `include`, `tab_timeout`, `session`) case-insensitively.
+
+#### 3. High-Density Markdown Extraction (`wp read`)
+- **Trafilatura Engine**: Extracts clean, high-density markdown from active or target web pages saving ~99.7% of LLM token context, with element-confined extraction via `--selector`.
+
+---
+
 ## [2.6.8] - 2026-10-17
 
 ### Collapsed Range Completeness & Streamlined Diagnostics
