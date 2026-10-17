@@ -228,7 +228,7 @@ class HTMLDiagnosticService:
         if inputs:
             inp_types = [inp.get("type", inp.name).lower() for inp in inputs[:3]]
             types_str = f" ({', '.join(inp_types)})" if inp_types else ""
-            extra = f" | [EXCLUDED: {exc_id} ({meta['tag']}) | contains: {len(inputs)} input(s){types_str}]"
+            extra = f" | contains: {len(inputs)} input(s){types_str}"
         else:
             extra = ""
 
@@ -581,11 +581,34 @@ class HTMLDiagnosticService:
                     comment_text = f" [PRUNED: {exc_id} ({meta['tag']}) | {meta['chars']:,} chars | {meta['lines']} lines] "
                     first_tag.replace_with(Comment(comment_text))
                 else:
-                    first_tag, first_id, _ = run[0]
-                    _, last_id, _ = run[-1]
+                    first_tag = run[0][0]
                     count = len(run)
                     total_chars = sum(m["chars"] for _, _, m in run)
-                    comment_text = f" [PRUNED: {first_id}..{last_id} ({count} items) | {total_chars:,} chars | {rel_pos}] "
+
+                    # Collect unique IDs in order of appearance
+                    seen_ids: List[str] = []
+                    for _, exc_id, _ in run:
+                        if exc_id not in seen_ids:
+                            seen_ids.append(exc_id)
+
+                    nums = [int(i.split("-")[1]) for i in seen_ids if re.fullmatch(r"@exc-\d+", i)]
+                    sorted_nums = sorted(set(nums))
+                    # Contiguous numeric range (e.g. 1, 2, 3) without missing numbers
+                    is_consecutive = (
+                        len(sorted_nums) > 1
+                        and sorted_nums == list(range(sorted_nums[0], sorted_nums[-1] + 1))
+                    )
+
+                    if is_consecutive:
+                        id_label = f"@exc-{sorted_nums[0]}..@exc-{sorted_nums[-1]}"
+                    elif len(seen_ids) == 1:
+                        id_label = seen_ids[0]
+                    elif len(seen_ids) <= 5:
+                        id_label = ",".join(seen_ids)
+                    else:
+                        id_label = ",".join(seen_ids[:5]) + f",+{len(seen_ids) - 5} more"
+
+                    comment_text = f" [PRUNED: {id_label} ({count} items) | {total_chars:,} chars | {rel_pos}] "
                     first_tag.replace_with(Comment(comment_text))
                     for item_tag, _, _ in run[1:]:
                         item_tag.decompose()

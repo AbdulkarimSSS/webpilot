@@ -1010,8 +1010,8 @@ def test_standalone_exclude_no_silent_deletion():
         pretty=True,
     )
 
-    # Table containing input must be replaced with EXCLUDED stub, not silently deleted
-    assert "[EXCLUDED: @exc-" in result
+    # Table containing input must be replaced with PRUNED stub, not silently deleted
+    assert "[PRUNED: @exc-" in result
     assert "(table)" in result
     assert "contains: 1 input" in result
     # Other field preserved

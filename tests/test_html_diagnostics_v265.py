@@ -79,8 +79,24 @@ def run(S, html=SF_HTML, **kw):
     return S.process_html_pipeline(html, **kw)
 
 
+_COMMENT = re.compile(r"<!--(.*?)-->", re.S)
+_STUB = re.compile(r"\[(?:PRUNED|EXCLUDED): (@exc-\d+)(?:\.\.(@exc-\d+))?")
+
+
+def stub_comments(out):
+    """One entry per stub COMMENT (a collapsed range, or a comment with nested [EXCLUDED: ..] info, counts once)."""
+    return [c for c in _COMMENT.findall(out) if _STUB.search(c)]
+
+
 def stubs(out):
-    return re.findall(r"\[PRUNED: (@exc-\d+)", out)
+    """Every @exc ID referenced by the output; ranges like @exc-1..@exc-4 are expanded."""
+    ids = []
+    for c in stub_comments(out):
+        m = _STUB.search(c)
+        lo = int(m.group(1).split("-")[1])
+        hi = int(m.group(2).split("-")[1]) if m.group(2) else lo
+        ids.extend(f"@exc-{i}" for i in range(lo, hi + 1))
+    return ids
 
 
 # ---------------------------------------------------------------- 1. field container
@@ -129,14 +145,29 @@ def test_exclude_leaves_stub_and_registers_node(S):
 def test_exclude_nested_matches_produce_a_single_top_level_stub(S):
     html = '<form id="r"><div class="a"><div class="a"><input name="x"/></div></div></form>'
     out = run(S, html=html, exclude_tags="div")
-    assert len(stubs(out)) == 1
+    assert len(stub_comments(out)) == 1
+    assert len(S._pruned_registry) == 1, "nested nodes inside a removed subtree must not be registered"
 
 
 def test_exclude_beats_include_on_same_tag(S):
     html = '<form id="r"><div class="g"><input name="x"/></div></form>'
     out = run(S, html=html, include_tags="div,input", exclude_tags="div")
     assert "<input" not in out
-    assert len(stubs(out)) == 1
+    assert len(stub_comments(out)) == 1
+
+
+def test_exclude_of_text_only_node_is_not_silent(S):
+    """The '*' required-field marker lives in a text-only <span>: removing it must leave a stub."""
+    out = run(S, exclude_tags="span")
+    marker = [i for i in stubs(out) if "requiredField" in S.get_pruned_node(i)["raw_html"]]
+    assert marker, "text-only excluded <span class=requiredField> vanished without a stub"
+
+
+def test_repeated_query_does_not_grow_registry(S):
+    run(S, search_query="Salary")
+    n = len(S._pruned_registry)
+    run(S, search_query="Salary")
+    assert len(S._pruned_registry) == n
 
 
 def test_noisy_tags_keep_inline_stub(S):
@@ -163,7 +194,10 @@ _CHILD = textwrap.dedent(
     if mode == "run":
         out = S.process_html_pipeline(html, search_query=sys.argv[2])
         import re
-        ids = re.findall(r"\\[PRUNED: (@exc-\\d+)", out)
+        ids = []
+        for a, b in re.findall(r"\\[(?:PRUNED|EXCLUDED): (@exc-\\d+)(?:\\.\\.(@exc-\\d+))?", out):
+            lo = int(a.split("-")[1]); hi = int(b.split("-")[1]) if b else lo
+            ids += [f"@exc-{{i}}" for i in range(lo, hi + 1)]
         print(json.dumps({{i: S.get_pruned_node(i)["raw_html"] for i in ids}}))
     else:
         n = S.get_pruned_node(sys.argv[2])
@@ -267,3 +301,12 @@ def test_search_not_found_raises(mod, S):
         run(S, search_query="zzz-nope")
     with pytest.raises(mod.DiagnosticSearchNotFoundError):
         run(S, search_query="راتب")
+
+
+def test_collapsed_range_exposes_every_pruned_id(S):
+    """A collapsed stub must let the agent reach EVERY node it swallowed (ranges break when IDs are shared/non-contiguous)."""
+    out = run(S, search_query="Salary")
+    exposed = set(stubs(out))
+    swallowed = {k for k, m in S._pruned_registry.items() if 'data-wp-id="@fld-1"' in m["raw_html"]}
+    assert swallowed, "fixture sanity: First Name field should have been pruned"
+    assert swallowed <= exposed, f"{swallowed - exposed} pruned but unreachable from the stub text"

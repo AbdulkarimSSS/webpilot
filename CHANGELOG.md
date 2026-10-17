@@ -5,6 +5,18 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.8] - 2026-10-17
+
+### Collapsed Range Completeness & Streamlined Diagnostics
+
+#### 1. Collapsed Sibling Range & ID Exposure (`flush_run`)
+- **Contiguous Range Bounds**: In `flush_run`, collects unique IDs across collapsed runs and determines whether their numeric keys form an unbroken sequence. If contiguous, generates bounds from `min` to `max` (`@exc-1..@exc-3`), guaranteeing that duplicate elements (e.g. repeated clearfix blocks sharing `@exc-2`) do not truncate the range or hide intermediate fields (e.g. `@exc-3`).
+- **Discontinuous ID Fallback**: Non-consecutive or sparse ID sequences fallback to an explicit comma-separated enumeration (`@exc-1,@exc-4`), capping at 5 items + `+N more` to preserve token economy while keeping all nodes discoverable.
+
+#### 2. Streamlined Stub Comments (Zero Redundant Wrappers)
+- **Eliminated Nested `[EXCLUDED: ...]`**: Cleaned up excluded element stubs containing inputs to avoid duplicate identifiers and brackets:
+  `<!-- [PRUNED: @exc-1 (div) | 59 chars | 1 lines | contains: 1 input(s) (input)] -->`
+
 ## [2.6.7] - 2026-10-17
 
 ### Precision Diagnostics Hardening & Stable Identifier Storage
