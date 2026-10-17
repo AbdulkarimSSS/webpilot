@@ -12,6 +12,13 @@ from cli_commands.read_cmd import read_cmd
 from cli_commands.service_cmd import install_cmd, service_cmd, shell_cmd, skill_cmd
 from cli_commands.tab_cmd import tab_cmd
 from cli_commands.wait_cmd import wait_cmd
+from cli_commands.network_cmd import (
+    sniff_cmd,
+    dump_cmd,
+    capture_cmd,
+    block_cmd,
+    network_cmd,
+)
 
 __all__ = [
     "get_base_url",
@@ -30,4 +37,9 @@ __all__ = [
     "skill_cmd",
     "config_cmd",
     "wait_cmd",
+    "sniff_cmd",
+    "dump_cmd",
+    "capture_cmd",
+    "block_cmd",
+    "network_cmd",
 ]

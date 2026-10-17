@@ -34,6 +34,7 @@ from supervisor.worker_handlers import (
     handle_worker_probe,
     handle_worker_read,
 )
+from adapters.network_interceptor import get_network_manager
 
 
 def _sanitize_eval_result(val: Any, seen: Optional[set] = None, depth: int = 0) -> Any:
@@ -112,6 +113,10 @@ class OperationalWorker:
                 tab_index=req.tab_index,
                 strip_header=getattr(req, "strip_header", False),
                 session_name=req.session_name,
+                enable_dns=getattr(req, "enable_dns", True),
+                doh_servers=getattr(req, "doh_servers", None),
+                block_images=getattr(req, "block_images", False),
+                block_patterns=getattr(req, "block_patterns", None) or [],
             )
             coord = SessionCoordinator(session_ctx)
             coord.start()
@@ -120,6 +125,14 @@ class OperationalWorker:
         self.coordinator = coord
         if coord and coord.adapter:
             coord.adapter.strip_header = getattr(req, "strip_header", False)
+            if hasattr(coord.adapter, "traffic_mgr") and coord.adapter.traffic_mgr:
+                block_images = getattr(req, "block_images", False)
+                block_patterns = getattr(req, "block_patterns", None) or []
+                if block_images or block_patterns:
+                    coord.adapter.traffic_mgr.configure_blocking(
+                        block_images=block_images,
+                        block_patterns=block_patterns,
+                    )
         return coord
 
     def handle_request(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
@@ -172,6 +185,21 @@ class OperationalWorker:
 
             elif action in ("wait", "wait_for"):
                 return self._handle_wait(req)
+
+            elif action in ("sniff", "network_sniff"):
+                return self._handle_sniff(req)
+
+            elif action in ("dump", "dump_assets"):
+                return self._handle_dump(req)
+
+            elif action in ("capture", "capture_api"):
+                return self._handle_capture(req)
+
+            elif action in ("block", "block_resources"):
+                return self._handle_block(req)
+
+            elif action in ("network", "har", "record_har"):
+                return self._handle_network(req)
 
             elif action in ("stop", "shutdown"):
                 self.shutdown()
@@ -408,10 +436,16 @@ class OperationalWorker:
             return sanitize(raw, 0);
         }"""
         try:
+            from services.console_helpers import wrap_with_console_helpers
+            wrapped_code = wrap_with_console_helpers(req.script or "")
+        except Exception:
+            wrapped_code = req.script or ""
+
+        try:
             try:
-                res = coord.page.evaluate(safe_eval_wrapper, [req.script or "", req.script_args])
+                res = coord.page.evaluate(safe_eval_wrapper, [wrapped_code, req.script_args])
             except Exception:
-                res = coord.page.evaluate(req.script or "", req.script_args)
+                res = coord.page.evaluate(wrapped_code, req.script_args)
             sanitized_res = _sanitize_eval_result(res)
             return SupervisorActionResponse(
                 success=True,
@@ -678,6 +712,185 @@ class OperationalWorker:
             active_title=page.title(),
             total_tabs=len(coord.context.pages) if coord.context else 1,
             tabs=coord.adapter.list_open_tabs(),
+            output_lines=lines,
+        )
+
+    def _handle_sniff(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        page = coord.page
+        if not page:
+            raise RuntimeError("Browser page is not available.")
+
+        traffic_mgr = getattr(coord.adapter, "traffic_mgr", None) or get_network_manager()
+
+        traffic_mgr.sniff_active = True
+        if req.resource_types:
+            traffic_mgr.sniff_types = set(t.lower().strip() for t in req.resource_types)
+        else:
+            traffic_mgr.sniff_types = {"fetch", "xhr"}
+
+        pattern = req.filter_pattern or req.query
+        if req.url and not (req.url.startswith("http://") or req.url.startswith("https://")):
+            pattern = req.url
+        traffic_mgr.sniff_url_pattern = pattern
+
+        lines: List[str] = []
+        if req.url and (req.url.startswith("http://") or req.url.startswith("https://")):
+            coord.adapter.navigate(req.url)
+            page = coord.page
+
+        wait_ms = min(int(getattr(req, "wait_timeout", 3000) or 3000), 30000)
+        try:
+            page.wait_for_timeout(wait_ms)
+        except Exception:
+            pass
+
+        import fnmatch
+        matched_traffic = []
+        for entry in traffic_mgr.captured_traffic:
+            url = entry.get("url", "")
+            res_type = entry.get("resource_type", "")
+            if traffic_mgr.sniff_types and res_type not in traffic_mgr.sniff_types:
+                continue
+            if pattern:
+                if not (fnmatch.fnmatch(url, pattern) or pattern.lower() in url.lower()):
+                    continue
+            matched_traffic.append(entry)
+
+        lines.append(f"[✓] Network sniffing captured {len(matched_traffic)} items (Types: {', '.join(sorted(traffic_mgr.sniff_types))}).")
+        for item in matched_traffic[-20:]:
+            body_preview = ""
+            b = item.get("body")
+            if isinstance(b, dict):
+                body_preview = json.dumps(b)[:120]
+            elif isinstance(b, str):
+                body_preview = b[:120].replace("\n", " ")
+            lines.append(f"  [{item.get('method')}] {item.get('status')} {item.get('url')} ({item.get('resource_type')}) -> {body_preview}")
+
+        return SupervisorActionResponse(
+            success=True,
+            action="sniff",
+            message=f"Sniffed {len(matched_traffic)} network requests.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+            active_tab_index=coord.adapter.get_active_tab_index(),
+            active_url=page.url if page else "",
+            active_title=page.title() if page else "",
+            reactive_event={"traffic": matched_traffic, "count": len(matched_traffic)},
+            output_lines=lines,
+        )
+
+    def _handle_dump(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        page = coord.page
+        output_dir = req.output_path or "./site_scripts/"
+        types = req.resource_types or ["js"]
+        pattern = req.filter_pattern or req.query
+
+        traffic_mgr = getattr(coord.adapter, "traffic_mgr", None) or get_network_manager()
+        saved = traffic_mgr.dump_assets(output_dir, types=types, filter_pattern=pattern, page=page)
+
+        lines = [f"[✓] Dumped {len(saved)} assets to '{os.path.abspath(output_dir)}'."]
+        for f in saved[:30]:
+            lines.append(f"  - {f}")
+        if len(saved) > 30:
+            lines.append(f"  ... and {len(saved) - 30} more.")
+
+        return SupervisorActionResponse(
+            success=True,
+            action="dump",
+            message=f"Dumped {len(saved)} assets to {output_dir}.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+            active_tab_index=coord.adapter.get_active_tab_index(),
+            active_url=page.url if page else "",
+            active_title=page.title() if page else "",
+            reactive_event={"saved_files": saved, "count": len(saved)},
+            output_lines=lines,
+        )
+
+    def _handle_capture(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        page = coord.page
+        output_dir = req.output_path or "./api_data/"
+        types = req.resource_types or ["json"]
+        pattern = req.filter_pattern or req.query or "/api/"
+
+        traffic_mgr = getattr(coord.adapter, "traffic_mgr", None) or get_network_manager()
+        saved = traffic_mgr.dump_assets(output_dir, types=types, filter_pattern=pattern, page=page)
+
+        lines = [f"[✓] Captured {len(saved)} endpoint responses to '{os.path.abspath(output_dir)}'."]
+        for f in saved[:30]:
+            lines.append(f"  - {f}")
+        if len(saved) > 30:
+            lines.append(f"  ... and {len(saved) - 30} more.")
+
+        return SupervisorActionResponse(
+            success=True,
+            action="capture",
+            message=f"Captured {len(saved)} API responses to {output_dir}.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+            active_tab_index=coord.adapter.get_active_tab_index(),
+            active_url=page.url if page else "",
+            active_title=page.title() if page else "",
+            reactive_event={"saved_files": saved, "count": len(saved)},
+            output_lines=lines,
+        )
+
+    def _handle_block(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        traffic_mgr = getattr(coord.adapter, "traffic_mgr", None) or get_network_manager()
+
+        patterns = list(req.block_patterns)
+        if req.query and req.query not in patterns:
+            patterns.append(req.query)
+
+        images = getattr(req, "block_images", False)
+        traffic_mgr.configure_blocking(block_images=images, block_patterns=patterns)
+
+        lines = [
+            "[✓] Network blocking configuration updated:",
+            f"  - Block images: {traffic_mgr.block_images}",
+            f"  - Block patterns: {traffic_mgr.block_patterns}",
+        ]
+        return SupervisorActionResponse(
+            success=True,
+            action="block",
+            message="Updated network blocking configuration.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+            reactive_event={"block_images": traffic_mgr.block_images, "block_patterns": traffic_mgr.block_patterns},
+            output_lines=lines,
+        )
+
+    def _handle_network(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        coord = self._ensure_session(req)
+        traffic_mgr = getattr(coord.adapter, "traffic_mgr", None) or get_network_manager()
+
+        if req.query in ("clear", "reset"):
+            traffic_mgr.clear_traffic()
+            return SupervisorActionResponse(
+                success=True,
+                action="network",
+                message="Cleared network traffic buffer.",
+                output_lines=["[✓] Network traffic buffer cleared."],
+            )
+
+        har_file = req.har_path or req.output_path or "session.har"
+        export_path = traffic_mgr.export_har(har_file)
+        lines = [
+            "[✓] Network trace recorded to HAR 1.2 file:",
+            f"  - File: {export_path}",
+            f"  - Total entries: {len(traffic_mgr.captured_traffic)}",
+        ]
+        return SupervisorActionResponse(
+            success=True,
+            action="network",
+            message=f"Recorded {len(traffic_mgr.captured_traffic)} network requests to {export_path}.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+            reactive_event={"har_path": export_path, "entries": len(traffic_mgr.captured_traffic)},
             output_lines=lines,
         )
 

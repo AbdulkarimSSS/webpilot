@@ -6,7 +6,7 @@ import argparse
 import json
 import sys
 
-from cli_commands.common import get_supervisor_client
+from cli_commands.common import get_supervisor_client, populate_network_args
 from common.telemetry import print_telemetry_banner
 from supervisor.contracts import SupervisorActionRequest
 
@@ -121,6 +121,7 @@ def find_cmd(args: argparse.Namespace) -> None:
             strip_header=strip_header,
             session_name=getattr(args, "session", None),
         )
+        populate_network_args(req, args)
         resp = client.execute(req)
         if not getattr(args, "text", False):
             print_telemetry_banner(resp, strip_header=strip_header)

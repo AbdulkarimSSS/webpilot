@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from cli_commands.common import get_supervisor_client
+from cli_commands.common import get_supervisor_client, populate_network_args
 from common.telemetry import print_telemetry_banner
 from supervisor.contracts import SupervisorActionRequest
 
@@ -39,6 +39,7 @@ def wait_cmd(args: argparse.Namespace) -> None:
         session_name=session_name,
         strip_header=strip_header,
     )
+    populate_network_args(req, args)
 
     resp = client.execute(req)
     print_telemetry_banner(resp, strip_header=strip_header)

@@ -37,6 +37,10 @@ class BrowserAdapter(BrowserAdapterProtocol):
         tab_index: Optional[int] = None,
         strip_header: bool = False,
         session_name: Optional[str] = None,
+        enable_dns: bool = True,
+        doh_servers: Optional[str] = None,
+        block_images: bool = False,
+        block_patterns: Optional[List[str]] = None,
     ):
         self.settings = settings or get_settings()
         self.device_profile = device_profile or load_device_profile()
@@ -47,6 +51,10 @@ class BrowserAdapter(BrowserAdapterProtocol):
         self.tab_index = tab_index
         self.strip_header: bool = strip_header or getattr(self.settings, "strip_header", False)
         self.session_name: Optional[str] = session_name
+        self.enable_dns: bool = enable_dns
+        self.doh_servers: Optional[str] = doh_servers
+        self.block_images: bool = block_images
+        self.block_patterns: List[str] = block_patterns or []
         self._last_printed_url: Optional[str] = None
 
         self._pw: Optional[Playwright] = None
@@ -259,6 +267,8 @@ class BrowserAdapter(BrowserAdapterProtocol):
                     user_agent=self.device_profile.user_agent,
                     timeout_seconds=timeout_sec,
                     session_name=self.session_name,
+                    enable_dns=self.enable_dns,
+                    doh_servers=self.doh_servers,
                 )
                 self.browser_pid = pid
                 self.cdp_port = port
@@ -294,9 +304,11 @@ class BrowserAdapter(BrowserAdapterProtocol):
         else:
             # Isolated single-run execution
             self.is_persistent = False
+            launch_args = ["--disable-blink-features=AutomationControlled"]
+            launch_args.extend(LiveSessionManager.resolve_doh_args(enable_dns=self.enable_dns, custom_servers=self.doh_servers))
             self.browser = self._pw.chromium.launch(
                 headless=self.headless,
-                args=["--disable-blink-features=AutomationControlled"],
+                args=launch_args,
             )
             try:
                 from common.process_manager import get_process_manager
@@ -313,6 +325,20 @@ class BrowserAdapter(BrowserAdapterProtocol):
             options = builder.build_context_envelope()
             self._context = self.browser.new_context(**options)
             self._page = self._context.new_page()
+
+        # Attach network traffic manager (blocking & sniffing)
+        if self._context:
+            try:
+                from adapters.network_interceptor import get_network_manager
+                net_mgr = get_network_manager()
+                if self.block_images or self.block_patterns:
+                    net_mgr.configure_blocking(
+                        block_images=self.block_images,
+                        block_patterns=self.block_patterns,
+                    )
+                net_mgr.attach_to_context(self._context)
+            except Exception:
+                pass
 
         # Stealth evasions & Closed Shadow DOM hook (WP-007, WP-015)
         # Dialog handling

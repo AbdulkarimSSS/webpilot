@@ -7,7 +7,7 @@ import json
 import os
 import sys
 
-from cli_commands.common import get_supervisor_client
+from cli_commands.common import get_supervisor_client, populate_network_args
 from common.telemetry import print_telemetry_banner
 from supervisor.contracts import SupervisorActionRequest
 
@@ -37,7 +37,12 @@ def eval_cmd(args: argparse.Namespace) -> None:
             page = browser.new_page()
             page.goto(args.url)
             try:
-                res = page.evaluate(script)
+                try:
+                    from services.console_helpers import wrap_with_console_helpers
+                    exec_script = wrap_with_console_helpers(script)
+                except Exception:
+                    exec_script = script
+                res = page.evaluate(exec_script)
                 browser.close()
                 if getattr(args, "json", False):
                     print(json.dumps({"success": True, "result": res}, indent=2, ensure_ascii=False))
@@ -62,6 +67,7 @@ def eval_cmd(args: argparse.Namespace) -> None:
         strip_header=strip_header,
         session_name=getattr(args, "session", None),
     )
+    populate_network_args(req, args)
     resp = client.execute(req)
     print_telemetry_banner(resp, strip_header=strip_header)
 

@@ -27,3 +27,15 @@ def get_supervisor_client(args: argparse.Namespace) -> SupervisorClient:
     elif token and token.startswith("@env:"):
         token = os.environ.get(token[5:].strip())
     return SupervisorClient(base_url=get_base_url(args), token=token)
+
+
+def populate_network_args(req: Any, args: argparse.Namespace) -> None:
+    """Populates DoH and network blocking options from parsed CLI args onto SupervisorActionRequest."""
+    if hasattr(args, "no_dns"):
+        req.enable_dns = not getattr(args, "no_dns", False)
+    if hasattr(args, "doh_servers") and args.doh_servers:
+        req.doh_servers = args.doh_servers
+    if hasattr(args, "block_images") and args.block_images:
+        req.block_images = True
+    if hasattr(args, "block_patterns") and args.block_patterns:
+        req.block_patterns = list(args.block_patterns)

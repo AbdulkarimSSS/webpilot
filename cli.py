@@ -36,6 +36,11 @@ try:
         skill_cmd,
         tab_cmd,
         wait_cmd,
+        block_cmd,
+        capture_cmd,
+        dump_cmd,
+        network_cmd,
+        sniff_cmd,
     )
     from config.preferences import apply_persistent_preferences
 except ImportError:
@@ -57,6 +62,11 @@ except ImportError:
             skill_cmd,
             tab_cmd,
             wait_cmd,
+            block_cmd,
+            capture_cmd,
+            dump_cmd,
+            network_cmd,
+            sniff_cmd,
         )
         from .config.preferences import apply_persistent_preferences
     except Exception:
@@ -78,6 +88,11 @@ except ImportError:
             skill_cmd,
             tab_cmd,
             wait_cmd,
+            block_cmd,
+            capture_cmd,
+            dump_cmd,
+            network_cmd,
+            sniff_cmd,
         )
         from config.preferences import apply_persistent_preferences
 
@@ -110,6 +125,11 @@ DISPATCH_TABLE = {
     "prefs": config_cmd,
     "preference": config_cmd,
     "preferences": config_cmd,
+    "sniff": sniff_cmd,
+    "dump": dump_cmd,
+    "capture": capture_cmd,
+    "block": block_cmd,
+    "network": network_cmd,
 }
 
 

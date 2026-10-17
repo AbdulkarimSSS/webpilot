@@ -19,12 +19,43 @@ def _parse_up_levels(val: Any) -> int:
         raise argparse.ArgumentTypeError(f"Invalid --up level '{val}'; must be an integer or 'max'/'full'.")
 
 
+def _add_common_network_flags(p: argparse.ArgumentParser) -> None:
+    """Adds DNS-over-HTTPS (DoH) and real-time network resource blocking flags."""
+    p.add_argument(
+        "--no-dns",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Disable DNS-over-HTTPS (DoH) and bypass secure DNS resolution",
+    )
+    p.add_argument(
+        "--dns-over-https-servers",
+        "--doh-servers",
+        dest="doh_servers",
+        default=argparse.SUPPRESS,
+        help="Custom DNS-over-HTTPS server URLs (comma or space separated, e.g. 'https://dns.adguard.com/dns-query')",
+    )
+    p.add_argument(
+        "--block-images",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Block all image resources (.png, .jpg, .webp, .svg, etc.) to accelerate browsing and save memory",
+    )
+    p.add_argument(
+        "--block-pattern",
+        action="append",
+        dest="block_patterns",
+        default=argparse.SUPPRESS,
+        help="Block resources matching URL glob pattern (e.g. '*analytics*.js')",
+    )
+
+
 def build_cli_parser() -> argparse.ArgumentParser:
     """Constructs and returns the comprehensive command-line parser for WebPilot."""
     parser = argparse.ArgumentParser(
         prog="webpilot",
         description="WebPilot: Autonomous Multi-Tier Browser Automation Engine & AI Agent Web Runtime",
     )
+    _add_common_network_flags(parser)
     parser.add_argument("--config", help="Path to custom settings.json configuration file")
     parser.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
     parser.add_argument("--env-file", help="Path to custom .env file")
@@ -140,6 +171,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_inspect.add_argument("--config", help="Path to custom settings.json configuration file")
     p_inspect.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
     p_inspect.add_argument("--env-file", help="Path to custom .env file")
+    _add_common_network_flags(p_inspect)
 
     # 2. Apply / Fill Subcommand
     p_apply = subparsers.add_parser(
@@ -252,6 +284,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_apply.add_argument("--config", help="Path to custom settings.json configuration file")
     p_apply.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
     p_apply.add_argument("--env-file", help="Path to custom .env file")
+    _add_common_network_flags(p_apply)
 
     # 3. Interactive REPL Shell Subcommand
     p_shell = subparsers.add_parser("shell", help="Launch interactive REPL automation shell")
@@ -309,6 +342,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="Suppress verbose telemetry banners and headers from tool output",
     )
     p_read.add_argument("--port", type=int, default=9333, help="Master Supervisor RPC port")
+    _add_common_network_flags(p_read)
 
     # 7. Find / Probe Subcommand
     p_find = subparsers.add_parser(
@@ -538,6 +572,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_find.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_find.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_find.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_find)
 
     # 8. Reload Subcommand
     p_reload = subparsers.add_parser(
@@ -575,6 +610,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_reload.add_argument("--device-profile", help="Path to custom device_profile.json configuration file")
     p_reload.add_argument("--env-file", help="Path to custom .env file")
     p_reload.set_defaults(reload=True)
+    _add_common_network_flags(p_reload)
 
     # 9. Eval / JavaScript Execution Subcommand
     p_eval = subparsers.add_parser(
@@ -605,6 +641,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_eval.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_eval.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_eval.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_eval)
 
     # 10. CSS Injection & Inspection Subcommand
     p_css = subparsers.add_parser(
@@ -805,6 +842,7 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_wait.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_wait.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_wait.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_wait)
 
     # 14. Persistent Config / Sticky Flags Subcommand
     p_config = subparsers.add_parser(
@@ -822,5 +860,90 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_config.add_argument("key", nargs="?", default=None, help="Preference key name (e.g. strip_header, exclude, session)")
     p_config.add_argument("value", nargs="?", default=None, help="Preference value to set (e.g. true, 'svg,script', 'main')")
     p_config.add_argument("--json", action="store_true", help="Output stored preferences as raw JSON")
+
+    # 15. Sniff Subcommand (Real-time network API & fetch/XHR sniffing)
+    p_sniff = subparsers.add_parser(
+        "sniff",
+        help="Sniff network API and fetch/xhr requests and responses in real time",
+    )
+    p_sniff.add_argument("--url", nargs="?", default=None, help="Target URL or endpoint pattern to filter")
+    p_sniff.add_argument("--types", default="xhr,fetch", help="Comma-separated resource types to sniff (default: xhr,fetch)")
+    p_sniff.add_argument("--filter", dest="filter_pattern", default=None, help="URL filter pattern")
+    p_sniff.add_argument("--timeout", type=int, default=3000, help="Listen timeout in milliseconds (default: 3000)")
+    p_sniff.add_argument("--tab", type=int, default=None, help="Target specific tab by index")
+    p_sniff.add_argument("--session", dest="session_name", default=None, help="Named browser session")
+    p_sniff.add_argument("--json", action="store_true", help="Output raw JSON results")
+    p_sniff.add_argument("--strip-header", dest="strip_header", action="store_true", default=argparse.SUPPRESS, help="Suppress telemetry headers")
+    p_sniff.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_sniff.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_sniff.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_sniff)
+
+    # 16. Dump Subcommand (Site scripts & assets local extraction)
+    p_dump = subparsers.add_parser(
+        "dump",
+        help="Dump site scripts and network assets to local directory",
+    )
+    p_dump.add_argument("--types", default="js", help="Comma-separated asset types (default: js)")
+    p_dump.add_argument("-o", "--output", default="./site_scripts/", help="Output directory path (default: ./site_scripts/)")
+    p_dump.add_argument("--filter", dest="filter_pattern", default=None, help="URL filter pattern")
+    p_dump.add_argument("--tab", type=int, default=None, help="Target specific tab by index")
+    p_dump.add_argument("--session", dest="session_name", default=None, help="Named browser session")
+    p_dump.add_argument("--json", action="store_true", help="Output raw JSON results")
+    p_dump.add_argument("--strip-header", dest="strip_header", action="store_true", default=argparse.SUPPRESS, help="Suppress telemetry headers")
+    p_dump.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_dump.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_dump.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_dump)
+
+    # 17. Capture Subcommand (Background API JSON responses)
+    p_capture = subparsers.add_parser(
+        "capture",
+        help="Capture and save background API JSON responses",
+    )
+    p_capture.add_argument("--filter", dest="filter_pattern", default="/api/", help="URL pattern or prefix to capture (default: /api/)")
+    p_capture.add_argument("-o", "--output", default="./api_data/", help="Output directory path (default: ./api_data/)")
+    p_capture.add_argument("--types", default="json", help="Comma-separated types (default: json)")
+    p_capture.add_argument("--tab", type=int, default=None, help="Target specific tab by index")
+    p_capture.add_argument("--session", dest="session_name", default=None, help="Named browser session")
+    p_capture.add_argument("--json", action="store_true", help="Output raw JSON results")
+    p_capture.add_argument("--strip-header", dest="strip_header", action="store_true", default=argparse.SUPPRESS, help="Suppress telemetry headers")
+    p_capture.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_capture.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_capture.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_capture)
+
+    # 18. Block Subcommand (URL patterns & images)
+    p_block = subparsers.add_parser(
+        "block",
+        help="Configure URL pattern or image blocking",
+    )
+    p_block.add_argument("--pattern", action="append", dest="block_patterns", default=[], help="Pattern to block (e.g. '*analytics*.js')")
+    p_block.add_argument("--images", action="store_true", help="Block all image resources")
+    p_block.add_argument("--clear", action="store_true", help="Clear all blocking patterns")
+    p_block.add_argument("--tab", type=int, default=None, help="Target specific tab by index")
+    p_block.add_argument("--session", dest="session_name", default=None, help="Named browser session")
+    p_block.add_argument("--json", action="store_true", help="Output raw JSON results")
+    p_block.add_argument("--strip-header", dest="strip_header", action="store_true", default=argparse.SUPPRESS, help="Suppress telemetry headers")
+    p_block.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_block.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_block.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_block)
+
+    # 19. Network Subcommand (HAR 1.2 recording & trace management)
+    p_network = subparsers.add_parser(
+        "network",
+        help="Network engine inspection, HAR recording, and buffer management",
+    )
+    p_network.add_argument("subaction", nargs="?", default="status", choices=["record", "status", "clear", "reset"], help="Network action (record, status, clear)")
+    p_network.add_argument("-o", "--output", dest="output_path", default="session.har", help="HAR output file path (default: session.har)")
+    p_network.add_argument("--tab", type=int, default=None, help="Target specific tab by index")
+    p_network.add_argument("--session", dest="session_name", default=None, help="Named browser session")
+    p_network.add_argument("--json", action="store_true", help="Output raw JSON results")
+    p_network.add_argument("--strip-header", dest="strip_header", action="store_true", default=argparse.SUPPRESS, help="Suppress telemetry headers")
+    p_network.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_network.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_network.add_argument("--token", help="Explicit Master Supervisor authentication token")
+    _add_common_network_flags(p_network)
 
     return parser

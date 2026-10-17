@@ -32,12 +32,26 @@ except Exception:
 SESSION_FILE: str = os.path.join(USER_DATA_DIR, ".live_session.json")
 DEFAULT_CDP_PORT: int = 9222
 DEFAULT_INACTIVITY_TIMEOUT_SECONDS: int = 1800  # 30 minutes
+DEFAULT_DOH_SERVERS: str = "https://dns.adguard.com/dns-query"
 
 from common.process_manager import get_process_manager
 
 
 class LiveSessionManager:
     """Manages the persistent browser daemon process and session state file."""
+
+    @classmethod
+    def resolve_doh_args(cls, enable_dns: bool = True, custom_servers: Optional[str] = None) -> List[str]:
+        """Resolves Chromium CLI flags for DNS-over-HTTPS (DoH)."""
+        if not enable_dns:
+            return []
+        servers = custom_servers.strip() if custom_servers and custom_servers.strip() else DEFAULT_DOH_SERVERS
+        # Chromium accepts space-separated servers in --dns-over-https-servers
+        formatted_servers = " ".join(s.strip() for s in servers.replace(",", " ").split() if s.strip())
+        return [
+            "--enable-features=DnsOverHttps",
+            f"--dns-over-https-servers={formatted_servers}",
+        ]
 
     @staticmethod
     def get_session_file_path(session_name: Optional[str] = None) -> str:
@@ -212,6 +226,8 @@ class LiveSessionManager:
         user_agent: Optional[str] = None,
         timeout_seconds: int = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
         session_name: Optional[str] = None,
+        enable_dns: bool = True,
+        doh_servers: Optional[str] = None,
     ) -> Tuple[int, int]:
         """Launches a standalone detached Chromium instance with remote debugging port enabled.
 
@@ -245,6 +261,9 @@ class LiveSessionManager:
             "--no-sandbox",
             "--keep-alive-for-test",
         ]
+        # Append DoH flags if enabled
+        args.extend(cls.resolve_doh_args(enable_dns=enable_dns, custom_servers=doh_servers))
+
         if headless:
             args.append("--headless=new")
         if user_agent:

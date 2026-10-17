@@ -43,6 +43,13 @@ class SupervisorActionRequest:
     text_only: bool = False
     tab_timeout: Optional[int] = None
     all_sessions: bool = False
+    enable_dns: bool = True
+    doh_servers: Optional[str] = None
+    block_images: bool = False
+    block_patterns: List[str] = field(default_factory=list)
+    filter_pattern: Optional[str] = None
+    resource_types: List[str] = field(default_factory=list)
+    har_path: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

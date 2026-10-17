@@ -6,7 +6,7 @@ import argparse
 import sys
 from typing import Optional
 
-from cli_commands.common import get_supervisor_client
+from cli_commands.common import get_supervisor_client, populate_network_args
 from supervisor.contracts import SupervisorActionRequest
 
 
@@ -46,6 +46,7 @@ def read_cmd(args: argparse.Namespace) -> None:
         selector=selector,
         session_name=session_name,
     )
+    populate_network_args(req, args)
 
     resp = client.execute(req)
     if not resp.success:

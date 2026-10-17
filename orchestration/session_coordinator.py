@@ -27,6 +27,10 @@ class SessionCoordinator:
             tab_index=session_ctx.tab_index,
             strip_header=session_ctx.strip_header,
             session_name=getattr(session_ctx, "session_name", None),
+            enable_dns=getattr(session_ctx, "enable_dns", True),
+            doh_servers=getattr(session_ctx, "doh_servers", None),
+            block_images=getattr(session_ctx, "block_images", False),
+            block_patterns=getattr(session_ctx, "block_patterns", None),
         )
 
     @property

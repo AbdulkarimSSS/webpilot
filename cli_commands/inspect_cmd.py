@@ -6,7 +6,7 @@ import argparse
 import json
 import sys
 
-from cli_commands.common import get_supervisor_client
+from cli_commands.common import get_supervisor_client, populate_network_args
 from common.telemetry import print_telemetry_banner
 from orchestration.context import InspectionRequestContext
 from orchestration.flow_orchestrator import FlowOrchestrator
@@ -88,6 +88,7 @@ def inspect_cmd(args: argparse.Namespace) -> None:
         auto_expand=auto_expand,
         session_name=getattr(args, "session", None),
     )
+    populate_network_args(req, args)
     resp = client.execute(req)
     print_telemetry_banner(resp, strip_header=strip_header)
     for line in resp.output_lines:

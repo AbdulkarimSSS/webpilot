@@ -21,6 +21,10 @@ class SessionContext:
     tab_index: Optional[int] = None
     strip_header: bool = False
     session_name: Optional[str] = None
+    enable_dns: bool = True
+    doh_servers: Optional[str] = None
+    block_images: bool = False
+    block_patterns: List[str] = field(default_factory=list)
 
 
 @dataclass

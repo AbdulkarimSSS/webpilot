@@ -37,6 +37,8 @@ def config_cmd(args: argparse.Namespace) -> None:
             print("   wp config set strip_header true     # Always suppress headers to save tokens")
             print("   wp config set exclude svg,script     # Always prune svg and script tags from HTML")
             print("   wp config set tab_timeout 30         # Auto-close tabs after 30 min of inactivity")
+            print("   wp config set dns true               # Enable DNS-over-HTTPS (DoH) protection")
+            print("   wp config set doh_servers 'url1,url2'# Custom DoH resolvers")
             print("   wp config set session main           # Default to named session 'main'")
             print("   (Keys are case-insensitive and hyphen-agnostic: Tab-Timeout, strip_header, etc.)")
         else:

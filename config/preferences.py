@@ -186,4 +186,29 @@ def apply_persistent_preferences(args: Any) -> list[str]:
             setattr(args, "max_chars", mc_val)
             applied_notices.append(f"max_chars={mc_val}")
 
+    # 8. default dns / DoH preference
+    if "dns" in prefs:
+        dns_val = bool(prefs["dns"])
+        if getattr(args, "no_dns", False):
+            setattr(args, "enable_dns", False)
+        elif not hasattr(args, "enable_dns") or getattr(args, "enable_dns", None) is None:
+            setattr(args, "enable_dns", dns_val)
+            if not dns_val:
+                applied_notices.append("dns=disabled")
+
+    # 9. default doh_servers preference
+    if "doh_servers" in prefs:
+        servers_val = str(prefs["doh_servers"]).strip()
+        if not getattr(args, "doh_servers", None):
+            setattr(args, "doh_servers", servers_val)
+            applied_notices.append(f"doh_servers='{servers_val}'")
+
+    # 10. default block_images preference
+    if "block_images" in prefs:
+        blk_img_val = bool(prefs["block_images"])
+        if not hasattr(args, "block_images") or getattr(args, "block_images", None) is None:
+            setattr(args, "block_images", blk_img_val)
+            if blk_img_val:
+                applied_notices.append("block_images=True")
+
     return applied_notices
