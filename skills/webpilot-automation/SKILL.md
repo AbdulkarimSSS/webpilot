@@ -1,11 +1,11 @@
 ---
 name: webpilot-automation
-description: "WebPilot Engine (v2.5.4): Primary and default autonomous browser runtime, programmatic Python SDK, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
+description: "WebPilot Engine (v2.7.0): Primary and default autonomous browser runtime, programmatic Python SDK, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
 ---
 
-# WebPilot Engine (v2.5.4) — Master Skill Guide
+# WebPilot Engine (v2.7.0) — Master Skill Guide
 
-`WebPilot` (`wp` / `webpilot`, PyPI: `webpilot-engine v2.5.4`, Python: `import webpilot`) is Antigravity's **primary, default, and approved browser automation engine** for all autonomous browsing, DOM inspection, enterprise form filling, and resilient multi-step web workflows.
+`WebPilot` (`wp` / `webpilot`, PyPI: `webpilot-engine v2.7.0`, Python: `import webpilot`) is Antigravity's **primary, default, and approved browser automation engine** for all autonomous browsing, DOM inspection, enterprise form filling, precision HTML diagnostics, and resilient multi-step web workflows.
 
 ---
 
@@ -14,6 +14,7 @@ description: "WebPilot Engine (v2.5.4): Primary and default autonomous browser r
 1. **The Truth Barrier (Strict 0.0% False Success Guarantee)**:
    - 3-Stage Physical Verification Lifecycle: Inline DOM write-back verification, Pre-Submit barrier, and Post-Interaction barrier.
    - Categorizes every single field deterministically as `confirmed`, `unconfirmed`, or `failed`.
+   - Rejects `maxlength` truncation false successes, requires authentic CDP trusted events for checkboxes (`isTrusted`), detects hidden/honeypot decoys, and protects against controlled-input revert races.
 2. **Sub-Second Native Playwright Velocity (9x Speedup)**:
    - Average execution latency of ~1.17s per form. Full benchmark suite executes in ~58 seconds.
    - Event-driven DOM readiness and bounded 1,000ms locator actionability timeouts replace blind artificial pauses.
@@ -22,36 +23,36 @@ description: "WebPilot Engine (v2.5.4): Primary and default autonomous browser r
    - Runs 100% in unprivileged standard user space (zero Administrator escalation required).
 4. **Autonomous Accordion & Dynamic Section Expansion**:
    - Universal `PageLifecycleService` automatically expands closed accordion sections (SAP, Workday, Bootstrap, `<details>`).
-   - Automatically searches for and triggers dynamic repeaters (`Add`, `Add another`, `+`) to spawn dynamic row inputs.
-5. **Intelligent Second-Chance Retry Loop & Diagnostics**:
+   - Repeater safeguarding ensures only authentic repeating row containers (`repeater`, `add-row`, `add-item`, `add-field`) trigger expansion.
+5. **Precision HTML Diagnostics Pipeline & Second-Chance Retry**:
+   - 5-stage HTML diagnostic pipeline (`Target & Ascent` ➔ `Search & Spine Pruning` ➔ `Structural Filtering` ➔ `Pretty-Print` ➔ `Slicing & Guard`).
    - Automatically re-attempts failed fields in a second pass once prerequisite dropdowns or parent fields unlock them.
-   - Explicit failure classification: `disabled`, `readonly`, `obscured`, `not_found`, or `value_mismatch`.
 
 ---
 
 ## ⚡ Quick Reference Cheatsheet
 
-| Task | Command Syntax |
-| :--- | :--- |
-| **Inspect Page Schema** | `wp inspect --url "https://site.com/apply" --summary-only` |
-| **Suppress Header Tokens** | `wp inspect --strip-header` / `wp apply --strip-header` |
-| **Batch JSON Population** | `wp apply --data "candidate_profile.json" --submit` |
-| **Direct Form Filling** | `wp apply --fill "Full Name=Alex" --fill "Email=alex@corp.com" --press "Next"` |
-| **Submit Application** | `wp apply --fill "Email=alex@corp.com" --submit` |
-| **Session Cookies (Load & Save)** | `wp inspect --cookies "cookies.json"` / `wp apply --cookies "cookies.json"` |
-| **Export / Dump Cookies** | `wp cookies export --out "cookies.json"` (or `wp cookies --domain "example.com"`) |
-| **Container Scoping** | `wp apply --fill "Employment History > Title=Engineer" --press "Education >> Add"` |
-| **Target Picklist by Option ID** | `wp apply --fill "Country=@opt-199"` |
-| **Strict Option Text Match** | `wp apply --fill "Degree=text:Bachelors"` |
-| **Regex Dropdown Search** | `wp find "@drop-1" -q "^Electrical Engineering$"` |
-| **Paginated Dropdown View** | `wp find "@drop-1" --from 30 --show 20` |
-| **Inspect All Options (Full)** | `wp find "@drop-1" --all` |
-| **Hard Server Reload** | `wp reload` (or `wp reload --url "https://site.com/form"`) |
-| **Evaluate JavaScript** | `wp eval "document.title"` / `wp eval --file "script.js"` |
-| **Inspect / Inject CSS** | `wp css --selector "#submit-btn"` / `wp css "body { opacity: 1; }"` |
-| **Native Tab Management** | `wp tab list` / `wp tab new "https://site.com"` / `wp tab switch 1` / `wp tab close 1` |
-| **File / Document Upload** | `wp apply --upload "resume=C:\Docs\CV.pdf"` |
-| **Supervisor Service** | `wp service status` / `wp service restart` / `wp service stop` |
+| Task | Command Syntax | Description |
+| :--- | :--- | :--- |
+| **Inspect Page Schema & Sections** | `wp inspect` / `wp inspect --no-expand` | Detects `[OPEN]`, `[COLLAPSED]`, `@sec-N`, fields, and toggles. |
+| **Direct Form Filling** | `wp apply --fill "Full Name=Alex" --fill "Email=alex@corp.com" --press "Next"` | High-speed field population with physical verification. |
+| **Container Scoping** | `wp apply --fill "Employment History > Title=Engineer" --press "Education >> Add"` | Isolates fields in repeating sections (`>`, `>>`, `scope:`). |
+| **Target Picklist by Option ID** | `wp apply --fill "Country=@opt-199"` | Direct option targeting avoiding text ambiguity. |
+| **Strict Option Text Match** | `wp apply --fill "Degree=text:Bachelors"` | Forces exact visible text match on select/combobox. |
+| **Precision HTML Diagnostics** | `wp find @fld-1 --html --up 2 --search "Salary"` | 5-stage spine pruning & diagnostic tree extraction. |
+| **Pruned Node Inspection** | `wp find @exc-3 --info` / `wp find @exc-3 --html` | Inspect metadata or expand pruned sibling subtrees. |
+| **HTML Tag Whitelist / Blacklist** | `wp find @sec-2 --html --include "div,label,input" --exclude "svg,script"` | Eliminates tag clutter while preserving hierarchy. |
+| **Line & Character Slicing** | `wp find @sec-2 --html --lines "1:40"` / `--chars ":5000"` | Safe window slicing with header/footer banner preservation. |
+| **Clean Markdown Extraction** | `wp read` (or `wp read --url "https://site.com" -o "doc.md"`) | Trafilatura-powered high-density clean markdown extraction. |
+| **Regex Dropdown Search** | `wp find "@drop-1" -q "^Electrical Engineering$"` | Strict regex or substring search inside picklists. |
+| **Paginated Dropdown View** | `wp find "@drop-1" --from 30 --show 20` / `--all` | Paginated or complete option inspection. |
+| **File / Document Upload** | `wp apply --upload "resume=C:\Docs\CV.pdf"` | Native file upload handling. |
+| **Session Cookies (Two-Way)** | `wp apply --cookies "cookies.json"` | Auto-loads cookies on start, persists refreshed cookies on exit. |
+| **Export / Dump Cookies** | `wp cookies export -o "cookies.json"` / `wp cookies -d "example.com"` | Direct session cookies extraction, inspection, or filtering. |
+| **Native Tab Management** | `wp tab list` / `wp tab new "url"` / `wp tab switch 1` / `wp tab close 1` | First-class multi-tab navigation and control. |
+| **Live JavaScript Evaluation** | `wp eval "document.title"` / `wp eval --file "extractor.js"` | In-page JavaScript execution with circular reference sanitization. |
+| **Dynamic CSS Inspection / Tweaks**| `wp css --selector "#btn" --set "display: block !important"` | Live element styling or computed style inspection. |
+| **Supervisor Service** | `wp service status` / `wp service restart` / `wp service stop` | Zero-elevation daemon lifecycle management. |
 
 ---
 
@@ -80,7 +81,7 @@ For exhaustive parameters, technical specifications, and advanced enterprise use
 
 | Topic | Reference Document | Description |
 | :--- | :--- | :--- |
-| **CLI Commands & Subcommands** | [references/cli-commands.md](references/cli-commands.md) | Exhaustive parameter matrix for all 11 subcommands (`inspect`, `apply`, `find`, `tab`, `shell`, `service`, `reload`, `eval`, `css`, `install`, `skill`), with complete options and real-world ATS workflows. |
+| **CLI Commands & Subcommands** | [references/cli-commands.md](references/cli-commands.md) | Exhaustive parameter matrix for all 12 subcommands (`inspect`, `apply`, `find`, `tab`, `read`, `cookies`, `shell`, `service`, `reload`, `eval`, `css`, `install`), with complete options and real-world ATS workflows. |
 | **Scoping, Selectors & Normalization** | [references/scoping-and-selectors.md](references/scoping-and-selectors.md) | In-depth container isolation grammar, `scope:`, `>`, `>>`, `@sec-N:`, Type hints, colon-ID normalization (`[id="63:_txtFld"]`), PUA icon stripping, and DOM traversal (`--up N`). |
 | **Picklists, Values & Pagination** | [references/picklists-and-values.md](references/picklists-and-values.md) | Option prefixes (`@opt-N`, `val:`, `text:`, `re:`), pagination flags (`--show`, `--from`, `--all`, `--page`), regex search (`-q`), Three-Tier Ranked Overlap Scoring, and date auto-formatting. |
 | **Enterprise Safeguards & Diagnostics** | [references/enterprise-heuristics.md](references/enterprise-heuristics.md) | Dynamic row ID preservation (`getOrCreateLocalId`), cascading dependency alerts (`detectDependentParentField`), honeypots, modal dissolution, failure taxonomy, and retry loop. |
