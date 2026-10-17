@@ -20,6 +20,7 @@ class SessionContext:
     timeout_minutes: int = 30
     tab_index: Optional[int] = None
     strip_header: bool = False
+    session_name: Optional[str] = None
 
 
 @dataclass

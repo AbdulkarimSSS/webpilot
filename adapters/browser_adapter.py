@@ -36,6 +36,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
         timeout_minutes: Optional[int] = None,
         tab_index: Optional[int] = None,
         strip_header: bool = False,
+        session_name: Optional[str] = None,
     ):
         self.settings = settings or get_settings()
         self.device_profile = device_profile or load_device_profile()
@@ -45,6 +46,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
         self.timeout_minutes = timeout_minutes if timeout_minutes is not None else 30
         self.tab_index = tab_index
         self.strip_header: bool = strip_header or getattr(self.settings, "strip_header", False)
+        self.session_name: Optional[str] = session_name
         self._last_printed_url: Optional[str] = None
 
         self._pw: Optional[Playwright] = None
@@ -210,43 +212,46 @@ class BrowserAdapter(BrowserAdapterProtocol):
     def start(self, cookies_path: Optional[str] = None) -> None:
         """Starts browser context or connects to existing persistent live session."""
         if self.close_session:
-            terminated = LiveSessionManager.terminate_session()
+            terminated = LiveSessionManager.terminate_session(self.session_name)
             if terminated:
-                print("[✓] Successfully terminated live browser session and killed process.")
+                print(f"[✓] Successfully terminated live browser session '{self.session_name or 'default'}' and killed process.")
             else:
-                print("[*] No active live browser session was found to terminate.")
+                print(f"[*] No active live browser session '{self.session_name or 'default'}' was found to terminate.")
             return
 
         self._pw = sync_playwright().start()
         self._ensure_browser_binaries()
 
-        existing_session = LiveSessionManager.load_session_state()
+        target_port = LiveSessionManager.get_session_cdp_port(self.session_name)
+        existing_session = LiveSessionManager.load_session_state(self.session_name)
         should_use_persistent = self.keep_alive or (existing_session is not None)
         log_event("info", "Session check", {
+            "session": self.session_name or "default",
             "existing": existing_session is not None,
-            "port_active": LiveSessionManager.is_cdp_port_active(DEFAULT_CDP_PORT),
+            "port_active": LiveSessionManager.is_cdp_port_active(target_port),
         })
 
         if should_use_persistent:
             self.is_persistent = True
             timeout_sec = self.timeout_minutes * 60
 
-            if existing_session and LiveSessionManager.is_cdp_port_active(existing_session.get("port", DEFAULT_CDP_PORT)):
+            if existing_session and LiveSessionManager.is_cdp_port_active(existing_session.get("port", target_port)):
                 # Connect to existing running browser
-                self.cdp_port = existing_session.get("port", DEFAULT_CDP_PORT)
+                self.cdp_port = existing_session.get("port", target_port)
                 self.browser_pid = existing_session.get("pid")
-                LiveSessionManager.touch_session()
+                LiveSessionManager.touch_session(self.session_name)
             else:
                 # Launch new persistent browser instance
                 exec_path = self._pw.chromium.executable_path
                 pid, port = LiveSessionManager.launch_persistent_chrome(
                     executable_path=exec_path,
-                    port=DEFAULT_CDP_PORT,
+                    port=target_port,
                     headless=self.headless,
                     viewport_width=self.device_profile.viewport_width,
                     viewport_height=self.device_profile.viewport_height,
                     user_agent=self.device_profile.user_agent,
                     timeout_seconds=timeout_sec,
+                    session_name=self.session_name,
                 )
                 self.browser_pid = pid
                 self.cdp_port = port
@@ -339,7 +344,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
         """Stops browser or cleanly detaches client while preserving live session."""
         if self.is_persistent and not self.close_session:
             # Cleanly detach Playwright client while preserving live session
-            LiveSessionManager.touch_session()
+            LiveSessionManager.touch_session(self.session_name)
             self.browser = None
             if self._pw:
                 try:
@@ -349,7 +354,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
                 self._pw = None
             self._context = None
             self._page = None
-            print(f"[INFO] Browser kept alive in background (PID: {self.browser_pid}, Port: {self.cdp_port}).")
+            print(f"[INFO] Browser session '{self.session_name or 'default'}' kept alive in background (PID: {self.browser_pid}, Port: {self.cdp_port}).")
             print(f"[INFO] You can run subsequent commands on this session using --tab or --keep-alive.")
         else:
             # Full termination
@@ -367,7 +372,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
                 self._pw = None
             self._context = None
             self._page = None
-            LiveSessionManager.terminate_session()
+            LiveSessionManager.terminate_session(self.session_name)
             # Clean leftover temp profiles (WPB-009)
             LiveSessionManager.cleanup_temp_profiles(max_age_seconds=0)
 

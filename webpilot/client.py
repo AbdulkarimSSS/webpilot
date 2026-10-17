@@ -45,11 +45,13 @@ class WebPilot:
         token: Optional[str] = None,
         headed: bool = False,
         timeout_minutes: int = 30,
+        session: Optional[str] = None,
     ):
         self.base_url = f"http://{host}:{port}"
         self.client = SupervisorClient(base_url=self.base_url, token=token)
         self.headed = headed
         self.timeout_minutes = timeout_minutes
+        self.session = session
 
     def inspect(
         self,
@@ -250,20 +252,67 @@ class WebPilot:
     def read(
         self,
         url: Optional[str] = None,
+        selector: Optional[str] = None,
         tab: Optional[int] = None,
         output: Optional[str] = None,
     ) -> str:
-        """Extracts ultra-dense clean markdown content from active or target page via Trafilatura."""
+        """Extracts ultra-dense clean markdown content from active or target page via Trafilatura.
+
+        Args:
+            url: Target URL to navigate and read (optional if reading active page).
+            selector: Optional CSS selector to confine extraction strictly to a container element.
+            tab: Optional 0-based tab index.
+            output: Optional path to save extracted content.
+        """
         req = SupervisorActionRequest(
             action="read",
             url=url,
+            selector=selector,
             tab_index=tab,
             output_path=output,
+            session_name=self.session,
         )
         resp = self.client.execute(req)
         if not resp.success:
             raise RuntimeError(f"WebPilot read failed: {resp.message}")
         return resp.content or ""
+
+    def wait(
+        self,
+        selector: Optional[str] = None,
+        timeout: int = 10000,
+        state: str = "visible",
+        network_idle: bool = False,
+        url: Optional[str] = None,
+        tab: Optional[int] = None,
+    ) -> bool:
+        """Explicitly waits for an element selector, network idle state, or page readiness.
+
+        Args:
+            selector: CSS or XPath selector to wait for (e.g. '#submitBtn').
+            timeout: Maximum timeout in milliseconds (default: 10000).
+            state: Element state to wait for: 'visible' (default), 'attached', 'detached', 'hidden'.
+            network_idle: Whether to wait for network requests to settle.
+            url: Optional URL to navigate to before waiting.
+            tab: Optional 0-based tab index.
+
+        Returns:
+            True if wait succeeded, raises RuntimeError otherwise.
+        """
+        req = SupervisorActionRequest(
+            action="wait",
+            selector=selector,
+            wait_timeout=timeout,
+            wait_state=state,
+            network_idle=network_idle,
+            url=url,
+            tab_index=tab,
+            session_name=self.session,
+        )
+        resp = self.client.execute(req)
+        if not resp.success:
+            raise RuntimeError(f"WebPilot wait failed: {resp.message}")
+        return True
 
     def service_status(self) -> Dict[str, Any]:
         """Queries the status of Layer 1 Supervisor and Layer 2 Worker."""

@@ -128,8 +128,9 @@ def build_cli_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Do not auto-expand collapsed sections, inspect current DOM state as-is",
     )
-    p_inspect.add_argument(
-        "--standalone",
+    p_inspect.add_argument("--session", dest="session", default=None, help="Named browser session instance")
+    p_inspect.add_argument("--with-header", "--no-strip-header", dest="with_header", action="store_true", default=False, help="Invert persistent strip_header and display headers")
+    p_inspect.add_argument("--standalone",
         action="store_true",
         help="Run in-process via FlowOrchestrator instead of Master Supervisor",
     )
@@ -144,6 +145,20 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_apply = subparsers.add_parser(
         "apply",
         help="Fill fields dynamically via JSON file or CLI flags, and optionally submit",
+    )
+    p_apply.add_argument(
+        "--session",
+        dest="session",
+        default=None,
+        help="Named browser session instance (e.g. --session main)",
+    )
+    p_apply.add_argument(
+        "--with-header",
+        "--no-strip-header",
+        dest="with_header",
+        action="store_true",
+        default=False,
+        help="Invert persistent strip_header and display headers",
     )
     p_apply.add_argument(
         "--strip-header",
@@ -274,8 +289,25 @@ def build_cli_parser() -> argparse.ArgumentParser:
         default=None,
         help="Target URL to read (optional if reading existing active tab/session)",
     )
+    p_read.add_argument(
+        "--selector",
+        "-s",
+        dest="selector",
+        default=None,
+        help="Target CSS selector or element container to extract content strictly from",
+    )
     p_read.add_argument("--output", "-o", help="Path to save clean markdown content")
     p_read.add_argument("--tab", type=int, help="Target browser tab index to read")
+    p_read.add_argument("--session", dest="session", default=None, help="Named browser session instance")
+    p_read.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output",
+    )
     p_read.add_argument("--port", type=int, default=9333, help="Master Supervisor RPC port")
 
     # 7. Find / Probe Subcommand
@@ -283,6 +315,41 @@ def build_cli_parser() -> argparse.ArgumentParser:
         "find",
         aliases=["probe"],
         help="Probe a specific element/field and inspect its properties, options, or HTML",
+    )
+    p_find.add_argument(
+        "--text",
+        "-t",
+        action="store_true",
+        default=False,
+        help="Extract pure visible text (innerText) directly without HTML or telemetry banners",
+    )
+    p_find.add_argument(
+        "--session",
+        dest="session",
+        default=None,
+        help="Named browser session instance",
+    )
+    p_find.add_argument(
+        "--with-header",
+        "--no-strip-header",
+        dest="with_header",
+        action="store_true",
+        default=False,
+        help="Invert persistent strip_header and display headers",
+    )
+    p_find.add_argument(
+        "--no-exclude",
+        dest="no_exclude",
+        action="store_true",
+        default=False,
+        help="Invert persistent exclude tags and retain all elements",
+    )
+    p_find.add_argument(
+        "--no-include",
+        dest="no_include",
+        action="store_true",
+        default=False,
+        help="Invert persistent include tags",
     )
     p_find.add_argument(
         "--strip-header",
@@ -679,5 +746,74 @@ def build_cli_parser() -> argparse.ArgumentParser:
     p_cookies.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
     p_cookies.add_argument("--port", type=int, default=9333, help="Supervisor port")
     p_cookies.add_argument("--token", help="Explicit Master Supervisor authentication token")
+
+    # 13. Wait Subcommand
+    p_wait = subparsers.add_parser(
+        "wait",
+        aliases=["wait_for"],
+        help="Explicitly wait for an element selector, network idle state, or page readiness",
+    )
+    p_wait.add_argument(
+        "--selector",
+        "-s",
+        dest="selector",
+        default=None,
+        help="CSS selector or XPath to wait for (e.g. --selector '#submitBtn')",
+    )
+    p_wait.add_argument(
+        "--timeout",
+        dest="timeout",
+        type=int,
+        default=10000,
+        help="Timeout in milliseconds (default: 10000)",
+    )
+    p_wait.add_argument(
+        "--state",
+        choices=["visible", "attached", "detached", "hidden"],
+        default="visible",
+        help="Target element state to wait for: visible (default), attached, detached, hidden",
+    )
+    p_wait.add_argument(
+        "--network-idle",
+        "--networkidle",
+        dest="network_idle",
+        action="store_true",
+        default=False,
+        help="Wait for network requests to settle (networkidle state)",
+    )
+    p_wait.add_argument("--url", help="Target URL (optional; navigates before waiting)")
+    p_wait.add_argument("--tab", type=int, default=None, help="Target tab index (0-based)")
+    p_wait.add_argument("--session", dest="session", default=None, help="Named browser session instance")
+    p_wait.add_argument(
+        "--strip-header",
+        "--strip-headers",
+        "--StripHeader",
+        "--stripheader",
+        "--no-header",
+        dest="strip_header",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Suppress verbose telemetry banners and headers from tool output",
+    )
+    p_wait.add_argument("--host", default="127.0.0.1", help="Supervisor host address")
+    p_wait.add_argument("--port", type=int, default=9333, help="Supervisor port")
+    p_wait.add_argument("--token", help="Explicit Master Supervisor authentication token")
+
+    # 14. Persistent Config / Sticky Flags Subcommand
+    p_config = subparsers.add_parser(
+        "config",
+        aliases=["pref", "prefs", "preference", "preferences"],
+        help="Manage persistent user preferences and sticky flags (~/.webpilot/preferences.json)",
+    )
+    p_config.add_argument(
+        "config_action",
+        nargs="?",
+        default="list",
+        choices=["list", "set", "unset", "remove", "delete", "clear", "reset"],
+        help="Action: list (default), set, unset, clear",
+    )
+    p_config.add_argument("key", nargs="?", default=None, help="Preference key name (e.g. strip_header, exclude, session)")
+    p_config.add_argument("value", nargs="?", default=None, help="Preference value to set (e.g. true, 'svg,script', 'main')")
+    p_config.add_argument("--json", action="store_true", help="Output stored preferences as raw JSON")
 
     return parser

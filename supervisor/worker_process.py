@@ -69,6 +69,7 @@ class OperationalWorker:
     def __init__(self, headed: bool = False):
         self.settings = get_settings()
         self.headed = headed
+        self.coordinators: Dict[str, SessionCoordinator] = {}
         self.coordinator: Optional[SessionCoordinator] = None
         self.cached_schema: Optional[Dict[str, Any]] = None
         self.cached_url: Optional[str] = None
@@ -91,11 +92,13 @@ class OperationalWorker:
         )
 
     def _ensure_session(self, req: SupervisorActionRequest) -> SessionCoordinator:
-        """Initializes or returns active SessionCoordinator."""
+        """Initializes or returns active SessionCoordinator for the requested session."""
+        session_name = getattr(req, "session_name", None) or "default"
+        coord = self.coordinators.get(session_name)
         if (
-            self.coordinator is None
-            or self.coordinator.page is None
-            or self.coordinator.page.is_closed()
+            coord is None
+            or coord.page is None
+            or coord.page.is_closed()
         ):
             effective_cookies = req.cookies_path or self.settings.cookies_path
             session_ctx = SessionContext(
@@ -108,12 +111,16 @@ class OperationalWorker:
                 timeout_minutes=req.timeout_minutes,
                 tab_index=req.tab_index,
                 strip_header=getattr(req, "strip_header", False),
+                session_name=req.session_name,
             )
-            self.coordinator = SessionCoordinator(session_ctx)
-            self.coordinator.start()
-        if self.coordinator and self.coordinator.adapter:
-            self.coordinator.adapter.strip_header = getattr(req, "strip_header", False)
-        return self.coordinator
+            coord = SessionCoordinator(session_ctx)
+            coord.start()
+            self.coordinators[session_name] = coord
+
+        self.coordinator = coord
+        if coord and coord.adapter:
+            coord.adapter.strip_header = getattr(req, "strip_header", False)
+        return coord
 
     def handle_request(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         """Dispatches action to internal services and returns structured response."""
@@ -159,6 +166,9 @@ class OperationalWorker:
 
             elif action in ("cookies", "cookie", "get_cookies", "dump_cookies", "export_cookies"):
                 return self._handle_cookies(req)
+
+            elif action in ("wait", "wait_for"):
+                return self._handle_wait(req)
 
             elif action in ("stop", "shutdown"):
                 self.shutdown()
@@ -579,8 +589,83 @@ class OperationalWorker:
             active_title=coord.page.title() if coord.page else "",
         )
 
+    def _handle_wait(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
+        """Explicitly waits for an element selector, network idle, or timeout."""
+        coord = self._ensure_session(req)
+        if req.tab_index is not None:
+            coord.switch_to_tab(req.tab_index)
+        page = coord.page
+        if not page:
+            raise RuntimeError("Worker page is not available.")
+
+        lines: List[str] = []
+        timeout_ms = getattr(req, "wait_timeout", 10000) or 10000
+        state = getattr(req, "wait_state", "visible") or "visible"
+
+        if req.url:
+            lines.append(f"[*] Navigating to: {req.url}")
+            coord.adapter.navigate(req.url)
+            page = coord.page
+
+        if getattr(req, "network_idle", False):
+            lines.append(f"[*] Waiting for network idle (timeout: {timeout_ms}ms)...")
+            try:
+                page.wait_for_load_state("networkidle", timeout=timeout_ms)
+                lines.append("[✓] Network idle state reached.")
+            except Exception as exc:
+                return SupervisorActionResponse(
+                    success=False,
+                    action="wait",
+                    message=f"Timeout waiting for network idle: {exc}",
+                    browser_pid=coord.adapter.browser_pid,
+                    worker_pid=os.getpid(),
+                    active_tab_index=coord.adapter.get_active_tab_index(),
+                    active_url=page.url,
+                    active_title=page.title(),
+                    output_lines=lines + [f"[!] Network idle error: {exc}"],
+                )
+
+        if req.selector:
+            lines.append(f"[*] Waiting for selector '{req.selector}' to reach state '{state}' (timeout: {timeout_ms}ms)...")
+            try:
+                page.wait_for_selector(req.selector, state=state, timeout=timeout_ms)
+                lines.append(f"[✓] Element '{req.selector}' reached state '{state}'.")
+            except Exception as exc:
+                return SupervisorActionResponse(
+                    success=False,
+                    action="wait",
+                    message=f"Timeout waiting for selector '{req.selector}' to reach state '{state}': {exc}",
+                    browser_pid=coord.adapter.browser_pid,
+                    worker_pid=os.getpid(),
+                    active_tab_index=coord.adapter.get_active_tab_index(),
+                    active_url=page.url,
+                    active_title=page.title(),
+                    output_lines=lines + [f"[!] Wait error: {exc}"],
+                )
+
+        target_desc = req.selector or ("networkidle" if getattr(req, "network_idle", False) else "condition")
+        return SupervisorActionResponse(
+            success=True,
+            action="wait",
+            message=f"Successfully waited for {target_desc}.",
+            browser_pid=coord.adapter.browser_pid,
+            worker_pid=os.getpid(),
+            active_tab_index=coord.adapter.get_active_tab_index(),
+            active_url=page.url,
+            active_title=page.title(),
+            total_tabs=len(coord.context.pages) if coord.context else 1,
+            tabs=coord.adapter.list_open_tabs(),
+            output_lines=lines,
+        )
+
     def shutdown(self) -> None:
-        """Terminates Playwright coordinator and all child browser tabs."""
+        """Terminates all Playwright coordinators and all child browser tabs."""
+        for c in list(self.coordinators.values()):
+            try:
+                c.close()
+            except Exception:
+                pass
+        self.coordinators.clear()
         if self.coordinator:
             try:
                 self.coordinator.close()

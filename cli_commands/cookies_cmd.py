@@ -60,6 +60,7 @@ def cookies_cmd(args: argparse.Namespace) -> None:
         headed=args.headed,
         timeout_minutes=getattr(args, "timeout_minutes", 30),
         strip_header=strip_header,
+        session_name=getattr(args, "session", None),
     )
 
     resp = client.execute(req)

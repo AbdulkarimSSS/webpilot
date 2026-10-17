@@ -40,9 +40,22 @@ class LiveSessionManager:
     """Manages the persistent browser daemon process and session state file."""
 
     @staticmethod
-    def get_session_file_path() -> str:
-        """Returns the absolute path to the local session state file."""
-        return SESSION_FILE
+    def get_session_file_path(session_name: Optional[str] = None) -> str:
+        """Returns the absolute path to the local session state file for a specific session."""
+        if not session_name or session_name in ("default", "main"):
+            return SESSION_FILE
+        safe_name = "".join(c for c in session_name if c.isalnum() or c in ("-", "_")).strip() or "custom"
+        return os.path.join(USER_DATA_DIR, f".live_session_{safe_name}.json")
+
+    @classmethod
+    def get_session_cdp_port(cls, session_name: Optional[str] = None) -> int:
+        """Derives a deterministic CDP debugging port from the session name."""
+        if not session_name or session_name in ("default", "main"):
+            return DEFAULT_CDP_PORT
+        safe_name = "".join(c for c in session_name if c.isalnum() or c in ("-", "_")).strip() or "custom"
+        import zlib
+        offset = (zlib.crc32(safe_name.encode("utf-8")) % 50) + 1  # 9223 to 9272
+        return DEFAULT_CDP_PORT + offset
 
     @staticmethod
     def is_cdp_port_active(port: int = DEFAULT_CDP_PORT) -> bool:
@@ -56,16 +69,17 @@ class LiveSessionManager:
             return False
 
     @classmethod
-    def load_session_state(cls) -> Optional[Dict[str, Any]]:
+    def load_session_state(cls, session_name: Optional[str] = None) -> Optional[Dict[str, Any]]:
         """Reads the active session state file if present and valid."""
-        path = cls.get_session_file_path()
+        path = cls.get_session_file_path(session_name)
         if not os.path.isfile(path):
             return None
 
+        expected_port = cls.get_session_cdp_port(session_name)
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            port = data.get("port", DEFAULT_CDP_PORT)
+            port = data.get("port", expected_port)
             pid = data.get("pid")
 
             # Check if port is actually responsive
@@ -73,19 +87,19 @@ class LiveSessionManager:
                 return data
             else:
                 # Stale session file; remove it
-                cls.clear_session_file()
+                cls.clear_session_file(session_name)
                 return None
         except Exception:
-            cls.clear_session_file()
+            cls.clear_session_file(session_name)
             return None
 
     @classmethod
-    def touch_session(cls) -> None:
+    def touch_session(cls, session_name: Optional[str] = None) -> None:
         """Updates the last_active timestamp for the inactivity watchdog."""
-        state = cls.load_session_state()
+        state = cls.load_session_state(session_name)
         if state:
             state["last_active"] = time.time()
-            path = cls.get_session_file_path()
+            path = cls.get_session_file_path(session_name)
             try:
                 with open(path, "w", encoding="utf-8") as f:
                     json.dump(state, f, indent=2)
@@ -100,10 +114,12 @@ class LiveSessionManager:
         timeout_seconds: int = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
         headless: bool = True,
         viewport: Optional[Dict[str, int]] = None,
+        session_name: Optional[str] = None,
     ) -> None:
         """Writes current session metadata to disk."""
-        path = cls.get_session_file_path()
+        path = cls.get_session_file_path(session_name)
         data = {
+            "session_name": session_name or "default",
             "pid": pid,
             "port": port,
             "headless": headless,
@@ -116,9 +132,9 @@ class LiveSessionManager:
             json.dump(data, f, indent=2)
 
     @classmethod
-    def clear_session_file(cls) -> None:
+    def clear_session_file(cls, session_name: Optional[str] = None) -> None:
         """Removes the session state file from disk."""
-        path = cls.get_session_file_path()
+        path = cls.get_session_file_path(session_name)
         if os.path.isfile(path):
             try:
                 os.remove(path)
@@ -145,10 +161,10 @@ class LiveSessionManager:
         return cleaned
 
     @classmethod
-    def terminate_session(cls) -> bool:
+    def terminate_session(cls, session_name: Optional[str] = None) -> bool:
         """Forcefully terminates the persistent browser process, clears state, and reclaims temp profiles."""
-        state = cls.load_session_state()
-        cls.clear_session_file()
+        state = cls.load_session_state(session_name)
+        cls.clear_session_file(session_name)
         killed = False
         if state:
             pid = state.get("pid")
@@ -165,31 +181,35 @@ class LiveSessionManager:
     def launch_persistent_chrome(
         cls,
         executable_path: str,
-        port: int = DEFAULT_CDP_PORT,
+        port: Optional[int] = None,
         headless: bool = True,
         viewport_width: int = 1920,
         viewport_height: int = 1080,
         user_agent: Optional[str] = None,
         timeout_seconds: int = DEFAULT_INACTIVITY_TIMEOUT_SECONDS,
+        session_name: Optional[str] = None,
     ) -> Tuple[int, int]:
         """Launches a standalone detached Chromium instance with remote debugging port enabled.
 
         Returns (pid, port).
         """
+        cdp_port = port or cls.get_session_cdp_port(session_name)
+
         # If already running and active, return existing
-        existing = cls.load_session_state()
-        if existing and cls.is_cdp_port_active(existing.get("port", port)):
-            cls.touch_session()
+        existing = cls.load_session_state(session_name)
+        if existing and cls.is_cdp_port_active(existing.get("port", cdp_port)):
+            cls.touch_session(session_name)
             return existing["pid"], existing["port"]
 
         cls.cleanup_temp_profiles(max_age_seconds=1800)
 
-        user_data_dir = os.path.join(USER_DATA_DIR, ".live_browser_profile")
+        safe_sub = "".join(c for c in (session_name or "default") if c.isalnum() or c in ("-", "_")).strip()
+        user_data_dir = os.path.join(USER_DATA_DIR, f".live_profile_{safe_sub}")
         os.makedirs(user_data_dir, exist_ok=True)
 
         args = [
             executable_path,
-            f"--remote-debugging-port={port}",
+            f"--remote-debugging-port={cdp_port}",
             "--remote-debugging-address=127.0.0.1",
             f"--user-data-dir={user_data_dir}",
             f"--window-size={viewport_width},{viewport_height}",

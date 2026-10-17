@@ -33,18 +33,16 @@ def find_cmd(args: argparse.Namespace) -> None:
     if has_upper and not search_val:
         print("[i] Notice: --upper-* controls require --search/-q to establish an ancestral spine (ignored).", file=sys.stderr)
 
-    want_html = bool(
+    has_html_intent = bool(
         getattr(args, "html", False)
         or up_val > 0
-        or search_val
         or getattr(args, "include", None)
         or getattr(args, "exclude", None)
         or getattr(args, "lines", None)
         or getattr(args, "chars", None)
     )
-    opt_query = getattr(args, "query", None)
-    if not opt_query and not (getattr(args, "html", False) or up_val > 0) and search_val:
-        opt_query = search_val
+    want_html = has_html_intent
+    opt_query = getattr(args, "query", None) or search_val
 
     details: Dict[str, Any] = {}
     if target_val and str(target_val).startswith("@exc-"):
@@ -121,15 +119,33 @@ def find_cmd(args: argparse.Namespace) -> None:
             headed=args.headed,
             timeout_minutes=args.timeout_minutes,
             strip_header=strip_header,
+            session_name=getattr(args, "session", None),
         )
         resp = client.execute(req)
-        print_telemetry_banner(resp, strip_header=strip_header)
+        if not getattr(args, "text", False):
+            print_telemetry_banner(resp, strip_header=strip_header)
 
         if not resp.success:
             print(f"\n[!] {resp.message}")
             sys.exit(1)
 
         details = resp.field_details or {}
+
+    if getattr(args, "text", False):
+        raw_val = details.get("inner_text") or details.get("text") or details.get("value") or ""
+        if not raw_val:
+            cand_html = details.get("outerHTML") or details.get("html") or ""
+            if cand_html:
+                try:
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(cand_html, "html.parser")
+                    for s in soup(["script", "style", "svg"]):
+                        s.decompose()
+                    raw_val = soup.get_text(separator="\n", strip=True)
+                except Exception:
+                    pass
+        print(str(raw_val).strip())
+        return
 
     processed_html: Optional[str] = None
     search_match_desc: Optional[str] = None

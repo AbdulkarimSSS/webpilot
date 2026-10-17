@@ -86,6 +86,7 @@ def inspect_cmd(args: argparse.Namespace) -> None:
         reload=do_reload,
         strip_header=strip_header,
         auto_expand=auto_expand,
+        session_name=getattr(args, "session", None),
     )
     resp = client.execute(req)
     print_telemetry_banner(resp, strip_header=strip_header)

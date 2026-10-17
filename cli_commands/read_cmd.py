@@ -35,11 +35,16 @@ def read_cmd(args: argparse.Namespace) -> None:
             print(f"[!] Invalid output path: {exc}", file=sys.stderr)
             sys.exit(1)
 
+    selector = getattr(args, "selector", None)
+    session_name = getattr(args, "session", None)
+
     req = SupervisorActionRequest(
         action="read",
         url=url,
         tab_index=tab_index,
         output_path=output_path,
+        selector=selector,
+        session_name=session_name,
     )
 
     resp = client.execute(req)

@@ -300,6 +300,8 @@ _PROBE_LOGIC: Final[str] = r"""
         format_pattern: (wc && wc.getAttribute && (wc.getAttribute('format-pattern') || wc.getAttribute('placeholder'))) || '',
         label: label,
         value: curVal,
+        inner_text: ((targetEl || el).innerText || (targetEl || el).textContent || curVal || '').trim(),
+        text: ((targetEl || el).innerText || (targetEl || el).textContent || curVal || '').trim(),
         required: isReq,
         disabled: Boolean(el.disabled || el.getAttribute('aria-disabled') === 'true' || (wc && (wc.disabled || wc.getAttribute('disabled') !== null))),
         visible: !isHoneypotOrHidden(el),

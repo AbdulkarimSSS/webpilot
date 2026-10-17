@@ -1,11 +1,11 @@
 ---
 name: webpilot-automation
-description: "WebPilot Engine (v2.7.0): Primary and default autonomous browser runtime, programmatic Python SDK, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
+description: "WebPilot Engine (v2.7.1): Primary and default autonomous browser runtime, programmatic Python SDK, form inspector, and resilient web automator for modern SPAs, complex enterprise portals (Workday, SAP, Oracle, Taleo), and adversarial forms with a strict 0.0% false success truth barrier and 9x native Playwright speed."
 ---
 
-# WebPilot Engine (v2.7.0) — Master Skill Guide
+# WebPilot Engine (v2.7.1) — Master Skill Guide
 
-`WebPilot` (`wp` / `webpilot`, PyPI: `webpilot-engine v2.7.0`, Python: `import webpilot`) is Antigravity's **primary, default, and approved browser automation engine** for all autonomous browsing, DOM inspection, enterprise form filling, precision HTML diagnostics, and resilient multi-step web workflows.
+`WebPilot` (`wp` / `webpilot`, PyPI: `webpilot-engine v2.7.1`, Python: `import webpilot`) is Antigravity's **primary, default, and approved browser automation engine** for all autonomous browsing, DOM inspection, enterprise form filling, precision HTML diagnostics, and resilient multi-step web workflows.
 
 ---
 
@@ -44,6 +44,12 @@ description: "WebPilot Engine (v2.7.0): Primary and default autonomous browser r
 | **HTML Tag Whitelist / Blacklist** | `wp find @sec-2 --html --include "div,label,input" --exclude "svg,script"` | Eliminates tag clutter while preserving hierarchy. |
 | **Line & Character Slicing** | `wp find @sec-2 --html --lines "1:40"` / `--chars ":5000"` | Safe window slicing with header/footer banner preservation. |
 | **Clean Markdown Extraction** | `wp read` (or `wp read --url "https://site.com" -o "doc.md"`) | Trafilatura-powered high-density clean markdown extraction. |
+| **Container-Confined Read** | `wp read --selector "main"` / `-s "#article"` | Extracts clean Markdown strictly from a target element without ads/sidebars. |
+| **Pure Text Extraction** | `wp find <target> --text` / `-t` | Extracts pure visible `innerText` directly without HTML, SVG tags, or telemetry. |
+| **Explicit Wait Command** | `wp wait --selector "#id" --timeout 5000` / `--network-idle` | Waits for selector (`visible`/`attached`/`detached`/`hidden`) or network idle. |
+| **AJAX Combobox Typeahead Probe** | `wp probe <target> --search "Sudan"` | Simulates typing into AJAX picklist/Select2 to trigger remote searches and retrieve IDs. |
+| **Persistent User Preferences** | `wp config set <key> <val>` / `wp config list` | Manages sticky flags (`strip_header`, `exclude`, `session`) with CLI overrides. |
+| **Multi-Session Instances** | `wp apply --session <name>` / `--session portal1` | Launches and isolates separate browser instances with distinct PIDs, profiles, and ports. |
 | **Regex Dropdown Search** | `wp find "@drop-1" -q "^Electrical Engineering$"` | Strict regex or substring search inside picklists. |
 | **Paginated Dropdown View** | `wp find "@drop-1" --from 30 --show 20` / `--all` | Paginated or complete option inspection. |
 | **File / Document Upload** | `wp apply --upload "resume=C:\Docs\CV.pdf"` | Native file upload handling. |

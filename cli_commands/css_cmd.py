@@ -107,6 +107,7 @@ def css_cmd(args: argparse.Namespace) -> None:
         headed=args.headed,
         timeout_minutes=args.timeout_minutes,
         strip_header=strip_header,
+        session_name=getattr(args, "session", None),
     )
     resp = client.execute(req)
     print_telemetry_banner(resp, strip_header=strip_header)

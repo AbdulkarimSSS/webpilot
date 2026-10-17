@@ -19,9 +19,11 @@ def tab_cmd(args: argparse.Namespace) -> None:
 
     client = get_supervisor_client(args)
 
+    session_name = getattr(args, "session", None)
+
     # 1. Tab List
     if subaction == "list":
-        req = SupervisorActionRequest(action="list_tabs")
+        req = SupervisorActionRequest(action="list_tabs", session_name=session_name)
         resp = client.execute(req)
         if getattr(args, "json", False):
             print(json.dumps(resp.to_dict(), indent=2, ensure_ascii=False))
@@ -46,7 +48,7 @@ def tab_cmd(args: argparse.Namespace) -> None:
     # 2. Tab New
     elif subaction == "new":
         target_url = getattr(args, "target_url", None) or getattr(args, "tab_target", None) or getattr(args, "url", None)
-        req = SupervisorActionRequest(action="new_tab", url=target_url)
+        req = SupervisorActionRequest(action="new_tab", url=target_url, session_name=session_name)
         resp = client.execute(req)
         if getattr(args, "json", False):
             print(json.dumps(resp.to_dict(), indent=2, ensure_ascii=False))
@@ -69,7 +71,7 @@ def tab_cmd(args: argparse.Namespace) -> None:
         if target_index is None:
             print("[!] Error: Tab index is required for switch (e.g. wp tab switch 0).", file=sys.stderr)
             sys.exit(1)
-        req = SupervisorActionRequest(action="switch_tab", tab_index=int(target_index))
+        req = SupervisorActionRequest(action="switch_tab", tab_index=int(target_index), session_name=session_name)
         resp = client.execute(req)
         if getattr(args, "json", False):
             print(json.dumps(resp.to_dict(), indent=2, ensure_ascii=False))
@@ -88,7 +90,7 @@ def tab_cmd(args: argparse.Namespace) -> None:
         if target_index is None:
             target_index = getattr(args, "tab", None)
         idx_int = int(target_index) if target_index is not None else None
-        req = SupervisorActionRequest(action="close_tab", tab_index=idx_int)
+        req = SupervisorActionRequest(action="close_tab", tab_index=idx_int, session_name=session_name)
         resp = client.execute(req)
         if getattr(args, "json", False):
             print(json.dumps(resp.to_dict(), indent=2, ensure_ascii=False))

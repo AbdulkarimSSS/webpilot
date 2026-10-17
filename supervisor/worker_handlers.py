@@ -555,16 +555,43 @@ def handle_worker_read(
     except Exception:
         pass
 
-    try:
-        html = page.content()
-    except Exception as exc:
-        html = ""
-        lines.append(f"[!] Warning reading page content: {exc}")
+    target_sel = getattr(req, "selector", None)
+    if target_sel:
+        try:
+            elem_data = page.evaluate("""([sel]) => {
+                let el = document.querySelector(sel);
+                if (!el && sel.startsWith('@')) {
+                    el = document.querySelector('[data-wp-id="' + sel + '"]');
+                }
+                if (!el) return null;
+                return {
+                    html: el.outerHTML,
+                    text: el.innerText || el.textContent || ''
+                };
+            }""", [target_sel])
+            if elem_data:
+                html = elem_data.get("html") or ""
+                body_text = elem_data.get("text") or ""
+                lines.append(f"[*] Confined reading strictly to container element matching: '{target_sel}'")
+            else:
+                lines.append(f"[!] Warning: Selector '{target_sel}' not found on page, falling back to full document.")
+                html = page.content()
+                body_text = page.evaluate("() => document.body ? document.body.innerText : ''")
+        except Exception as exc:
+            lines.append(f"[!] Error querying selector '{target_sel}': {exc}")
+            html = page.content()
+            body_text = page.evaluate("() => document.body ? document.body.innerText : ''")
+    else:
+        try:
+            html = page.content()
+        except Exception as exc:
+            html = ""
+            lines.append(f"[!] Warning reading page content: {exc}")
 
-    try:
-        body_text = page.evaluate("() => document.body ? document.body.innerText : ''")
-    except Exception:
-        body_text = ""
+        try:
+            body_text = page.evaluate("() => document.body ? document.body.innerText : ''")
+        except Exception:
+            body_text = ""
 
     clean_md = ContentReaderService.extract_clean_markdown(
         html=html,

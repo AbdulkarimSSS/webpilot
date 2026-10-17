@@ -430,12 +430,21 @@ class FieldInteractionService:
                 [effective_target, include_options, query or "", include_html, up_levels, effective_selector],
             )
             if details and details.get("found"):
-                # If picklist options were requested but list is not loaded yet in DOM
-                if include_options and details.get("type") == "picklist" and not details.get("options"):
+                # Interactive Picklist / AJAX Combobox / Select2 Typeahead Probe (WP-271)
+                is_picklist_like = (
+                    details.get("type") in ("picklist", "combobox", "select", "select2")
+                    or bool(details.get("trigger_button"))
+                    or bool(details.get("owns_id"))
+                    or (include_options and not details.get("options"))
+                )
+
+                if include_options and is_picklist_like:
                     trig_id = details.get("trigger_button")
                     inp_id = details.get("id")
                     orig_val = details.get("value") or ""
-                    if trig_id and self.page.locator(f'[id="{trig_id}"]').count() > 0:
+
+                    # 1. Open picklist dropdown if not opened and options are empty (only when no query is provided)
+                    if not query and not details.get("options") and trig_id and self.page.locator(f'[id="{trig_id}"]').count() > 0:
                         btn = self.page.locator(f'[id="{trig_id}"]').first
                         if btn.is_visible(timeout=500):
                             btn.scroll_into_view_if_needed()
@@ -451,31 +460,91 @@ class FieldInteractionService:
                                     break
                             self.page.keyboard.press("Escape")
                             self.page.wait_for_timeout(100)
-                    # If query filter is active and option is on a later server-paginated page, type query to filter
-                    if query and not details.get("options") and inp_id and self.page.locator(f'[id="{inp_id}"]').count() > 0:
-                        inp_loc = self.page.locator(f'[id="{inp_id}"]').first
-                        if inp_loc.is_visible(timeout=500):
-                            inp_loc.scroll_into_view_if_needed()
-                            inp_loc.click(force=True)
-                            inp_loc.fill("")
-                            inp_loc.press_sequentially(str(query), delay=25)
-                            for _ in range(12):
-                                self.page.wait_for_timeout(150)
-                                retry_details = self.page.evaluate(
-                                    PROBE_FIELD_DOM_SCRIPT,
-                                    [target, include_options, query or "", include_html, up_levels],
-                                )
-                                if retry_details and retry_details.get("options"):
-                                    details = retry_details
-                                    details["value"] = orig_val
+
+                    # 2. Interactive AJAX Typeahead Search (Siemens Select2, UI5, Comboboxes)
+                    if query:
+                        search_target_loc = None
+                        search_candidates = [
+                            ".select2-search__field",
+                            "input.select2-input",
+                            'input[role="searchbox"]',
+                            'input[role="combobox"]',
+                            'input[type="search"]',
+                            f'[id="{inp_id}"]' if inp_id else None,
+                            f'[data-wp-id="{target}"]' if target and target.startswith("@") else None,
+                        ]
+                        for cand in search_candidates:
+                            if not cand:
+                                continue
+                            try:
+                                loc = self.page.locator(cand)
+                                if loc.count() > 0 and loc.first.is_visible(timeout=300):
+                                    search_target_loc = loc.first
                                     break
-                            self.page.keyboard.press("Escape")
-                            inp_loc.fill(orig_val)
-                            self.page.evaluate(
-                                "([id]) => { const el = document.getElementById(id); if (el) { el.blur(); el.dispatchEvent(new Event('blur', { bubbles: true })); } }",
-                                [inp_id],
-                            )
-                            self.page.wait_for_timeout(100)
+                            except Exception:
+                                pass
+
+                        if not search_target_loc:
+                            open_triggers = [
+                                f'[id="{trig_id}"]' if trig_id else None,
+                                f'[id="{inp_id}"]' if inp_id else None,
+                                f'[data-wp-id="{target}"]' if target and target.startswith("@") else None,
+                                ".select2-choice",
+                                ".select2-selection",
+                            ]
+                            for trig in open_triggers:
+                                if not trig:
+                                    continue
+                                try:
+                                    tloc = self.page.locator(trig)
+                                    if tloc.count() > 0 and tloc.first.is_visible(timeout=300):
+                                        tloc.first.scroll_into_view_if_needed()
+                                        tloc.first.click(force=True)
+                                        self.page.wait_for_timeout(200)
+                                        break
+                                except Exception:
+                                    pass
+
+                            for cand in [".select2-search__field", "input.select2-input", 'input[role="searchbox"]', f'[id="{inp_id}"]']:
+                                if not cand:
+                                    continue
+                                try:
+                                    loc = self.page.locator(cand)
+                                    if loc.count() > 0 and loc.first.is_visible(timeout=300):
+                                        search_target_loc = loc.first
+                                        break
+                                except Exception:
+                                    pass
+
+                        if search_target_loc:
+                            try:
+                                search_target_loc.scroll_into_view_if_needed()
+                                search_target_loc.click(force=True)
+                                search_target_loc.fill("")
+                                search_target_loc.press_sequentially(str(query), delay=35)
+                                for _ in range(15):
+                                    self.page.wait_for_timeout(150)
+                                    ajax_opts = self.page.evaluate("""() => {
+                                        const items = Array.from(document.querySelectorAll(
+                                            '.select2-results__option, li.select2-result, [role="option"], .ui-menu-item, li[data-wp-option], .rcmpaginatedselectitem'
+                                        ));
+                                        return items.map((el, idx) => ({
+                                            local_id: `@opt-${idx + 1}`,
+                                            text: (el.innerText || el.textContent || '').trim(),
+                                            value: el.getAttribute('data-id') || el.getAttribute('id') || el.getAttribute('data-value') || el.getAttribute('value') || (el.innerText || '').trim(),
+                                            id: el.id || '',
+                                        })).filter(o => o.text && !o.text.includes('Searching') && !o.text.includes('Loading'));
+                                    }""")
+                                    if ajax_opts:
+                                        details["options"] = ajax_opts
+                                        details["options_count"] = len(ajax_opts)
+                                        break
+                            except Exception:
+                                pass
+                            finally:
+                                self.page.keyboard.press("Escape")
+                                self.page.keyboard.press("Escape")
+                                self.page.wait_for_timeout(100)
 
                 # Capture element visual screenshot if requested
                 if screenshot_path:

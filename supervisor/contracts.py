@@ -36,6 +36,11 @@ class SupervisorActionRequest:
     script_args: Optional[Any] = None
     auto_expand: bool = True
     output_path: Optional[str] = None
+    session_name: Optional[str] = None
+    wait_timeout: Optional[int] = 10000
+    wait_state: Optional[str] = "visible"
+    network_idle: bool = False
+    text_only: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

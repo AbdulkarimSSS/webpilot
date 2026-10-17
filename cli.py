@@ -21,6 +21,7 @@ except ImportError:
 try:
     from cli_commands import (
         apply_cmd,
+        config_cmd,
         cookies_cmd,
         css_cmd,
         eval_cmd,
@@ -34,11 +35,14 @@ try:
         shell_cmd,
         skill_cmd,
         tab_cmd,
+        wait_cmd,
     )
+    from config.preferences import apply_persistent_preferences
 except ImportError:
     try:
         from .cli_commands import (
             apply_cmd,
+            config_cmd,
             cookies_cmd,
             css_cmd,
             eval_cmd,
@@ -52,11 +56,14 @@ except ImportError:
             shell_cmd,
             skill_cmd,
             tab_cmd,
+            wait_cmd,
         )
+        from .config.preferences import apply_persistent_preferences
     except Exception:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         from cli_commands import (
             apply_cmd,
+            config_cmd,
             cookies_cmd,
             css_cmd,
             eval_cmd,
@@ -70,7 +77,9 @@ except ImportError:
             shell_cmd,
             skill_cmd,
             tab_cmd,
+            wait_cmd,
         )
+        from config.preferences import apply_persistent_preferences
 
 
 DISPATCH_TABLE = {
@@ -93,6 +102,13 @@ DISPATCH_TABLE = {
     "shell": shell_cmd,
     "install": install_cmd,
     "skill": skill_cmd,
+    "wait": wait_cmd,
+    "wait_for": wait_cmd,
+    "config": config_cmd,
+    "pref": config_cmd,
+    "prefs": config_cmd,
+    "preference": config_cmd,
+    "preferences": config_cmd,
 }
 
 
@@ -100,6 +116,11 @@ def main(argv: Optional[List[str]] = None) -> None:
     """Main CLI entrypoint for WebPilot."""
     parser = build_cli_parser()
     args = parser.parse_args(argv)
+
+    if getattr(args, "command", None) not in ("config", "pref", "prefs", "preference", "preferences"):
+        applied = apply_persistent_preferences(args)
+        if applied and not getattr(args, "strip_header", False):
+            print(f"[⚙️ Preferences] Persistent configuration active: {', '.join(applied)} (override with CLI flags or --no-persistent-config)", file=sys.stderr)
 
     handler = DISPATCH_TABLE.get(args.command)
     if handler:

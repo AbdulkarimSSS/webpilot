@@ -25,6 +25,8 @@ class SessionCoordinator:
             close_session=session_ctx.close_session,
             timeout_minutes=session_ctx.timeout_minutes,
             tab_index=session_ctx.tab_index,
+            strip_header=session_ctx.strip_header,
+            session_name=getattr(session_ctx, "session_name", None),
         )
 
     @property
