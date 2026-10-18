@@ -39,3 +39,11 @@ def populate_network_args(req: Any, args: argparse.Namespace) -> None:
         req.block_images = True
     if hasattr(args, "block_patterns") and args.block_patterns:
         req.block_patterns = list(args.block_patterns)
+    import os
+    allow_int = (
+        getattr(args, "allow_internal", False)
+        or os.environ.get("WEBPILOT_ALLOW_INTERNAL_URLS") == "1"
+        or os.environ.get("WEBPILOT_ALLOW_LOCAL_URLS") == "1"
+    )
+    if allow_int:
+        req.allow_internal = True

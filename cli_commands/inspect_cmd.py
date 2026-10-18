@@ -17,6 +17,9 @@ from supervisor.contracts import SupervisorActionRequest
 def inspect_cmd(args: argparse.Namespace) -> None:
     """Executes the universal inspection workflow."""
     if getattr(args, "url", None):
+        import os
+        if getattr(args, "allow_internal", False):
+            os.environ["WEBPILOT_ALLOW_INTERNAL_URLS"] = "1"
         from common.paths import validate_safe_url
         try:
             validate_safe_url(args.url)

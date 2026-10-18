@@ -137,6 +137,9 @@ class OperationalWorker:
 
     def handle_request(self, req: SupervisorActionRequest) -> SupervisorActionResponse:
         """Dispatches action to internal services and returns structured response."""
+        if getattr(req, "allow_internal", False):
+            os.environ["WEBPILOT_ALLOW_INTERNAL_URLS"] = "1"
+
         action = req.action.lower().strip()
 
         try:

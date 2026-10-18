@@ -47,6 +47,13 @@ def _add_common_network_flags(p: argparse.ArgumentParser) -> None:
         default=argparse.SUPPRESS,
         help="Block resources matching URL glob pattern (e.g. '*analytics*.js')",
     )
+    p.add_argument(
+        "--allow-internal",
+        "--allow-local",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Permit access to internal / private / lab networks (e.g. 192.168.x.x, 10.x.x.x, localhost)",
+    )
 
 
 def build_cli_parser() -> argparse.ArgumentParser:

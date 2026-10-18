@@ -50,6 +50,7 @@ class SupervisorActionRequest:
     filter_pattern: Optional[str] = None
     resource_types: List[str] = field(default_factory=list)
     har_path: Optional[str] = None
+    allow_internal: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

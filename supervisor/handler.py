@@ -126,7 +126,14 @@ def create_supervisor_handler(supervisor: MasterSupervisor) -> Type[BaseHTTPRequ
 
             if self.path == "/execute":
                 req = SupervisorActionRequest.from_dict(data)
-                res = supervisor.execute_action(req)
+                try:
+                    res = supervisor.execute_action(req)
+                except Exception as ex:
+                    res = SupervisorActionResponse(
+                        success=False,
+                        action=req.action,
+                        message=f"Supervisor execution failed: {ex}",
+                    )
                 self._send_json(200, res.to_dict())
             elif self.path == "/restart":
                 res = supervisor.restart_worker()

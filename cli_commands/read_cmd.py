@@ -20,6 +20,9 @@ def read_cmd(args: argparse.Namespace) -> None:
     output_path = getattr(args, "output", None)
 
     if url:
+        import os
+        if getattr(args, "allow_internal", False):
+            os.environ["WEBPILOT_ALLOW_INTERNAL_URLS"] = "1"
         from common.paths import validate_safe_url
         try:
             validate_safe_url(url)

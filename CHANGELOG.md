@@ -5,6 +5,19 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.4] - 2026-10-18
+
+### Internal Lab URL Access, Supervisor Resiliency & Enterprise Fixes
+
+#### 1. Internal & Local Network Inspection (`--allow-internal` / `--allow-local`)
+- **First-Class CLI & Contract Support**: Added `--allow-internal` and `--allow-local` flags across all URL-based CLI commands (`inspect`, `apply`, `read`, `find`).
+- **Dynamic Worker Propagation**: Propagated `allow_internal` in `SupervisorActionRequest` and mapped environment variable `WEBPILOT_ALLOW_INTERNAL_URLS=1` across Supervisor Layer 1 and Worker Layer 2, enabling seamless inspection and interaction with local gateways (`http://192.168.0.1/#/login`), lab servers, intranet portals, and local test runners without manual daemon restarts.
+- **Strict Cloud Metadata Boundary**: Maintained zero-trust perimeter against cloud metadata SSRF: endpoints targeting AWS IMDSv4/v6, GCP metadata, Azure, and Oracle Cloud (`169.254.169.254`, `fd00:ec2::/32`, `fe80::/10`, `metadata.google.internal`) remain strictly and unconditionally blocked even when internal URL access is enabled.
+
+#### 2. Supervisor Socket & Exception Hardening
+- **HTTP Handler Exception Isolation**: Wrapped `supervisor.execute_action(req)` inside `supervisor/handler.py` with structured try/except error recovery, returning standard `SupervisorActionResponse(success=False)` instead of raising uncaught socket thread exceptions that cause `[WinError 10054]` connection closures.
+- **Robust Read Command Integration**: Wired `--allow-internal` into `cli_commands/read_cmd.py` with upfront safe URL resolution and network argument binding.
+
 ## [2.7.3] - 2026-10-17
 
 ### DNS-over-HTTPS (DoH), DevTools Console Helpers, Real-Time Resource Blocking, Network Sniffing & HAR 1.2 Export
