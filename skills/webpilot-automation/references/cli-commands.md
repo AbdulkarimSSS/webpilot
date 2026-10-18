@@ -151,6 +151,11 @@ wp find <target> [OPTIONS]
 - `--page-size <N>`: Page size when using `--page` (Default: 20).
 - `--options`: Include available picklist/select options (Default: True).
 - `--no-options`: Suppress options collection for maximum speed and token savings.
+- `--rules`, `--constraints`: Display field input constraints and accepted formats (max/min length, pattern, inputmode, accept).
+- `--error`, `--errors`: Display direct field-level validation error state and error messages (aria-invalid, describedby).
+- `--deps`, `--dependencies`: Display field parent dependencies and cascading triggers.
+- `--context`, `--frame`: Display containment environment (Main Document, Iframe, Shadow DOM).
+- `--smart`, `--meta`: Consolidated shortcut to display all intelligent diagnostic cards (rules, error, deps, context) together.
 - `--html`: Dump element's outerHTML snippet with 5-stage precision diagnostics.
 - `--up <N>`, `--ascend <N>`, `--ancestor <N>`: Ascend N levels up the DOM hierarchy.
 - `-s`, `--screenshot [path]`: Capture a visual bounding-box crop of the target element.
@@ -174,10 +179,22 @@ wp find "@drop-1" --from 30
 # 4. View all options completely without truncation
 wp find "@drop-1" --all
 
-# 5. Ascend 2 levels up DOM hierarchy to inspect outer section HTML
+# 5. Check input rules and constraints before filling (Max, Pattern, Mode, Accept)
+wp find "@inp-2" --rules
+
+# 6. Diagnose validation error and rejection message after form submission
+wp find "@inp-2" --error
+
+# 7. Check if field is trapped inside an Iframe or Shadow DOM
+wp find "@inp-cv" --context
+
+# 8. Full smart diagnostic report (rules + error + deps + context)
+wp find "@inp-2" --smart
+
+# 9. Ascend 2 levels up DOM hierarchy to inspect outer section HTML
 wp find "@fld-1" --html --up 2
 
-# 6. Arbitrary XPath / CSS selector inspection
+# 10. Arbitrary XPath / CSS selector inspection
 wp find --selector "//button[contains(text(), 'Save')]" --html
 ```
 

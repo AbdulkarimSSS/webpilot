@@ -69,6 +69,8 @@ description: "WebPilot Engine (v2.7.3): Primary and default autonomous browser r
 | **Native Tab Management** | `wp tab list` / `wp tab new "url"` / `wp tab switch 1` / `wp tab close 1` | First-class multi-tab navigation and control. |
 | **Live JavaScript Evaluation** | `wp eval "document.title"` / `wp eval --file "extractor.js"` | In-page JavaScript execution with circular reference sanitization and console helpers. |
 | **Dynamic CSS Inspection / Tweaks**| `wp css --selector "#btn" --set "display: block !important"` | Live element styling or computed style inspection. |
+| **Intelligent Form Analyzer** | `wp find <target> --smart` / `--rules` / `--error` / `--context` | On-demand field constraints, validation error messages, dependencies, and Iframe/Shadow DOM context. |
+| **Event-Driven Reactive Loop** | `wp apply --press "Easy Apply"` / `--submit` | Micro-tick DOM mutation observation (~50ms) eliminating networkidle wait stalls. |
 | **Supervisor Service** | `wp service status` / `wp service restart` / `wp service stop` | Zero-elevation daemon lifecycle management. |
 
 ---

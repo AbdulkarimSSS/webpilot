@@ -33,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`wp capture`**: Selectively captures and serializes background API JSON payloads into structured files (`wp capture --filter "/api/" -o ./api_data/`).
 - **`wp network record`**: Records full network traffic and exports standard HAR 1.2 JSON traces (`wp network record -o session.har`) across both persistent CDP and standalone browser sessions.
 
+#### 5. Event-Driven Reactive Loop (Mutation-First & LinkedIn Easy Apply Fix)
+- **Zero Network/Page Blocking**: Removed synchronous blocking on `wait_for_load_state("networkidle")` and `wait_for_load_state("domcontentloaded")` during reactive button interactions.
+- **Micro-Tick Mutation Polling**: Replaced artificial network idle waits with a fast 50ms polling loop that captures DOM mutations, modal overlays (`.jobs-easy-apply-modal`, `.artdeco-modal`, `[role="dialog"]`), dynamic input growth, URL redirects, and validation alerts in ~50-150ms instead of 35s timeouts.
+- **Native Easy Apply Recognition**: Enhanced `PORTAL_APPLY_CLICK_SCRIPT` in `adapters/dom/navigation.py` to natively detect `Easy Apply`, `Quick Apply`, and `.jobs-apply-button`.
+
+#### 6. Intelligent Form Analyzer (On-Demand Smart Diagnostic Flags for `wp find`)
+- **`--rules` / `--constraints`**: Extracts and displays field input rules (`maxLength`, `minLength`, `pattern`, `inputmode`, `accept`, `min`, `max`, `step`).
+- **`--error` / `--errors`**: Inspects direct field-level validation error states and resolves error messages via `aria-invalid`, `checkValidity()`, `aria-describedby`, and adjacent `.error-message` / `[role="alert"]` containers.
+- **`--deps` / `--dependencies`**: Displays field parent dependencies and cascading triggers (`Linked Parent` / `Autonomous`).
+- **`--context` / `--frame`**: Identifies containment environment (`Main Document`, `Iframe (#name)`, `Shadow DOM: True/False`) and includes automatic child frame probe traversal.
+- **`--smart` / `--meta`**: Consolidated shortcut enabling rules, error state, dependencies, and context diagnostics simultaneously.
+- **Zero-Token Overhead Baseline**: Preserves clean, minimal diagnostic cards when smart flags are omitted.
+
 ---
 
 ## [2.7.2] - 2026-10-17
