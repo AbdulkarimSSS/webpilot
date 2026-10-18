@@ -19,7 +19,10 @@ SELECTOR_CUSTOM_UPLOAD_TRIGGERS: Final[str] = (
 
 # Enterprise picklist / Combobox selectors
 SELECTOR_PICKLIST_INPUTS: Final[str] = "input[role='combobox'], input[id$=':_input']"
-SELECTOR_MODAL_DIALOGS: Final[str] = ".modal:visible, [role='dialog']:visible, .dialog:visible, .pop-up:visible"
+SELECTOR_MODAL_DIALOGS: Final[str] = (
+    ".modal:visible, [role='dialog']:visible, .dialog:visible, .pop-up:visible, "
+    ".artdeco-modal:visible, .jobs-easy-apply-modal:visible"
+)
 
 # Error banners and validation notice selectors
 SELECTOR_VALIDATION_ERRORS: Final[str] = (

@@ -24,7 +24,7 @@ PORTAL_APPLY_CLICK_SCRIPT: Final[str] = """() => {
     const applyBtn = links.find(el => {
         if (el.classList.contains('dropdown-toggle')) return false;
         const t = (el.innerText || el.value || '').trim().toLowerCase();
-        return t === 'apply now' || t === 'apply' || t === 'apply now »' || el.classList.contains('dialogApplyBtn');
+        return t === 'apply now' || t === 'apply' || t === 'easy apply' || t === 'quick apply' || t === 'apply now »' || el.classList.contains('dialogApplyBtn') || el.classList.contains('jobs-apply-button');
     });
     if (applyBtn && applyBtn.offsetParent !== null) {
         applyBtn.click();

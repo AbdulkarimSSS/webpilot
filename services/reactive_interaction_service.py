@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Callable, Dict, Optional
 from playwright.sync_api import BrowserContext, Page
 
@@ -283,29 +284,9 @@ class ReactiveInteractionService:
         if not clicked:
             return {"success": False, "target": target}
 
-        # 2. Wait for reactive stabilization and loading overlay dissolution
-        self.page.wait_for_timeout(PAUSE_REACTIVE_STABILIZE_MS)
-        try:
-            self.page.wait_for_load_state("domcontentloaded", timeout=4000)
-        except Exception:
-            pass
-
-        try:
-            self.page.wait_for_load_state("networkidle", timeout=3500)
-        except Exception:
-            pass
-
-        try:
-            self._wait_for_loading_dissolution()
-        except Exception:
-            pass
-
-        # 3. Assess reactive changes
-        try:
-            alerts = self.form_validator.get_validation_errors()
-        except Exception:
-            alerts = []
-
+        # 2. Event-Driven Reactive Observation Loop (Mutation-First)
+        # Check immediately for DOM mutations, modal appearance, URL redirects, or tab spawns.
+        # Zero blocking on networkidle or page load states.
         outcome: Dict[str, Any] = {
             "success": True,
             "target": target,
@@ -316,65 +297,96 @@ class ReactiveInteractionService:
             "modal_text": "",
             "new_inputs_count": 0,
             "schema": None,
-            "alerts": alerts,
+            "alerts": [],
         }
 
-        # Check for new window / tab
+        # Initial micro-tick (50ms) to allow browser DOM event dispatch
         try:
-            pages_count = len(self.context.pages)
+            self.page.wait_for_timeout(50)
         except Exception:
-            pages_count = pre_tabs_count
+            pass
 
-        if pages_count > pre_tabs_count:
-            self.page = self.context.pages[-1]
-            if self.on_active_page_change:
-                self.on_active_page_change(self.page)
-            outcome["new_window"] = True
+        t_start = time.time()
+        max_observation_seconds = 1.5
+
+        while time.time() - t_start < max_observation_seconds:
+            # Check 1: New window / tab spawned
             try:
-                outcome["new_url"] = self.page.url
-                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+                pages_count = len(self.context.pages)
             except Exception:
-                pass
-            return outcome
+                pages_count = pre_tabs_count
 
-        # Check for URL redirect / client-side route change
-        try:
-            post_url = self.page.url
-        except Exception:
-            post_url = pre_url
-
-        if post_url != pre_url:
-            outcome["redirected"] = True
-            outcome["new_url"] = post_url
-            try:
-                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
-            except Exception:
-                pass
-            return outcome
-
-        # Check for modal / dialog appearance
-        try:
-            post_modals = self.page.locator(SELECTOR_MODAL_DIALOGS)
-            if post_modals.count() > pre_modals_count:
-                outcome["modal_opened"] = True
+            if pages_count > pre_tabs_count:
+                self.page = self.context.pages[-1]
+                if self.on_active_page_change:
+                    self.on_active_page_change(self.page)
+                outcome["new_window"] = True
                 try:
-                    outcome["modal_text"] = post_modals.first.inner_text().strip()[:400]
+                    outcome["new_url"] = self.page.url
+                    outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
                 except Exception:
                     pass
-                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
                 return outcome
-        except Exception:
-            pass
 
-        # Check for dynamic DOM form inputs growth
-        try:
-            post_inputs_count = self.page.locator("input, select, textarea").count()
-            if post_inputs_count > pre_inputs_count:
-                outcome["new_inputs_count"] = post_inputs_count - pre_inputs_count
-                outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+            # Check 2: URL redirect / route navigation
+            try:
+                post_url = self.page.url
+            except Exception:
+                post_url = pre_url
+
+            if post_url != pre_url:
+                outcome["redirected"] = True
+                outcome["new_url"] = post_url
+                try:
+                    outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+                except Exception:
+                    pass
                 return outcome
+
+            # Check 3: Modal / dialog appearance (e.g. Easy Apply overlay)
+            try:
+                post_modals = self.page.locator(SELECTOR_MODAL_DIALOGS)
+                if post_modals.count() > pre_modals_count:
+                    outcome["modal_opened"] = True
+                    try:
+                        outcome["modal_text"] = post_modals.first.inner_text().strip()[:400]
+                    except Exception:
+                        pass
+                    outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+                    return outcome
+            except Exception:
+                pass
+
+            # Check 4: Dynamic form inputs growth
+            try:
+                post_inputs_count = self.page.locator("input, select, textarea").count()
+                if post_inputs_count > pre_inputs_count:
+                    outcome["new_inputs_count"] = post_inputs_count - pre_inputs_count
+                    outcome["schema"] = self.inspection_service.inspect(unpack_options=False)
+                    return outcome
+            except Exception:
+                pass
+
+            # Check 5: Validation errors / alerts appeared
+            try:
+                alerts = self.form_validator.get_validation_errors()
+                if alerts:
+                    outcome["alerts"] = alerts
+                    return outcome
+            except Exception:
+                pass
+
+            # Micro-wait 50ms before next check
+            try:
+                self.page.wait_for_timeout(50)
+            except Exception:
+                break
+
+        # Fallback if no explicit mutation occurred within observation window
+        try:
+            outcome["alerts"] = self.form_validator.get_validation_errors()
         except Exception:
-            pass
+            outcome["alerts"] = []
 
         return outcome
 
