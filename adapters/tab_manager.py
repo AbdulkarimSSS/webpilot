@@ -43,6 +43,8 @@ class TabManager:
             telem = TabTelemetry(pid, timeout_minutes=to_val)
             cls._telemetry_registry[pid] = telem
             cls._attach_page_listeners(page, telem)
+        elif timeout_minutes is not None:
+            cls._telemetry_registry[pid].tab_timeout_minutes = timeout_minutes
         return cls._telemetry_registry[pid]
 
     @classmethod

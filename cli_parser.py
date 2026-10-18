@@ -112,6 +112,12 @@ def build_cli_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Probe dropdowns to sample options (burns more tokens/time)",
     )
+    p_inspect.add_argument(
+        "--summary-only",
+        action="store_true",
+        default=False,
+        help="Token conservation mode; prints compact high-level summary and counts",
+    )
     p_inspect.add_argument("--headed", action="store_true", help="Run headed browser")
     p_inspect.add_argument(
         "--keep-alive",

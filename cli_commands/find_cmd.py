@@ -216,7 +216,10 @@ def find_cmd(args: argparse.Namespace) -> None:
     print(f" • Label       : {details.get('label')}")
     print(f" • Local ID    : {details.get('local_id')}")
     print(f" • DOM ID      : {details.get('id')}")
-    print(f" • Widget Type : {details.get('type')}")
+    widget_type = details.get("type") or "element"
+    inp_type = details.get("input_type")
+    type_display = f"{widget_type} ({inp_type})" if (inp_type and inp_type != widget_type) else widget_type
+    print(f" • Widget Type : {type_display}")
     print(f" • Current Val : {details.get('value')}")
     print(f" • Required    : {details.get('required')}")
     print(f" • Disabled    : {details.get('disabled')}")

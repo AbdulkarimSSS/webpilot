@@ -45,6 +45,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`--context` / `--frame`**: Identifies containment environment (`Main Document`, `Iframe (#name)`, `Shadow DOM: True/False`) and includes automatic child frame probe traversal.
 - **`--smart` / `--meta`**: Consolidated shortcut enabling rules, error state, dependencies, and context diagnostics simultaneously.
 - **Zero-Token Overhead Baseline**: Preserves clean, minimal diagnostic cards when smart flags are omitted.
+- **Detailed Widget Type (`input_type`)**: Displays specific HTML5 input types (`input (tel)`, `input (email)`, `input (password)`) in `wp find` instead of generic `input`.
+
+#### 7. Stability & Enterprise Portal Hardening
+- **Passive Non-Blocking Reactive Observation**: Removed artificial networkidle waits while smoothly tolerating slow enterprise submit operations; dynamically adapts observation loop up to 4.0s when background loaders/spinners (`.sapUiBusy`, `.spinner`, `[aria-busy='true']`) are present without interrupting network streams.
+- **`--summary-only` CLI Flag for `wp inspect`**: Added `--summary-only` option to `cli_parser.py` and `inspect_cmd.py` to suppress individual field line emission and print only high-level summary cards.
+- **Iframe Picklists & Typeahead Scoping**: Bound AJAX picklist candidate locators and JS evaluation to the matched child iframe scope (`target_scope`) preventing search failures in embedded iframes.
+- **TabManager Memory ID Collision Fix**: Ensured `TabManager.get_or_create_telemetry` updates `tab_timeout_minutes` when re-invoked with an explicit timeout, resolving test mock memory address reuse issues.
+- **Self-Healing Master Supervisor Restart**: Enhanced `client.restart_worker()` with automatic stale unauthenticated daemon detection and force-kill recovery (`PID` cleanup on port 9333) when HTTP 401 Unauthorized occurs during version upgrades.
 
 ---
 

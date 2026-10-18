@@ -307,7 +307,12 @@ class ReactiveInteractionService:
             pass
 
         t_start = time.time()
-        max_observation_seconds = 1.5
+        max_observation_seconds = 4.0
+
+        loader_selectors = (
+            "#loading:visible, .loading:visible, .spinner:visible, "
+            ".busyIndicator:visible, .sapUiBusy:visible, [role='progressbar']:visible, [aria-busy='true']"
+        )
 
         while time.time() - t_start < max_observation_seconds:
             # Check 1: New window / tab spawned
@@ -375,6 +380,17 @@ class ReactiveInteractionService:
                     return outcome
             except Exception:
                 pass
+
+            # Passive Spinner/Loader check: if page is actively displaying a loader, allow it to continue loading
+            # without exiting prematurely, while still checking for DOM mutations on every 50ms tick
+            try:
+                is_busy = self.page.locator(loader_selectors).count() > 0
+            except Exception:
+                is_busy = False
+
+            if not is_busy and (time.time() - t_start > 1.2):
+                # If page is idle and no mutations occurred after initial stabilization window, exit cleanly
+                break
 
             # Micro-wait 50ms before next check
             try:

@@ -91,8 +91,10 @@ def inspect_cmd(args: argparse.Namespace) -> None:
     populate_network_args(req, args)
     resp = client.execute(req)
     print_telemetry_banner(resp, strip_header=strip_header)
-    for line in resp.output_lines:
-        print(line)
+    summary_only = getattr(args, "summary_only", False)
+    if not summary_only:
+        for line in resp.output_lines:
+            print(line)
 
     if resp.schema:
         if args.output:

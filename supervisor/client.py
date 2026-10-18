@@ -229,14 +229,39 @@ class SupervisorClient:
 
     def restart_worker(self) -> SupervisorActionResponse:
         """Triggers cascading kill of Layer 2 Worker and Chromium, then respawns fresh."""
-        self.ensure_running()
-        headers = self._get_headers({"Content-Type": "application/json"})
-        req = urllib.request.Request(f"{self.base_url}/restart", data=b"{}", headers=headers, method="POST")
         try:
+            self.ensure_running()
+            headers = self._get_headers({"Content-Type": "application/json"})
+            req = urllib.request.Request(f"{self.base_url}/restart", data=b"{}", headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 return SupervisorActionResponse.from_dict(data)
         except Exception as exc:
+            # Stale daemon recovery: if 401 or supervisor hang, force kill stale PID and respawn
+            port = 9333
+            if ":" in self.base_url:
+                try:
+                    port = int(self.base_url.rsplit(":", 1)[-1].split("/")[0])
+                except Exception:
+                    pass
+            stale_pid = self._find_pid_by_port(port)
+            if stale_pid:
+                try:
+                    get_process_manager().kill_process_tree(stale_pid, force=True)
+                    self._last_auth_error = False
+                    self.ensure_running()
+                    return SupervisorActionResponse(
+                        success=True,
+                        action="restart",
+                        message=f"Terminated stale supervisor (PID: {stale_pid}) and respawned clean daemon.",
+                    )
+                except Exception as k_err:
+                    return SupervisorActionResponse(
+                        success=False,
+                        action="restart",
+                        message=f"Failed to recycle stale supervisor daemon: {k_err}",
+                    )
+
             return SupervisorActionResponse(
                 success=False,
                 action="restart",

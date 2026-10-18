@@ -137,3 +137,69 @@ def test_find_cmd_smart_flags_rendered():
 
     # Verify Context line
     assert "• Context     : Iframe (#application-frame) | Shadow DOM: True" in output
+
+
+def test_find_cmd_displays_specific_input_type():
+    """Verify find_cmd displays specific input_type if provided (e.g. input (tel))."""
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.success = True
+    mock_resp.field_details = {
+        "found": True,
+        "local_id": "@inp-1",
+        "id": "user_tel",
+        "label": "Mobile",
+        "type": "input",
+        "input_type": "tel",
+        "value": "",
+        "required": False,
+        "disabled": False,
+        "visible": True,
+    }
+    mock_client.execute.return_value = mock_resp
+
+    parser = build_cli_parser()
+    args = parser.parse_args(["find", "@inp-1"])
+
+    with patch("cli_commands.find_cmd.get_supervisor_client", return_value=mock_client):
+        stdout_buf = StringIO()
+        with patch.object(sys, "stdout", stdout_buf):
+            find_cmd(args)
+        output = stdout_buf.getvalue()
+
+    assert "• Widget Type : input (tel)" in output
+
+
+def test_inspect_cmd_summary_only_flag():
+    """Verify inspect_cmd honors --summary-only by suppressing individual field lines."""
+    from cli_commands.inspect_cmd import inspect_cmd
+
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.success = True
+    mock_resp.output_lines = [
+        "• [@inp-1] First Name (input)",
+        "• [@inp-2] Last Name (input)",
+    ]
+    mock_resp.schema = {
+        "url": "https://example.com/form",
+        "inputs": [{"id": "fn"}, {"id": "ln"}],
+        "dropdowns": [],
+        "buttons": [],
+        "uploads": [],
+    }
+    mock_client.execute.return_value = mock_resp
+
+    parser = build_cli_parser()
+    args = parser.parse_args(["inspect", "--summary-only"])
+
+    with patch("cli_commands.inspect_cmd.get_supervisor_client", return_value=mock_client):
+        stdout_buf = StringIO()
+        with patch.object(sys, "stdout", stdout_buf):
+            inspect_cmd(args)
+        output = stdout_buf.getvalue()
+
+    # Detailed lines suppressed
+    assert "• [@inp-1] First Name" not in output
+    # Summary included
+    assert "FORM INSPECTION SUMMARY" in output

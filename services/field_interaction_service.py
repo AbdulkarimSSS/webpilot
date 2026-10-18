@@ -429,6 +429,7 @@ class FieldInteractionService:
                 PROBE_FIELD_DOM_SCRIPT,
                 [effective_target, include_options, query or "", include_html, up_levels, effective_selector],
             )
+            target_scope = self.page
             if not details or not details.get("found"):
                 if hasattr(self.page, "frames") and len(self.page.frames) > 1:
                     for frame in self.page.frames[1:]:
@@ -445,6 +446,7 @@ class FieldInteractionService:
                                     "is_iframe": True,
                                 }
                                 details = f_details
+                                target_scope = frame
                                 break
                         except Exception:
                             pass
@@ -464,14 +466,14 @@ class FieldInteractionService:
                     orig_val = details.get("value") or ""
 
                     # 1. Open picklist dropdown if not opened and options are empty (only when no query is provided)
-                    if not query and not details.get("options") and trig_id and self.page.locator(f'[id="{trig_id}"]').count() > 0:
-                        btn = self.page.locator(f'[id="{trig_id}"]').first
+                    if not query and not details.get("options") and trig_id and target_scope.locator(f'[id="{trig_id}"]').count() > 0:
+                        btn = target_scope.locator(f'[id="{trig_id}"]').first
                         if btn.is_visible(timeout=500):
                             btn.scroll_into_view_if_needed()
                             btn.click(force=True)
                             for _ in range(10):
                                 self.page.wait_for_timeout(150)
-                                retry_details = self.page.evaluate(
+                                retry_details = target_scope.evaluate(
                                     PROBE_FIELD_DOM_SCRIPT,
                                     [target, include_options, query or "", include_html, up_levels],
                                 )
@@ -497,7 +499,7 @@ class FieldInteractionService:
                             if not cand:
                                 continue
                             try:
-                                loc = self.page.locator(cand)
+                                loc = target_scope.locator(cand)
                                 if loc.count() > 0 and loc.first.is_visible(timeout=300):
                                     search_target_loc = loc.first
                                     break
@@ -516,7 +518,7 @@ class FieldInteractionService:
                                 if not trig:
                                     continue
                                 try:
-                                    tloc = self.page.locator(trig)
+                                    tloc = target_scope.locator(trig)
                                     if tloc.count() > 0 and tloc.first.is_visible(timeout=300):
                                         tloc.first.scroll_into_view_if_needed()
                                         tloc.first.click(force=True)
@@ -529,7 +531,7 @@ class FieldInteractionService:
                                 if not cand:
                                     continue
                                 try:
-                                    loc = self.page.locator(cand)
+                                    loc = target_scope.locator(cand)
                                     if loc.count() > 0 and loc.first.is_visible(timeout=300):
                                         search_target_loc = loc.first
                                         break
@@ -544,7 +546,7 @@ class FieldInteractionService:
                                 search_target_loc.press_sequentially(str(query), delay=35)
                                 for _ in range(15):
                                     self.page.wait_for_timeout(150)
-                                    ajax_opts = self.page.evaluate("""() => {
+                                    ajax_opts = target_scope.evaluate("""() => {
                                         const items = Array.from(document.querySelectorAll(
                                             '.select2-results__option, li.select2-result, [role="option"], .ui-menu-item, li[data-wp-option], .rcmpaginatedselectitem'
                                         ));
