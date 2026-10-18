@@ -224,14 +224,62 @@ def find_cmd(args: argparse.Namespace) -> None:
     if search_val and search_match_desc:
         print(f" • Match       : {search_match_desc}")
 
+    show_smart = getattr(args, "show_smart", False)
+    show_rules = getattr(args, "show_rules", False) or show_smart
+    show_error = getattr(args, "show_error", False) or show_smart
+    show_deps = getattr(args, "show_deps", False) or show_smart
+    show_context = getattr(args, "show_context", False) or show_smart
+
+    if show_rules:
+        rules = details.get("rules") or {}
+        parts = []
+        if rules.get("max_length") is not None:
+            parts.append(f"Max: {rules['max_length']} chars")
+        if rules.get("min_length") is not None:
+            parts.append(f"Min: {rules['min_length']} chars")
+        if rules.get("pattern"):
+            parts.append(f"Pattern: {rules['pattern']}")
+        if rules.get("input_mode"):
+            parts.append(f"Mode: {rules['input_mode']}")
+        if rules.get("accept"):
+            parts.append(f"Accept: {rules['accept']}")
+        if rules.get("min") is not None:
+            parts.append(f"MinVal: {rules['min']}")
+        if rules.get("max") is not None:
+            parts.append(f"MaxVal: {rules['max']}")
+        if rules.get("step") is not None:
+            parts.append(f"Step: {rules['step']}")
+
+        rules_str = " | ".join(parts) if parts else "None (Unconstrained)"
+        print(f" • Rules       : {rules_str}")
+
+    if show_error:
+        err_state = details.get("error_state") or {}
+        has_err = err_state.get("has_error", False)
+        err_msg = err_state.get("message")
+        if has_err:
+            msg_str = f' -> "{err_msg}"' if err_msg else ""
+            print(f" • Error State : [!] INVALID{msg_str}")
+        else:
+            print(" • Error State : [✓] Valid (No errors detected)")
+
     dep = details.get("dependency")
-    if dep and dep.get("is_dependent"):
-        p_label = dep.get("parent_label", "Unknown")
-        p_id = dep.get("parent_id", "")
-        p_loc = f"[{dep.get('parent_local_id')}] " if dep.get("parent_local_id") else ""
-        print(f" • Linked Parent : {p_loc}'{p_label}' (ID: {p_id})")
-        if details.get("disabled") or details.get("options_count", 1) == 0:
-            print(f" [!] DEPENDENCY ALERT: Field is locked/empty awaiting parent selection '{p_label}'!")
+    if show_deps or (dep and dep.get("is_dependent")):
+        if dep and dep.get("is_dependent"):
+            p_label = dep.get("parent_label", "Unknown")
+            p_id = dep.get("parent_id", "")
+            p_loc = f"[{dep.get('parent_local_id')}] " if dep.get("parent_local_id") else ""
+            print(f" • Linked Parent : {p_loc}'{p_label}' (ID: {p_id})")
+            if details.get("disabled") or details.get("options_count", 1) == 0:
+                print(f"   [!] DEPENDENCY ALERT: Field is locked/empty awaiting parent selection '{p_label}'!")
+        elif show_deps:
+            print(" • Linked Parent : None (Autonomous / Root Field)")
+
+    if show_context:
+        ctx_env = details.get("context_env") or {}
+        f_name = ctx_env.get("frame", "Main Document")
+        in_sh = ctx_env.get("in_shadow_dom", False)
+        print(f" • Context     : {f_name} | Shadow DOM: {in_sh}")
 
     ancestor_d = details.get("ancestor_depth", 0)
     requested_d = details.get("ancestor_requested", up_val)

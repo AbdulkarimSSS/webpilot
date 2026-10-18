@@ -289,6 +289,113 @@ _PROBE_LOGIC: Final[str] = r"""
 
     const dep = detectDependentParentField(el);
 
+    // 1. Input Constraints & Rules
+    const maxLen = (el.maxLength !== undefined && el.maxLength >= 0 && el.maxLength < 500000) ? el.maxLength : null;
+    const minLen = (el.minLength !== undefined && el.minLength > 0) ? el.minLength : null;
+    const patternStr = el.pattern || el.getAttribute('pattern') || (wc && wc.getAttribute && wc.getAttribute('pattern')) || null;
+    const inputModeStr = el.inputMode || el.getAttribute('inputmode') || null;
+    const acceptStr = el.accept || el.getAttribute('accept') || null;
+    const minVal = el.min || el.getAttribute('min') || null;
+    const maxVal = el.max || el.getAttribute('max') || null;
+    const stepVal = el.step || el.getAttribute('step') || null;
+
+    const rulesObj = {
+        max_length: maxLen,
+        min_length: minLen,
+        pattern: patternStr,
+        input_mode: inputModeStr,
+        accept: acceptStr,
+        min: minVal,
+        max: maxVal,
+        step: stepVal
+    };
+
+    // 2. Direct Field Validation & Error State
+    let hasErr = false;
+    let errMsg = '';
+    if (el.getAttribute('aria-invalid') === 'true' || (wc && wc.getAttribute && wc.getAttribute('aria-invalid') === 'true')) {
+        hasErr = true;
+    }
+    if (el.checkValidity && !el.checkValidity()) {
+        hasErr = true;
+        if (el.validationMessage) {
+            errMsg = el.validationMessage;
+        }
+    }
+    const errClassRegex = /(^|\s)(has-error|is-invalid|error|invalid|sf-error)(\s|$)/i;
+    if (errClassRegex.test(el.className || '') || (el.parentElement && errClassRegex.test(el.parentElement.className || ''))) {
+        hasErr = true;
+    }
+    if (!errMsg) {
+        const descBy = el.getAttribute('aria-describedby') || el.getAttribute('aria-errormessage');
+        if (descBy) {
+            for (const id of descBy.split(/\s+/)) {
+                if (!id) continue;
+                const root = el.getRootNode ? el.getRootNode() : document;
+                const descEl = (root.getElementById ? root.getElementById(id) : null) || document.getElementById(id);
+                if (descEl && (descEl.innerText || descEl.textContent)) {
+                    const txt = (descEl.innerText || descEl.textContent).trim();
+                    if (txt) {
+                        errMsg = txt;
+                        hasErr = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (!errMsg && el.parentElement) {
+        const errSibling = el.parentElement.querySelector('.error, .error-message, .invalid-feedback, .sf-error, [role="alert"], .help-block.error');
+        if (errSibling && errSibling !== el && (errSibling.innerText || errSibling.textContent)) {
+            const txt = (errSibling.innerText || errSibling.textContent).trim();
+            if (txt) {
+                errMsg = txt;
+                hasErr = true;
+            }
+        }
+    }
+
+    const errorStateObj = {
+        has_error: hasErr,
+        message: errMsg || null
+    };
+
+    // 3. Containment Environment (Iframe & Shadow DOM)
+    let inShadow = false;
+    let currNode = el;
+    while (currNode) {
+        if (currNode.nodeType === 11 && currNode.host) { // Node.DOCUMENT_FRAGMENT_NODE === 11
+            inShadow = true;
+            break;
+        }
+        currNode = currNode.parentNode;
+    }
+
+    let frameDesc = 'Main Document';
+    let isIframe = false;
+    try {
+        if (window !== window.top) {
+            isIframe = true;
+            const frameEl = window.frameElement;
+            if (frameEl) {
+                const fId = frameEl.id ? '#' + frameEl.id : '';
+                const fName = frameEl.name ? '[name="' + frameEl.name + '"]' : '';
+                frameDesc = 'Iframe (' + (fId || fName || frameEl.tagName.toLowerCase()) + ')';
+            } else {
+                frameDesc = 'Iframe (Sub-frame)';
+            }
+        }
+    } catch(e) {
+        isIframe = true;
+        frameDesc = 'Iframe (Cross-Origin)';
+    }
+
+    const contextEnvObj = {
+        frame: frameDesc,
+        in_shadow_dom: inShadow,
+        is_iframe: isIframe
+    };
+
     return {
         found: true,
         local_id: el.getAttribute('data-wp-id') || '',
@@ -308,6 +415,9 @@ _PROBE_LOGIC: Final[str] = r"""
         trigger_button: trigBtn ? trigBtn.id : null,
         owns_id: el.getAttribute('aria-owns') || el.getAttribute('aria-controls') || '',
         dependency: dep,
+        rules: rulesObj,
+        error_state: errorStateObj,
+        context_env: contextEnvObj,
         options_count: optionsList.length,
         options: optionsList,
         ancestor_depth: currentDepth,

@@ -429,6 +429,26 @@ class FieldInteractionService:
                 PROBE_FIELD_DOM_SCRIPT,
                 [effective_target, include_options, query or "", include_html, up_levels, effective_selector],
             )
+            if not details or not details.get("found"):
+                if hasattr(self.page, "frames") and len(self.page.frames) > 1:
+                    for frame in self.page.frames[1:]:
+                        try:
+                            f_details = frame.evaluate(
+                                PROBE_FIELD_DOM_SCRIPT,
+                                [effective_target, include_options, query or "", include_html, up_levels, effective_selector],
+                            )
+                            if f_details and f_details.get("found"):
+                                frame_name = frame.name or "Sub-frame"
+                                f_details["context_env"] = {
+                                    "frame": f"Iframe ({frame_name})",
+                                    "in_shadow_dom": f_details.get("context_env", {}).get("in_shadow_dom", False),
+                                    "is_iframe": True,
+                                }
+                                details = f_details
+                                break
+                        except Exception:
+                            pass
+
             if details and details.get("found"):
                 # Interactive Picklist / AJAX Combobox / Select2 Typeahead Probe (WP-271)
                 is_picklist_like = (

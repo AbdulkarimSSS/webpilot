@@ -535,6 +535,46 @@ def build_cli_parser() -> argparse.ArgumentParser:
         default=False,
         help="Disable pretty-printing and output unformatted raw DOM string",
     )
+    p_find.add_argument(
+        "--rules",
+        "--constraints",
+        dest="show_rules",
+        action="store_true",
+        default=False,
+        help="Display field input constraints and accepted formats (max/min length, pattern, inputmode, accept)",
+    )
+    p_find.add_argument(
+        "--error",
+        "--errors",
+        dest="show_error",
+        action="store_true",
+        default=False,
+        help="Display direct field-level validation error state and error messages (aria-invalid, describedby)",
+    )
+    p_find.add_argument(
+        "--deps",
+        "--dependencies",
+        dest="show_deps",
+        action="store_true",
+        default=False,
+        help="Display field parent dependencies and cascading triggers",
+    )
+    p_find.add_argument(
+        "--context",
+        "--frame",
+        dest="show_context",
+        action="store_true",
+        default=False,
+        help="Display containment environment (Main Document, Iframe, Shadow DOM)",
+    )
+    p_find.add_argument(
+        "--smart",
+        "--meta",
+        dest="show_smart",
+        action="store_true",
+        default=False,
+        help="Shortcut to display all intelligent diagnostic cards (rules, error, deps, context) together",
+    )
     p_find.add_argument("--html", action="store_true", help="Include outerHTML in diagnostic output")
     p_find.add_argument(
         "--up",
