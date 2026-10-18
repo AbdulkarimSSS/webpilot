@@ -115,6 +115,28 @@ class SupervisorClient:
             pass
         return None
 
+    @staticmethod
+    def _is_webpilot_proc(pid: int) -> bool:
+        """Determines if a given PID belongs to a WebPilot master_daemon process."""
+        if not pid or pid <= 0:
+            return False
+        try:
+            if sys.platform == "win32":
+                ps_cmd = f'powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter \\"ProcessId = {pid}\\").CommandLine"'
+                out = subprocess.check_output(ps_cmd, shell=True, text=True, stderr=subprocess.DEVNULL).lower()
+                return any(marker in out for marker in ("master_daemon", "webpilot", "universal_web_applier", "supervisor.master_daemon"))
+            else:
+                cmdline_file = f"/proc/{pid}/cmdline"
+                if os.path.isfile(cmdline_file):
+                    with open(cmdline_file, "r", errors="ignore") as f:
+                        cmdline = f.read().lower()
+                    return any(marker in cmdline for marker in ("master_daemon", "webpilot", "supervisor.master_daemon"))
+                else:
+                    out = subprocess.check_output(["ps", "-p", str(pid), "-o", "args="], text=True, stderr=subprocess.DEVNULL).lower()
+                    return any(marker in out for marker in ("master_daemon", "webpilot", "supervisor.master_daemon"))
+        except Exception:
+            return False
+
     def ensure_running(self) -> None:
         """Checks if supervisor is alive; if not, launches it detached via ProcessManager."""
         if self.is_running():
@@ -136,29 +158,7 @@ class SupervisorClient:
         # WP-006 & M1: Stale daemon port recovery if port is blocked by dead/unauthenticated daemon
         stale_pid = self._find_pid_by_port(port)
         if stale_pid:
-            # Verify that stale_pid is strictly a webpilot master_daemon process before terminating
-            is_webpilot_proc = False
-            try:
-                if sys.platform == "win32":
-                    ps_cmd = f'powershell -NoProfile -Command "(Get-CimInstance Win32_Process -Filter \\"ProcessId = {stale_pid}\\").CommandLine"'
-                    out = subprocess.check_output(ps_cmd, shell=True, text=True, stderr=subprocess.DEVNULL).lower()
-                    if any(marker in out for marker in ("master_daemon", "webpilot", "universal_web_applier")):
-                        is_webpilot_proc = True
-                else:
-                    cmdline_file = f"/proc/{stale_pid}/cmdline"
-                    if os.path.isfile(cmdline_file):
-                        with open(cmdline_file, "r", errors="ignore") as f:
-                            cmdline = f.read().lower()
-                        if any(marker in cmdline for marker in ("master_daemon", "webpilot", "supervisor.master_daemon")):
-                            is_webpilot_proc = True
-                    else:
-                        out = subprocess.check_output(["ps", "-p", str(stale_pid), "-o", "args="], text=True, stderr=subprocess.DEVNULL).lower()
-                        if any(marker in out for marker in ("master_daemon", "webpilot", "supervisor.master_daemon")):
-                            is_webpilot_proc = True
-            except Exception:
-                pass
-
-            if is_webpilot_proc:
+            if self._is_webpilot_proc(stale_pid):
                 _client_log(f"[!] Detected stale unauthenticated daemon holding port {port} (PID: {stale_pid}). Terminating...")
                 get_process_manager().kill_process_tree(stale_pid, force=True)
                 time.sleep(0.5)
@@ -271,12 +271,29 @@ class SupervisorClient:
     def stop_service(self) -> SupervisorActionResponse:
         """Completely terminates Master Supervisor and all worker tiers and reclaims temp profiles."""
         result = None
+        port = 9333
+        if ":" in self.base_url:
+            try:
+                port = int(self.base_url.rsplit(":", 1)[-1].split("/")[0])
+            except Exception:
+                pass
+
         if not self.is_running():
-            result = SupervisorActionResponse(
-                success=True,
-                action="stop",
-                message="Master Supervisor is already stopped.",
-            )
+            stale_pid = self._find_pid_by_port(port)
+            if stale_pid and self._is_webpilot_proc(stale_pid):
+                get_process_manager().kill_process_tree(stale_pid, force=True)
+                self._last_auth_error = False
+                result = SupervisorActionResponse(
+                    success=True,
+                    action="stop",
+                    message=f"Forcefully terminated stale unauthenticated supervisor daemon (PID: {stale_pid}).",
+                )
+            else:
+                result = SupervisorActionResponse(
+                    success=True,
+                    action="stop",
+                    message="Master Supervisor is already stopped.",
+                )
         else:
             headers = self._get_headers({"Content-Type": "application/json"})
             req = urllib.request.Request(f"{self.base_url}/stop", data=b"{}", headers=headers, method="POST")
@@ -285,11 +302,21 @@ class SupervisorClient:
                     data = json.loads(resp.read().decode("utf-8"))
                     result = SupervisorActionResponse.from_dict(data)
             except Exception as exc:
-                result = SupervisorActionResponse(
-                    success=False,
-                    action="stop",
-                    message=f"Error stopping service: {exc}",
-                )
+                stale_pid = self._find_pid_by_port(port)
+                if stale_pid and self._is_webpilot_proc(stale_pid):
+                    get_process_manager().kill_process_tree(stale_pid, force=True)
+                    self._last_auth_error = False
+                    result = SupervisorActionResponse(
+                        success=True,
+                        action="stop",
+                        message=f"Terminated supervisor daemon via process tree kill (PID: {stale_pid}).",
+                    )
+                else:
+                    result = SupervisorActionResponse(
+                        success=False,
+                        action="stop",
+                        message=f"Error stopping service: {exc}",
+                    )
 
         try:
             from adapters.live_session_manager import LiveSessionManager
