@@ -419,7 +419,7 @@ class BrowserAdapter(BrowserAdapterProtocol):
             print(f"[*] Page is already on target URL: {url}")
             self.print_page_telemetry()
             return
-        timeout = wait_timeout if wait_timeout is not None else min(self.settings.default_timeout_ms, 20000)
+        timeout = wait_timeout if wait_timeout is not None else max(self.settings.default_timeout_ms, 45000)
         max_attempts = 2
         for attempt in range(1, max_attempts + 1):
             try:

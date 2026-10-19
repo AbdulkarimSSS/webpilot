@@ -105,9 +105,9 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             const pt = (prev.innerText || prev.textContent || '').trim();
             if (pt && pt.length < 60 && checkText(pt)) return true;
         }
-        const container = el.closest ? el.closest('section, fieldset, details, tr, .rcmFormField, .form-group, .field, div') : null;
+        const container = el.closest ? el.closest('.form-group, .rcmFormField, fieldset, section, details, tr, .field, div') : null;
         if (container && container !== el) {
-            const header = container.querySelector('h1, h2, h3, h4, h5, label, legend, .control-label, .field-label, th, dt, strong');
+            const header = container.querySelector('.control-label, .form-control-label, .label-component, h1, h2, h3, h4, h5, label, legend, .field-label, th, dt, strong');
             if (header && header.innerText) {
                 if (checkText(header.innerText)) return true;
                 const escId = el.id ? ((window.CSS && CSS.escape) ? CSS.escape(el.id) : el.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1")) : '';
@@ -315,7 +315,14 @@ _SET_FIELD_LOGIC: Final[str] = r"""
         const matchingChoices = choices.filter(c => !isHoneypotOrHidden(c) && (
             matchElement(c) ||
             (c.name && c.name.toLowerCase().includes(lowerTarget)) ||
-            (c.closest && c.closest('[role="radiogroup"]') && matchElement(c.closest('[role="radiogroup"]')))
+            (c.closest && c.closest('.form-group, fieldset, .rcmFormField, [role="radiogroup"]') && (
+                matchElement(c.closest('.form-group, fieldset, .rcmFormField, [role="radiogroup"]')) ||
+                (() => {
+                    const qg = c.closest('.form-group, fieldset, .rcmFormField, [role="radiogroup"]');
+                    const qh = qg.querySelector('.control-label, .form-control-label, .label-component, label:not(.radio-button-label-component):not(.custom-control-label), legend, strong');
+                    return qh && qh.innerText && checkText(qh.innerText);
+                })()
+            ))
         ));
         if (matchingChoices.length > 0) {
 
@@ -423,10 +430,27 @@ _SET_FIELD_LOGIC: Final[str] = r"""
             }
             if (chosen) {
                 if (chosen.tagName === 'INPUT') {
-                    if (!chosen.id) {
-                        chosen.checked = (val === true || strVal === 'yes' || strVal === 'true' || strVal === 'on' || strVal === '1');
-                        chosen.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-                        chosen.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+                    const wantChecked = (val === true || strVal === 'yes' || strVal === 'true' || strVal === 'on' || strVal === '1' || chosen.type === 'radio');
+                    chosen.checked = wantChecked;
+                    chosen.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+                    chosen.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+                    chosen.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+                    let associatedLabel = null;
+                    if (chosen.id) {
+                        try {
+                            const root = chosen.getRootNode ? chosen.getRootNode() : document;
+                            const escId = (window.CSS && CSS.escape) ? CSS.escape(chosen.id) : chosen.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+                            associatedLabel = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+                        } catch(e) {}
+                    }
+                    if (!associatedLabel && chosen.parentElement && chosen.parentElement.tagName === 'LABEL') {
+                        associatedLabel = chosen.parentElement;
+                    }
+                    if (!associatedLabel && chosen.parentElement) {
+                        associatedLabel = chosen.parentElement.querySelector('label, .radio-button-label-component, .custom-control-label');
+                    }
+                    if (associatedLabel) {
+                        try { associatedLabel.click(); } catch(e) {}
                     }
                 } else {
                     chosen.click();

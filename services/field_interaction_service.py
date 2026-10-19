@@ -302,19 +302,24 @@ class FieldInteractionService:
                     try:
                         loc = self.page.locator(f'[id="{field_id}"]').first
                         if loc.count() > 0:
-                            str_val = str(value).lower()
-                            is_check = str_val in ("yes", "true", "1", "on", "checked")
-                            if res.get("type") in ("checkbox", "switch"):
-                                if is_check:
-                                    if loc.is_checked():
-                                        loc.uncheck(force=True, timeout=500)
-                                    loc.check(force=True, timeout=1000)
+                            if loc.is_visible():
+                                str_val = str(value).lower()
+                                is_check = str_val in ("yes", "true", "1", "on", "checked")
+                                if res.get("type") in ("checkbox", "switch"):
+                                    if is_check:
+                                        if loc.is_checked():
+                                            loc.uncheck(force=True, timeout=500)
+                                        loc.check(force=True, timeout=1000)
+                                    else:
+                                        if not loc.is_checked():
+                                            loc.check(force=True, timeout=500)
+                                        loc.uncheck(force=True, timeout=1000)
                                 else:
-                                    if not loc.is_checked():
-                                        loc.check(force=True, timeout=500)
-                                    loc.uncheck(force=True, timeout=1000)
+                                    loc.click(force=True, timeout=1000)
                             else:
-                                loc.click(force=True, timeout=1000)
+                                lbl_loc = self.page.locator(f'label[for="{field_id}"]').first
+                                if lbl_loc.count() > 0 and lbl_loc.is_visible():
+                                    lbl_loc.click(force=True, timeout=1000)
                             self.page.wait_for_timeout(100)
                     except Exception:
                         pass

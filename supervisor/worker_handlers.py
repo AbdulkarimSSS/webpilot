@@ -79,7 +79,17 @@ def handle_worker_inspect(
     # Landing portal transition if needed
     lifecycle_cls = _resolve("PageLifecycleService", PageLifecycleService)
     lifecycle_svc = lifecycle_cls(page, coord.context)
-    if req.url and ("jobs." in page.url or page.locator("button.dropdown-toggle, .dialogApplyBtn").count() > 0):
+
+    has_portal_btn = False
+    try:
+        cnt = page.locator("button.dropdown-toggle, .dialogApplyBtn, .overview-apply-btn").count()
+        if isinstance(cnt, (int, float)) and cnt > 0:
+            has_portal_btn = True
+    except Exception:
+        has_portal_btn = False
+
+    page_url = getattr(page, "url", "") or ""
+    if ("jobs." in page_url or "zenats." in page_url or has_portal_btn):
         lifecycle_svc.bypass_job_landing_portal()
         page = coord.switch_to_latest_page()
 
@@ -247,7 +257,16 @@ def handle_worker_apply(
     lifecycle_svc = lifecycle_cls(page, ctx)
 
     # 1. Landing portal bypass
-    if req.url and ("jobs." in page.url or page.locator("button.dropdown-toggle, .dialogApplyBtn").count() > 0):
+    has_apply_portal_btn = False
+    try:
+        cnt = page.locator("button.dropdown-toggle, .dialogApplyBtn, .overview-apply-btn").count()
+        if isinstance(cnt, (int, float)) and cnt > 0:
+            has_apply_portal_btn = True
+    except Exception:
+        has_apply_portal_btn = False
+
+    page_url = getattr(page, "url", "") or ""
+    if ("jobs." in page_url or "zenats." in page_url or has_apply_portal_btn):
         lines.append("[*] Bypassing landing page to active application...")
         lifecycle_svc.bypass_job_landing_portal()
         page = coord.switch_to_latest_page()

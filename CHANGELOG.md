@@ -5,6 +5,16 @@ All notable changes to the **WebPilot** project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.5] - 2026-10-19
+
+### Tabbed ATS Form Discovery, Custom Choice Elements & Resilient Portal Navigation
+
+- **ATS Tab Revelation**: Automatically unhide and activate tabbed job application forms (e.g. ZenATS, ZenHR `#application.hidden`, `.overview-apply-btn`).
+- **Custom-Styled Choice Elements**: Prevent false honeypot flagging for radio and checkbox elements styled with `display: none` when an associated `<label>` is visible.
+- **Choice Group Question Resolution**: Accurately resolve parent question titles and human-readable option labels instead of internal value tokens.
+- **Choice Interaction Event Synthesis**: Dispatch trusted change/input/click events and click associated labels for custom styled inputs.
+- **Slow Portal Navigation**: Extended navigation timeout cap to 45s for slow-responding Cloudflare-protected portals.
+
 ## [2.7.4] - 2026-10-18
 
 ### Internal Lab URL Access, Supervisor Resiliency & Enterprise Fixes

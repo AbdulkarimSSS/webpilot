@@ -306,7 +306,9 @@ _INSPECT_LOGIC: Final[str] = r"""
                 if (qNode) q = clean(qNode.innerText || qNode.textContent);
             }
             if (!q) {
-                const qEl = rg.querySelector('label, .rcmFormQuestionLabel, legend, strong');
+                const qEl = rg.querySelector('.control-label, .form-control-label, .label-component, legend, .rcmFormQuestionLabel, strong') ||
+                            rg.querySelector('label:not(.radio-button-label-component):not(.custom-control-label):not([for*="choice"]):not([for*="yes"]):not([for*="no"])') ||
+                            rg.querySelector('label, legend, strong');
                 if (qEl) q = clean(qEl.innerText || qEl.textContent);
             }
         }
@@ -323,10 +325,31 @@ _INSPECT_LOGIC: Final[str] = r"""
         if (!q && r.getAttribute('role') === 'switch') q = clean(r.innerText || r.textContent);
         if (!q) return;
 
-        let optLabel = clean(r.getAttribute('aria-label') || r.value || (r.parentElement ? r.parentElement.innerText : ''));
+        let optLabel = '';
+        if (r.id) {
+            try {
+                const root = r.getRootNode ? r.getRootNode() : document;
+                const escR = (window.CSS && CSS.escape) ? CSS.escape(r.id) : r.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+                const l = (root.querySelector ? root.querySelector('label[for="' + escR + '"]') : null) || document.querySelector('label[for="' + escR + '"]');
+                if (l) optLabel = clean(l.innerText || l.textContent);
+            } catch(e) {}
+        }
+        if (!optLabel && r.parentElement && r.parentElement.tagName === 'LABEL') {
+            optLabel = clean(r.parentElement.innerText || r.parentElement.textContent);
+        }
+        if (!optLabel && r.parentElement) {
+            const sib = r.parentElement.querySelector('label, .radio-button-label-component, .custom-control-label');
+            if (sib) optLabel = clean(sib.innerText || sib.textContent);
+        }
+        if (!optLabel && r.nextElementSibling && ['LABEL', 'SPAN'].includes(r.nextElementSibling.tagName)) {
+            optLabel = clean(r.nextElementSibling.innerText || r.nextElementSibling.textContent);
+        }
+        if (!optLabel) {
+            optLabel = clean(r.getAttribute('aria-label') || (r.parentElement ? r.parentElement.innerText : '') || r.value);
+        }
         if (r.getAttribute('role') === 'switch') optLabel = clean(r.innerText || 'Toggle');
         if (!optLabel || optLabel.toLowerCase() === 'options') return;
-        if (optLabel.length > 40) optLabel = optLabel.slice(0, 40);
+        if (optLabel.length > 50) optLabel = optLabel.slice(0, 50);
 
         const rRole = r.getAttribute('role') || r.type || '';
         const isRadio = rRole === 'radio';

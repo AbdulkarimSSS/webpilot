@@ -66,5 +66,23 @@ EXPAND_ALL_SECTIONS_SCRIPT: Final[str] = """() => {
             } catch (e) {}
         }
     }
+
+    // 3. Tabbed Job Portals & Hidden Application Containers (ZenATS, Lever, Greenhouse, etc.)
+    const appContainer = document.querySelector('#application.hidden, .tab-item.hidden#application, [id="application"][style*="display: none"], .application-form.hidden, .application-form[style*="display: none"]');
+    if (appContainer) {
+        const applyTrigger = document.querySelector('.overview-apply-btn, button.overview-apply-btn, [data-tab="application"], a.tab_link[href*="application"], button.apply-btn, #apply-button, .jobs-apply-button');
+        if (applyTrigger && applyTrigger.offsetParent !== null) {
+            try {
+                applyTrigger.click();
+                count++;
+            } catch(e) {}
+        } else {
+            try {
+                appContainer.classList.remove('hidden');
+                appContainer.style.display = 'block';
+                count++;
+            } catch(e) {}
+        }
+    }
     return count;
 }"""

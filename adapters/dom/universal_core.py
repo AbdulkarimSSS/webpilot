@@ -158,6 +158,25 @@ function resolveShadowInput(el) {
 }
 
 // 3. Universal Honeypot & Hidden Element Detection
+function hasVisibleLabelOrWrapper(node) {
+    if (!node) return false;
+    if (node.id) {
+        try {
+            const root = node.getRootNode ? node.getRootNode() : document;
+            const escId = (window.CSS && CSS.escape) ? CSS.escape(node.id) : node.id.replace(/(:|\.|\[|\]|,|=|@|"|\\)/g, "\\$1");
+            const l = (root.querySelector ? root.querySelector('label[for="' + escId + '"]') : null) || document.querySelector('label[for="' + escId + '"]');
+            if (l && l.offsetParent !== null && l.getBoundingClientRect().height > 0) return true;
+        } catch(e) {}
+    }
+    if (node.parentElement) {
+        const p = node.parentElement;
+        if (p.tagName === 'LABEL' && p.offsetParent !== null && p.getBoundingClientRect().height > 0) return true;
+        const sibLabel = p.querySelector('label, [class*="label"], [class*="radio"], [class*="check"]');
+        if (sibLabel && sibLabel.offsetParent !== null && sibLabel.getBoundingClientRect().height > 0) return true;
+    }
+    return false;
+}
+
 function isHoneypotOrHidden(el) {
     if (!el) return true;
     if (el.type === 'hidden' || (el.getAttribute && el.getAttribute('type') === 'hidden')) return true;
@@ -165,16 +184,21 @@ function isHoneypotOrHidden(el) {
     if (el.closest && el.closest('[aria-hidden="true"]')) return true;
 
     const isClipRect0 = s => s && (/rect\(0(px)?,\s*0(px)?,\s*0(px)?,\s*0(px)?\)/i.test(s) || s.replace(/\s+/g, '') === 'rect(0,0,0,0)' || s.replace(/\s+/g, '') === 'rect(0px,0px,0px,0px)');
+    const isChoiceType = el && (el.type === 'radio' || el.type === 'checkbox' || (el.getAttribute && (el.getAttribute('role') === 'radio' || el.getAttribute('role') === 'checkbox')));
 
     let style = null;
     try {
         style = window.getComputedStyle ? window.getComputedStyle(el) : null;
         if (style) {
-            if (style.display === 'none' || style.visibility === 'hidden') return true;
+            if (style.display === 'none' || style.visibility === 'hidden') {
+                if (!isChoiceType || !hasVisibleLabelOrWrapper(el)) return true;
+            }
             if (parseFloat(style.opacity) === 0 && !['radio', 'checkbox', 'file'].includes(el.type)) return true;
             if (isClipRect0(style.clip)) return true;
             if (style.clipPath && (style.clipPath.includes('inset(50%)') || style.clipPath.includes('inset(100%)'))) return true;
-            if ((parseFloat(style.width) <= 1 || style.width === '1px') && (parseFloat(style.height) <= 1 || style.height === '1px') && style.overflow === 'hidden') return true;
+            if ((parseFloat(style.width) <= 1 || style.width === '1px') && (parseFloat(style.height) <= 1 || style.height === '1px') && style.overflow === 'hidden') {
+                if (!isChoiceType || !hasVisibleLabelOrWrapper(el)) return true;
+            }
         }
     } catch(e) {}
 
@@ -197,10 +221,10 @@ function isHoneypotOrHidden(el) {
     if (el.offsetParent === null) {
         try {
             if (!style || style.position !== 'fixed') {
-                return true;
+                if (!isChoiceType || !hasVisibleLabelOrWrapper(el)) return true;
             }
         } catch(e) {
-            return true;
+            if (!isChoiceType || !hasVisibleLabelOrWrapper(el)) return true;
         }
     }
 
